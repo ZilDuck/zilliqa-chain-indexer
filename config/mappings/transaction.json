@@ -1,0 +1,58 @@
+{
+  "mappings": {
+    "properties": {
+      "Receipt": {
+        "type": "nested",
+        "properties": {
+          "event_logs": {
+            "type": "nested",
+            "properties": {
+              "params": {
+                "type": "nested",
+                "properties": {
+                  "value": {
+                    "type": "nested",
+                    "properties": {
+                      "arguments": {
+                        "type": "nested"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "transitions": {
+            "type": "nested",
+            "properties": {
+              "msg": {
+                "type": "nested",
+                "properties": {
+                  "params": {
+                    "type": "nested",
+                    "properties": {
+                      "value": {
+                        "type": "nested",
+                        "properties": {
+                          "arguments": {
+                            "type": "nested"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "settings":{
+    "index":{
+      "max_result_window":"50000000",
+      "number_of_replicas": 0
+    }
+  }
+}
