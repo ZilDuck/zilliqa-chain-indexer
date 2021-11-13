@@ -22,7 +22,7 @@ func Execute() {
 		return
 	}
 
-	//rewind()
+	rewind()
 
 	if config.Get().BulkIndex == true {
 		bulkIndex()
