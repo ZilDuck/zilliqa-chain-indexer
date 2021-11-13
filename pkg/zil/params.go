@@ -2,6 +2,7 @@ package zil
 
 import (
 	"errors"
+	"fmt"
 )
 
 type Params []Param
@@ -30,7 +31,7 @@ func (p Params) GetParam(vName string) (Param, error) {
 			return param, nil
 		}
 	}
-	return Param{}, ErrParamNotFound
+	return Param{}, errors.New(fmt.Sprintf("%s param not found", vName))
 }
 
 func (p Params) HasParam(vName string, paramType string) bool {
