@@ -47,9 +47,8 @@ func (i indexer) Index(option IndexOption.IndexOption, target uint64) error {
 	lastBlockIndexed, err := i.txService.GetLastBlockNumIndexed()
 	if err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to get last block num from txs")
-		lastBlockIndexed = 943800
+		lastBlockIndexed = 0
 	}
-	lastBlockIndexed = 1294507
 
 	height := lastBlockIndexed + 1
 	if target != 0 && height == target {
