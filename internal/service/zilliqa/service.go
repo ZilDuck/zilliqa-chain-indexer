@@ -104,12 +104,10 @@ func (s service) GetTxnBodiesForTxBlocks(from, count uint64) (txs map[string][]c
 	}
 
 	if txs, err = s.provider.GetTxnBodiesForTxBlocks(blockNums); err != nil {
-		zap.L().With(zap.Uint64("from", from), zap.Uint64("count", count), zap.Error(err)).Error("Failed to get batch transactions")
 		txs = map[string][]core.Transaction{}
 		for _, blockNum := range blockNums {
 			blockTxs, err := s.provider.GetTxnBodiesForTxBlock(blockNum)
 			if err != nil && err.Error() != "-1:TxBlock has no transactions" {
-				zap.L().With(zap.String("blockNum", blockNum), zap.Error(err)).Error("Failed to get transactions")
 				return nil, err
 			}
 			txs[blockNum] = blockTxs
