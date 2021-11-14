@@ -3,7 +3,9 @@ module github.com/dantudor/zil-indexer
 go 1.16
 
 require (
+	github.com/TheZeroSlave/zapsentry v1.8.1
 	github.com/Zilliqa/gozilliqa-sdk v1.2.0
+	github.com/getsentry/sentry-go v0.11.0
 	github.com/gosimple/slug v1.11.0
 	github.com/joho/godotenv v1.4.0
 	github.com/mattn/go-colorable v0.1.11
