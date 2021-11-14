@@ -8,6 +8,10 @@ import (
 )
 
 func CreateNftsFromMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, error) {
+	if c.Name == "Unicutes" {
+		return createNftsFromUnicuteMintingTx(tx, c)
+	}
+
 	nfts := make([]zil.NFT, 0)
 
 	for _, mintSuccess := range tx.GetEventLogs("MintSuccess") {
@@ -60,6 +64,56 @@ func CreateNftsFromMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, err
 	return nfts, nil
 }
 
+func createNftsFromUnicuteMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, error) {
+	nfts := make([]zil.NFT, 0)
+
+	for _, mintSuccess := range tx.GetEventLogs("UnicuteInsertDrandValues") {
+		tokenId, err := GetTokenId(mintSuccess.Params)
+		if err != nil {
+			return nil, err
+		}
+
+		tokenUri, err := getTokenUri(tx.Data.Params, tx)
+		if err != nil {
+			return nil, err
+		}
+
+		recipient, err := getPrimitiveParam(mintSuccess.Params, "token_owner")
+		if err != nil {
+			return nil, err
+		}
+
+		mintedBy := mintSuccess.Address
+		mintedByBech32, _ := bech32.ToBech32Address(mintedBy)
+		recipientBech32, _ := bech32.ToBech32Address(recipient)
+
+		name, _ := c.Data.Params.GetParam("name")
+		symbol, _ := c.Data.Params.GetParam("symbol")
+
+		nft := zil.NFT{
+			Contract:        c.Address,
+			ContractBech32:  c.AddressBech32,
+			Name:            name.Value.Primitive.(string),
+			Symbol:          symbol.Value.Primitive.(string),
+			TxID:            tx.ID,
+			BlockNum:        tx.BlockNum,
+			TokenId:         tokenId,
+			TokenUri:        tokenUri,
+			By:              mintedBy,
+			ByBech32:        mintedByBech32,
+			Recipient:       recipient,
+			RecipientBech32: recipientBech32,
+			Owner:           recipient,
+			OwnerBech32:     recipientBech32,
+		}
+
+		zap.L().With(zap.String("symbol", nft.Symbol), zap.Uint64("tokenId", nft.TokenId)).Info("Index NFT")
+		nfts = append(nfts, nft)
+	}
+
+	return nfts, nil
+}
+
 func GetTokenId(params zil.Params) (uint64, error) {
 	tokenId, err := params.GetParam("token_id")
 	if err != nil {
@@ -91,10 +145,14 @@ func getTokenUri(params zil.Params, tx zil.Transaction) (string, error) {
 }
 
 func getRecipient(params zil.Params) (string, error) {
-	recipient, err := params.GetParam("recipient")
+	return getPrimitiveParam(params, "recipient")
+}
+
+func getPrimitiveParam(params zil.Params, name string) (string, error) {
+	param, err := params.GetParam(name)
 	if err != nil {
 		return "", err
 	}
 
-	return recipient.Value.Primitive.(string), nil
+	return param.Value.Primitive.(string), nil
 }
