@@ -11,7 +11,6 @@ var (
 	TransactionIndex Indices = "transaction"
 	ContractIndex    Indices = "contract"
 	NftIndex         Indices = "nft"
-	ErrorIndex       Indices = "error"
 )
 
 // Sets the network and returns the full string

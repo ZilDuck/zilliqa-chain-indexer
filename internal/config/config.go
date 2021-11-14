@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"github.com/dantudor/zil-indexer/internal/log"
+	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"math/big"
@@ -12,6 +13,7 @@ import (
 )
 
 type Config struct {
+	Env              string
 	Logging          bool
 	LogPath          string
 	Network          string
@@ -24,6 +26,8 @@ type Config struct {
 	BulkTargetHeight uint64
 	BulkIndexSize    uint64
 	Subscribe        bool
+
+	SentryDsn string
 
 	Zilliqa       ZilliqaConfig
 	ElasticSearch ElasticSearchConfig
@@ -50,14 +54,28 @@ func Init() {
 	}
 
 	initLogger()
+
+	initSentry()
+}
+func initLogger() {
+	log.NewLogger(fmt.Sprintf("%s/indexer.log", Get().LogPath), Get().Debug, Get().SentryDsn)
 }
 
-func initLogger() {
-	log.NewLogger(fmt.Sprintf("%s/indexer.log", Get().LogPath), Get().Debug)
+func initSentry() {
+	if Get().SentryDsn != "" {
+		if err := sentry.Init(sentry.ClientOptions{
+			Dsn:         Get().SentryDsn,
+			Environment: Get().Env,
+			Debug:       Get().Debug,
+		}); err != nil {
+			zap.L().With(zap.Error(err)).Fatal("Sentry init")
+		}
+	}
 }
 
 func Get() *Config {
 	return &Config{
+		Env:              getString("ENV", ""),
 		Logging:          getBool("LOGGING", false),
 		LogPath:          getString("LOG_PATH", "/app/logs"),
 		Network:          getString("NETWORK", "zilliqa"),
@@ -70,6 +88,7 @@ func Get() *Config {
 		BulkTargetHeight: getUint64("BULK_TARGET_HEIGHT", 0),
 		BulkIndexSize:    getUint64("BULK_INDEX_SIZE", 100),
 		Subscribe:        getBool("SUBSCRIBE", true),
+		SentryDsn:        getString("SENTRY_DSN", ""),
 		Zilliqa: ZilliqaConfig{
 			Url: getString("ZILLIQA_URL", ""),
 		},
