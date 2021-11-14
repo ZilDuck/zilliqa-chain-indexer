@@ -32,6 +32,7 @@ func (f factory) CreateContractFromTx(tx zil.Transaction) (zil.Contract, error) 
 		Address:         tx.ContractAddress,
 		AddressBech32:   tx.ContractAddressBech32,
 		BlockNum:        tx.BlockNum,
+		Code:            tx.Code,
 		Data:            tx.Data,
 		Name:            contractName,
 		ImmutableParams: f.getImmutableParams(contractValues),
