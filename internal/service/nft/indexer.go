@@ -2,7 +2,6 @@ package nft
 
 import (
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
-	"github.com/dantudor/zil-indexer/internal/dev"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
 	"github.com/dantudor/zil-indexer/internal/service/contract"
 	"github.com/dantudor/zil-indexer/internal/service/transaction"
@@ -51,6 +50,10 @@ func (i indexer) Index(txs []zil.Transaction) error {
 			c, err := i.contractRepo.GetContractByMinterFallbackToAddress(tx.ContractAddress)
 			if err != nil {
 				zap.L().With(zap.Error(err), zap.String("contractAddr", tx.ContractAddress)).Error("Failed to find contract")
+				continue
+			}
+
+			if c.ZRC1 == false {
 				continue
 			}
 
@@ -139,6 +142,8 @@ func (i indexer) IndexTxMints(tx zil.Transaction, c zil.Contract) error {
 		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nfts[idx])
 	}
 
+	zap.L().With(zap.Int("count", len(nfts))).Info("Index nft mints")
+
 	return nil
 }
 
@@ -187,7 +192,8 @@ func (i indexer) IndexContractMints(c zil.Contract) (err error) {
 }
 
 func (i indexer) IndexTxDuckRegenerations(tx zil.Transaction, c zil.Contract) error {
-	for _, transition := range tx.GetTransition(zil.TransitionRegenerateDuck) {
+	transitions := tx.GetTransition(zil.TransitionRegenerateDuck)
+	for _, transition := range transitions {
 		if !transition.Msg.Params.HasParam("token_id", "Uint256") {
 			continue
 		}
@@ -209,6 +215,7 @@ func (i indexer) IndexTxDuckRegenerations(tx zil.Transaction, c zil.Contract) er
 		zap.L().With(zap.String("symbol", nft.Symbol), zap.Uint64("tokenId", nft.TokenId)).Info("Regenerate NFD")
 		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nft)
 	}
+	zap.L().With(zap.Int("count", len(transitions))).Info("Index nft duck regenerations")
 
 	return nil
 }
@@ -299,7 +306,8 @@ func (i indexer) IndexContractTransfers(c zil.Contract) error {
 }
 
 func (i indexer) handleTransfersForTx(contract zil.Contract, tx zil.Transaction) error {
-	for _, rat := range tx.GetTransition(zil.TransitionRecipientAcceptTransfer) {
+	rats := tx.GetTransition(zil.TransitionRecipientAcceptTransfer)
+	for _, rat := range rats {
 		tokenId, err := GetTokenId(rat.Msg.Params)
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Warn("Failed to get token id for transfer")
@@ -316,10 +324,6 @@ func (i indexer) handleTransfersForTx(contract zil.Contract, tx zil.Transaction)
 				nft, err = i.nftRepo.GetNft(contract.Address, tokenId)
 				if err != nil {
 					zap.L().With(zap.Error(err), zap.String("contract", contract.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
-
-					i.elastic.Save(elastic_cache.ErrorIndex.Get(), dev.NewError("NftIndexer",
-						"Failed to find nft in index", err,
-						map[string]interface{}{"contract": contract.Address, "tokenId": tokenId}))
 
 					continue
 				}
@@ -342,6 +346,7 @@ func (i indexer) handleTransfersForTx(contract zil.Contract, tx zil.Transaction)
 			zap.String("from", previousOwner), zap.String("to", nft.Owner)).Info("Transfer NFT")
 		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nft)
 	}
+	zap.L().With(zap.Int("count", len(rats))).Info("Index nft transfers")
 
 	return nil
 }
