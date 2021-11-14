@@ -51,7 +51,6 @@ func (i indexer) Index(height, size uint64) ([]zil.Transaction, error) {
 func (i indexer) CreateTransactions(height uint64, size uint64) ([]zil.Transaction, error) {
 	coreTxGroups, err := i.zilliqaService.GetTxnBodiesForTxBlocks(height, size)
 	if err != nil {
-		zap.L().With(zap.Error(err)).Error("Failed to get TXS bodies")
 		return nil, err
 	}
 
