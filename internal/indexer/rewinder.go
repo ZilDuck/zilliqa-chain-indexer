@@ -45,6 +45,7 @@ func (r rewinder) RewindToHeight(height uint64) error {
 	r.elastic.ClearRequests()
 
 	if err := r.txRewinder.Rewind(height); err != nil {
+		zap.L().With(zap.Error(err)).Fatal("Failed to rewind")
 		return err
 	}
 
