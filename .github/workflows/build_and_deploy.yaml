@@ -1,0 +1,28 @@
+name: Build and deploy
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.0'
+      - name: Inject Dependencies
+          run: |
+            ./bin/di
+      - name: Install vendors
+          run: |
+            go version
+            go mod vendor
+      - name: Run build
+          run: go build ./cmd/indexerd
