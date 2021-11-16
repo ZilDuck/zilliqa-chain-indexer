@@ -1,47 +1,52 @@
 package daemon
 
 import (
-	"github.com/dantudor/zil-indexer/generated/dic"
 	"github.com/dantudor/zil-indexer/internal/config"
+	"github.com/dantudor/zil-indexer/internal/elastic_cache"
+	"github.com/dantudor/zil-indexer/internal/indexer"
 	"github.com/dantudor/zil-indexer/internal/indexer/IndexOption"
-	"github.com/sarulabs/dingo/v3"
+	"github.com/dantudor/zil-indexer/internal/repository"
+	"github.com/dantudor/zil-indexer/internal/zilliqa"
 	"go.uber.org/zap"
 	"strconv"
 	"time"
 )
 
-var container *dic.Container
+type Daemon struct {
+	elastic         elastic_cache.Index
+	indexer         indexer.Indexer
+	zilliqa         zilliqa.Service
+	txRepo          repository.TransactionRepository
+	contractIndexer indexer.ContractIndexer
+	nftIndexer      indexer.NftIndexer
+}
 
-func Execute() {
-	initialize()
+func NewDaemon(
+	elastic elastic_cache.Index,
+	indexer indexer.Indexer,
+	zilliqa zilliqa.Service,
+	txRepo repository.TransactionRepository,
+	contractIndexer indexer.ContractIndexer,
+	nftIndexer indexer.NftIndexer,
+) *Daemon {
+	return &Daemon{elastic, indexer, zilliqa, txRepo, contractIndexer, nftIndexer}
+}
 
-	container.GetElastic().InstallMappings()
+func (d *Daemon) Execute() {
+	d.elastic.InstallMappings()
 
 	if config.Get().Reindex == true {
 		zap.L().Info("Reindex complete")
 		return
 	}
 
-	bestBlock := rewind()
-
-	if config.Get().BulkIndex == true {
-		bulkIndex(bestBlock)
-		zap.L().Info("Bulk indexing complete")
-	}
-
-	if config.Get().Subscribe == true {
-		subscribe()
-	}
+	bestBlock := d.rewind()
+	d.bulkIndex(bestBlock)
+	d.subscribe()
 }
 
-func initialize() {
-	config.Init()
-	container, _ = dic.NewContainer(dingo.App)
-	zap.L().Info("Indexer Started")
-}
-
-func rewind() uint64 {
-	bestBlockNum, err := container.GetTxRepo().GetBestBlockNum()
+func (d *Daemon) rewind() uint64 {
+	bestBlockNum, err := d.txRepo.GetBestBlockNum()
 	if err != nil {
 		return 0
 	}
@@ -49,26 +54,27 @@ func rewind() uint64 {
 	target := targetHeight(bestBlockNum)
 
 	zap.L().Info("Rewind Index", zap.Uint64("from", bestBlockNum), zap.Uint64("to", target))
-	if err := container.GetRewinder().RewindToHeight(target); err != nil {
+	if err := d.indexer.RewindToHeight(target); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to rewind index")
-		time.Sleep(5 * time.Second)
-		return rewind()
+		time.Sleep(2 * time.Second)
+
+		return d.rewind()
 	}
 
-	container.GetElastic().Persist()
+	d.elastic.Persist()
 	zap.L().Info("Sleep for 5 seconds")
 	time.Sleep(5 * time.Second)
 
-	bestBlockNum, err = container.GetTxRepo().GetBestBlockNum()
+	bestBlockNum, err = d.txRepo.GetBestBlockNum()
 	if err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Failed to get best block")
 	}
 
 	if target != bestBlockNum {
-		return rewind()
+		return d.rewind()
 	}
 
-	container.GetTxService().SetLastBlockNumIndexed(bestBlockNum)
+	d.indexer.SetLastBlockNumIndexed(bestBlockNum)
 
 	zap.L().With(
 		zap.Uint64("height", bestBlockNum),
@@ -77,12 +83,16 @@ func rewind() uint64 {
 	return bestBlockNum
 }
 
-func bulkIndex(bestBlock uint64) {
+func (d *Daemon) bulkIndex(bestBlock uint64) {
+	if !config.Get().BulkIndex {
+		return
+	}
+
 	zap.S().Infof("Bulk indexing from %d", bestBlock)
 
 	targetHeight := config.Get().BulkTargetHeight
 	if targetHeight == 0 {
-		latestCoreTxBlock, err := container.GetZilliqa().GetLatestTxBlock()
+		latestCoreTxBlock, err := d.zilliqa.GetLatestTxBlock()
 		if err != nil {
 			zap.L().With(zap.Error(err)).Fatal("Failed to get latest block from zilliqa")
 		}
@@ -93,38 +103,44 @@ func bulkIndex(bestBlock uint64) {
 	}
 	zap.S().Infof("Target Height: %d", targetHeight)
 
-	if err := container.GetIndexer().Index(IndexOption.BatchIndex, targetHeight); err != nil {
+	if err := d.indexer.Index(IndexOption.BatchIndex, targetHeight); err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Failed to bulk index transactions")
 	}
-	container.GetElastic().Persist()
+	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
 
-	if err := container.GetContractIndexer().BulkIndex(bestBlock); err != nil {
+	if err := d.contractIndexer.BulkIndex(bestBlock); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to bulk index contracts")
 	}
-	container.GetElastic().Persist()
+	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
 
-	if err := container.GetNftIndexer().BulkIndex(bestBlock); err != nil {
+	if err := d.nftIndexer.BulkIndex(bestBlock); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to bulk index NFTs")
 	}
-	container.GetElastic().Persist()
+	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
+
+	zap.L().Info("Bulk indexing complete")
 }
 
-func subscribe() {
+func (d *Daemon) subscribe() {
+	if !config.Get().Subscribe {
+		return
+	}
+
 	zap.L().Info("Starting subscriber")
 	for {
-		latestCoreTxBlock, err := container.GetZilliqa().GetLatestTxBlock()
+		latestCoreTxBlock, err := d.zilliqa.GetLatestTxBlock()
 		if err == nil {
 			targetHeight, err := strconv.ParseUint(latestCoreTxBlock.Header.BlockNum, 0, 64)
 			if err != nil {
 				zap.L().With(zap.Error(err)).Fatal("Failed to parse latest block num")
 			} else {
-				err = container.GetIndexer().Index(IndexOption.SingleIndex, targetHeight)
+				err = d.indexer.Index(IndexOption.SingleIndex, targetHeight)
 			}
 			if err != nil {
-				container.GetElastic().Persist()
+				d.elastic.Persist()
 			}
 		}
 

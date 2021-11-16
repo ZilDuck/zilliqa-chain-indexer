@@ -1,11 +1,11 @@
-package contract
+package repository
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"go.uber.org/zap"
 )
@@ -14,22 +14,22 @@ var (
 	ErrContractNotFound = errors.New("contract not found")
 )
 
-type Repository interface {
-	GetAllZrc1Contracts(size, from int) ([]zil.Contract, int64, error)
-	GetContractByAddress(contractAddr string) (zil.Contract, error)
-	GetContractByAddressBech32(contractAddr string) (zil.Contract, error)
-	GetContractByMinterFallbackToAddress(contractAddr string) (zil.Contract, error)
+type ContractRepository interface {
+	GetAllZrc1Contracts(size, from int) ([]entity.Contract, int64, error)
+	GetContractByAddress(contractAddr string) (entity.Contract, error)
+	GetContractByAddressBech32(contractAddr string) (entity.Contract, error)
+	GetContractByMinterFallbackToAddress(contractAddr string) (entity.Contract, error)
 }
 
-type repository struct {
+type contractRepository struct {
 	elastic elastic_cache.Index
 }
 
-func NewRepo(elastic elastic_cache.Index) Repository {
-	return repository{elastic}
+func NewContractRepository(elastic elastic_cache.Index) ContractRepository {
+	return contractRepository{elastic}
 }
 
-func (r repository) GetAllZrc1Contracts(size, from int) ([]zil.Contract, int64, error) {
+func (r contractRepository) GetAllZrc1Contracts(size, from int) ([]entity.Contract, int64, error) {
 	results, err := r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("zrc1", true)).
@@ -41,7 +41,7 @@ func (r repository) GetAllZrc1Contracts(size, from int) ([]zil.Contract, int64, 
 	return r.findMany(results, err)
 }
 
-func (r repository) GetContractByAddress(contractAddr string) (zil.Contract, error) {
+func (r contractRepository) GetContractByAddress(contractAddr string) (entity.Contract, error) {
 	results, err := r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("address.keyword", contractAddr)).
@@ -50,7 +50,7 @@ func (r repository) GetContractByAddress(contractAddr string) (zil.Contract, err
 	return r.findOne(results, err)
 }
 
-func (r repository) GetContractByAddressBech32(contractAddr string) (zil.Contract, error) {
+func (r contractRepository) GetContractByAddressBech32(contractAddr string) (entity.Contract, error) {
 	results, err := r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("addressBech32.keyword", contractAddr)).
@@ -59,7 +59,7 @@ func (r repository) GetContractByAddressBech32(contractAddr string) (zil.Contrac
 	return r.findOne(results, err)
 }
 
-func (r repository) GetContractByMinterFallbackToAddress(contractAddr string) (zil.Contract, error) {
+func (r contractRepository) GetContractByMinterFallbackToAddress(contractAddr string) (entity.Contract, error) {
 	zap.S().Debugf("GetContractByMinterFallbackToAddress: %s", contractAddr)
 
 	results, err := r.elastic.GetClient().
@@ -77,31 +77,31 @@ func (r repository) GetContractByMinterFallbackToAddress(contractAddr string) (z
 	return contract, err
 }
 
-func (r repository) findOne(results *elastic.SearchResult, err error) (zil.Contract, error) {
+func (r contractRepository) findOne(results *elastic.SearchResult, err error) (entity.Contract, error) {
 	if err != nil {
-		return zil.Contract{}, err
+		return entity.Contract{}, err
 	}
 
 	if len(results.Hits.Hits) == 0 {
-		return zil.Contract{}, ErrContractNotFound
+		return entity.Contract{}, ErrContractNotFound
 	}
 
-	var contract zil.Contract
+	var contract entity.Contract
 	hit := results.Hits.Hits[0]
 	err = json.Unmarshal(hit.Source, &contract)
 
 	return contract, err
 }
 
-func (r repository) findMany(results *elastic.SearchResult, err error) ([]zil.Contract, int64, error) {
-	contracts := make([]zil.Contract, 0)
+func (r contractRepository) findMany(results *elastic.SearchResult, err error) ([]entity.Contract, int64, error) {
+	contracts := make([]entity.Contract, 0)
 
 	if err != nil {
 		return contracts, 0, err
 	}
 
 	for _, hit := range results.Hits.Hits {
-		var contract zil.Contract
+		var contract entity.Contract
 		if err := json.Unmarshal(hit.Source, &contract); err == nil {
 			contracts = append(contracts, contract)
 		}

@@ -1,29 +1,34 @@
-package contract
+package indexer
 
 import (
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/service/transaction"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
+	"github.com/dantudor/zil-indexer/internal/factory"
+	"github.com/dantudor/zil-indexer/internal/repository"
 	"go.uber.org/zap"
 )
 
-type Indexer interface {
-	Index(txs []zil.Transaction) ([]zil.Contract, error)
+type ContractIndexer interface {
+	Index(txs []entity.Transaction) ([]entity.Contract, error)
 	BulkIndex(fromBlockNum uint64) error
 }
 
-type indexer struct {
+type contractIndexer struct {
 	elastic elastic_cache.Index
-	factory Factory
-	txRepo  transaction.Repository
+	factory factory.ContractFactory
+	txRepo  repository.TransactionRepository
 }
 
-func NewIndexer(elastic elastic_cache.Index, factory Factory, txRepo transaction.Repository) Indexer {
-	return indexer{elastic, factory, txRepo}
+func NewContractIndexer(
+	elastic elastic_cache.Index,
+	factory factory.ContractFactory,
+	txRepo repository.TransactionRepository,
+) ContractIndexer {
+	return contractIndexer{elastic, factory, txRepo}
 }
 
-func (i indexer) Index(txs []zil.Transaction) ([]zil.Contract, error) {
-	contracts := make([]zil.Contract, 0)
+func (i contractIndexer) Index(txs []entity.Transaction) ([]entity.Contract, error) {
+	contracts := make([]entity.Contract, 0)
 	for _, tx := range txs {
 		if tx.Receipt.Success == false || tx.IsContractCreation == false {
 			continue
@@ -44,13 +49,13 @@ func (i indexer) Index(txs []zil.Transaction) ([]zil.Contract, error) {
 	return contracts, nil
 }
 
-func (i indexer) BulkIndex(fromBlockNum uint64) error {
+func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	zap.L().With(zap.Uint64("from", fromBlockNum)).Info("Bulk index contracts")
 	size := 100
-	from := 0
+	page := 1
 
 	for {
-		txs, _, err := i.txRepo.GetContractCreationTxs(fromBlockNum, size, from)
+		txs, _, err := i.txRepo.GetContractCreationTxs(fromBlockNum, size, page)
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
 			return err
@@ -94,8 +99,7 @@ func (i indexer) BulkIndex(fromBlockNum uint64) error {
 
 		i.elastic.BatchPersist()
 
-		from = from + size - 1
-		zap.S().Infof("Moving to page: %d", from)
+		page++
 	}
 
 	i.elastic.Persist()

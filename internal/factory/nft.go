@@ -1,18 +1,18 @@
-package nft
+package factory
 
 import (
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
 	"go.uber.org/zap"
 	"strconv"
 )
 
-func CreateNftsFromMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, error) {
+func CreateNftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	if c.Name == "Unicutes" {
 		return createNftsFromUnicuteMintingTx(tx, c)
 	}
 
-	nfts := make([]zil.NFT, 0)
+	nfts := make([]entity.NFT, 0)
 
 	for _, mintSuccess := range tx.GetEventLogs("MintSuccess") {
 		tokenId, err := GetTokenId(mintSuccess.Params)
@@ -40,7 +40,7 @@ func CreateNftsFromMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, err
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
-		nft := zil.NFT{
+		nft := entity.NFT{
 			Contract:        c.Address,
 			ContractBech32:  c.AddressBech32,
 			Name:            name.Value.Primitive.(string),
@@ -68,8 +68,8 @@ func CreateNftsFromMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, err
 	return nfts, nil
 }
 
-func createNftsFromUnicuteMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, error) {
-	nfts := make([]zil.NFT, 0)
+func createNftsFromUnicuteMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	nfts := make([]entity.NFT, 0)
 
 	for _, mintSuccess := range tx.GetEventLogs("UnicuteInsertDrandValues") {
 		tokenId, err := GetTokenId(mintSuccess.Params)
@@ -94,7 +94,7 @@ func createNftsFromUnicuteMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.N
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
-		nft := zil.NFT{
+		nft := entity.NFT{
 			Contract:        c.Address,
 			ContractBech32:  c.AddressBech32,
 			Name:            name.Value.Primitive.(string),
@@ -118,7 +118,7 @@ func createNftsFromUnicuteMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.N
 	return nfts, nil
 }
 
-func GetTokenId(params zil.Params) (uint64, error) {
+func GetTokenId(params entity.Params) (uint64, error) {
 	tokenId, err := params.GetParam("token_id")
 	if err != nil {
 		return 0, err
@@ -131,7 +131,7 @@ func GetTokenId(params zil.Params) (uint64, error) {
 	return tokenIdInt, nil
 }
 
-func getTokenUri(params zil.Params, tx zil.Transaction) (string, error) {
+func getTokenUri(params entity.Params, tx entity.Transaction) (string, error) {
 	if tx.HasTransition("Mint") {
 		for _, ts := range tx.GetTransition("Mint") {
 			if metaData, err := ts.Msg.Params.GetParam("token_metadata"); err == nil {
@@ -148,11 +148,11 @@ func getTokenUri(params zil.Params, tx zil.Transaction) (string, error) {
 	return tokenUri.Value.Primitive.(string), nil
 }
 
-func getRecipient(params zil.Params) (string, error) {
+func getRecipient(params entity.Params) (string, error) {
 	return getPrimitiveParam(params, "recipient")
 }
 
-func getPrimitiveParam(params zil.Params, name string) (string, error) {
+func getPrimitiveParam(params entity.Params, name string) (string, error) {
 	param, err := params.GetParam(name)
 	if err != nil {
 		return "", err

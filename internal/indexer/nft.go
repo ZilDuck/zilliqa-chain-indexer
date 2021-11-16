@@ -1,11 +1,11 @@
-package nft
+package indexer
 
 import (
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/service/contract"
-	"github.com/dantudor/zil-indexer/internal/service/transaction"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
+	"github.com/dantudor/zil-indexer/internal/factory"
+	"github.com/dantudor/zil-indexer/internal/repository"
 	"go.uber.org/zap"
 	"log"
 	"time"
@@ -15,33 +15,38 @@ var (
 	defaultSize = 100
 )
 
-type Indexer interface {
-	Index(txs []zil.Transaction) error
+type NftIndexer interface {
+	Index(txs []entity.Transaction) error
 	BulkIndex(fromBlockNum uint64) error
 
-	IndexTxMints(tx zil.Transaction, c zil.Contract) error
-	IndexTxDuckRegenerations(tx zil.Transaction, c zil.Contract) error
-	IndexTxTransfers(tx zil.Transaction, c zil.Contract) error
+	IndexTxMints(tx entity.Transaction, c entity.Contract) error
+	IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) error
+	IndexTxTransfers(tx entity.Transaction, c entity.Contract) error
 
-	IndexContract(c zil.Contract) error
-	IndexContractMints(c zil.Contract) error
-	IndexContractDuckRegenerations(c zil.Contract) error
-	IndexContractTransfers(c zil.Contract) error
+	IndexContract(c entity.Contract) error
+	IndexContractMints(c entity.Contract) error
+	IndexContractDuckRegenerations(c entity.Contract) error
+	IndexContractTransfers(c entity.Contract) error
 }
 
-type indexer struct {
+type nftIndexer struct {
 	elastic      elastic_cache.Index
-	contractRepo contract.Repository
-	nftRepo      Repository
-	txRepo       transaction.Repository
+	contractRepo repository.ContractRepository
+	nftRepo      repository.NftRepository
+	txRepo       repository.TransactionRepository
 }
 
-func NewIndexer(elastic elastic_cache.Index, contractRepo contract.Repository, nftRepo Repository, txRepo transaction.Repository) Indexer {
-	return indexer{elastic, contractRepo, nftRepo, txRepo}
+func NewNftIndexer(
+	elastic elastic_cache.Index,
+	contractRepo repository.ContractRepository,
+	nftRepo repository.NftRepository,
+	txRepo repository.TransactionRepository,
+) NftIndexer {
+	return nftIndexer{elastic, contractRepo, nftRepo, txRepo}
 }
 
-func (i indexer) Index(txs []zil.Transaction) error {
-	contracts := map[string]*zil.Contract{}
+func (i nftIndexer) Index(txs []entity.Transaction) error {
+	contracts := map[string]*entity.Contract{}
 	for _, tx := range txs {
 		if _, ok := contracts[tx.ContractAddress]; !ok {
 			c, _ := i.contractRepo.GetContractByMinterFallbackToAddress(tx.ContractAddress)
@@ -74,14 +79,14 @@ func (i indexer) Index(txs []zil.Transaction) error {
 	return nil
 }
 
-func (i indexer) BulkIndex(fromBlockNum uint64) error {
+func (i nftIndexer) BulkIndex(fromBlockNum uint64) error {
 	zap.L().With(zap.Uint64("from", fromBlockNum)).Info("Bulk index nfts")
 
 	size := defaultSize
-	from := 0
+	page := 1
 
 	for {
-		txs, _, err := i.txRepo.GetContractExecutionTxs(fromBlockNum, size, from)
+		txs, _, err := i.txRepo.GetContractExecutionTxs(fromBlockNum, size, page)
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
 			return err
@@ -98,8 +103,7 @@ func (i indexer) BulkIndex(fromBlockNum uint64) error {
 
 		i.elastic.BatchPersist()
 
-		zap.S().Warnf("Moving to page: %d", from)
-		from = from + size - 1
+		page++
 	}
 
 	i.elastic.Persist()
@@ -107,7 +111,7 @@ func (i indexer) BulkIndex(fromBlockNum uint64) error {
 	return nil
 }
 
-func (i indexer) IndexContract(c zil.Contract) error {
+func (i nftIndexer) IndexContract(c entity.Contract) error {
 	symbol, _ := c.Data.Params.GetParam("symbol")
 	name, _ := c.Data.Params.GetParam("name")
 
@@ -132,8 +136,8 @@ func (i indexer) IndexContract(c zil.Contract) error {
 	return nil
 }
 
-func (i indexer) IndexTxMints(tx zil.Transaction, c zil.Contract) error {
-	nfts, err := CreateNftsFromMintingTx(tx, c)
+func (i nftIndexer) IndexTxMints(tx entity.Transaction, c entity.Contract) error {
+	nfts, err := factory.CreateNftsFromMintingTx(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create nft from minting tx")
 		return err
@@ -147,12 +151,12 @@ func (i indexer) IndexTxMints(tx zil.Transaction, c zil.Contract) error {
 	return nil
 }
 
-func (i indexer) IndexContractMints(c zil.Contract) (err error) {
+func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 	zap.L().With(zap.String("contractAddr", c.Address)).Info("Index Contract Mints")
 
 	indexContractMints := func(contractAddr string) error {
 		size := defaultSize
-		from := 0
+		from := 1
 		for {
 			txs, _, err := i.txRepo.GetContractTxs(contractAddr, size, from)
 			if err != nil {
@@ -191,13 +195,13 @@ func (i indexer) IndexContractMints(c zil.Contract) (err error) {
 	return
 }
 
-func (i indexer) IndexTxDuckRegenerations(tx zil.Transaction, c zil.Contract) error {
-	transitions := tx.GetTransition(zil.TransitionRegenerateDuck)
+func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) error {
+	transitions := tx.GetTransition(entity.TransitionRegenerateDuck)
 	for _, transition := range transitions {
 		if !transition.Msg.Params.HasParam("token_id", "Uint256") {
 			continue
 		}
-		tokenId, _ := GetTokenId(transition.Msg.Params)
+		tokenId, _ := factory.GetTokenId(transition.Msg.Params)
 
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
@@ -225,8 +229,8 @@ func (i indexer) IndexTxDuckRegenerations(tx zil.Transaction, c zil.Contract) er
 	return nil
 }
 
-func (i indexer) IndexContractDuckRegenerations(c zil.Contract) error {
-	if !c.HasTransition(zil.TransitionRegenerateDuck) {
+func (i nftIndexer) IndexContractDuckRegenerations(c entity.Contract) error {
+	if !c.HasTransition(entity.TransitionRegenerateDuck) {
 		return nil
 	}
 
@@ -237,7 +241,7 @@ func (i indexer) IndexContractDuckRegenerations(c zil.Contract) error {
 		from := 0
 
 		for {
-			txs, _, err := i.txRepo.GetContractExecutionsWithTransition(contractAddr, zil.TransitionRegenerateDuck, size, from)
+			txs, _, err := i.txRepo.GetContractExecutionsWithTransition(contractAddr, entity.TransitionRegenerateDuck, size, from)
 			if err != nil {
 				return err
 			}
@@ -271,7 +275,7 @@ func (i indexer) IndexContractDuckRegenerations(c zil.Contract) error {
 	return nil
 }
 
-func (i indexer) IndexTxTransfers(tx zil.Transaction, c zil.Contract) error {
+func (i nftIndexer) IndexTxTransfers(tx entity.Transaction, c entity.Contract) error {
 	err := i.handleTransfersForTx(c, tx)
 	if err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to handle transfers")
@@ -279,14 +283,14 @@ func (i indexer) IndexTxTransfers(tx zil.Transaction, c zil.Contract) error {
 	return err
 }
 
-func (i indexer) IndexContractTransfers(c zil.Contract) error {
+func (i nftIndexer) IndexContractTransfers(c entity.Contract) error {
 	zap.L().With(zap.String("contractAddr", c.Address)).Info("Index Contract Transfers")
 
 	size := defaultSize
 	from := 0
 
 	for {
-		txs, _, err := i.txRepo.GetContractExecutionsWithTransition(c.Address, zil.TransitionRecipientAcceptTransfer, size, from)
+		txs, _, err := i.txRepo.GetContractExecutionsWithTransition(c.Address, entity.TransitionRecipientAcceptTransfer, size, from)
 		if err != nil {
 			return err
 		}
@@ -310,10 +314,10 @@ func (i indexer) IndexContractTransfers(c zil.Contract) error {
 	return nil
 }
 
-func (i indexer) handleTransfersForTx(c zil.Contract, tx zil.Transaction) error {
-	rats := tx.GetTransition(zil.TransitionRecipientAcceptTransfer)
+func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transaction) error {
+	rats := tx.GetTransition(entity.TransitionRecipientAcceptTransfer)
 	for _, rat := range rats {
-		tokenId, err := GetTokenId(rat.Msg.Params)
+		tokenId, err := factory.GetTokenId(rat.Msg.Params)
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for transfer")
 			continue
@@ -321,9 +325,9 @@ func (i indexer) handleTransfersForTx(c zil.Contract, tx zil.Transaction) error 
 
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
-			pendingRequest := i.elastic.GetRequest(zil.CreateNftSlug(tokenId, c.Address))
+			pendingRequest := i.elastic.GetRequest(entity.CreateNftSlug(tokenId, c.Address))
 			if pendingRequest != nil {
-				nft = pendingRequest.Entity.(zil.NFT)
+				nft = pendingRequest.Entity.(entity.NFT)
 			} else {
 				time.Sleep(2 * time.Second)
 				nft, err = i.nftRepo.GetNft(c.Address, tokenId)

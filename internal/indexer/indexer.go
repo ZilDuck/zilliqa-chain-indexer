@@ -3,48 +3,51 @@ package indexer
 import (
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
 	"github.com/dantudor/zil-indexer/internal/indexer/IndexOption"
-	"github.com/dantudor/zil-indexer/internal/service/contract"
-	"github.com/dantudor/zil-indexer/internal/service/nft"
-	"github.com/dantudor/zil-indexer/internal/service/transaction"
+	"github.com/dantudor/zil-indexer/internal/repository"
+	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 )
 
 type Indexer interface {
 	Index(option IndexOption.IndexOption, target uint64) error
+	RewindToHeight(blockNum uint64) error
+	SetLastBlockNumIndexed(blockNum uint64)
+	GetLastBlockNumIndexed() (uint64, error)
+	ClearLastBlockNumIndexed()
 }
 
 type indexer struct {
 	bulkIndexSize   uint64
 	elastic         elastic_cache.Index
-	txIndexer       transaction.Indexer
-	txService       transaction.Service
-	contractIndexer contract.Indexer
-	nftIndexer      nft.Indexer
-	rewinder        Rewinder
+	txIndexer       TransactionIndexer
+	contractIndexer ContractIndexer
+	nftIndexer      NftIndexer
+	txRepo          repository.TransactionRepository
+	cache           *cache.Cache
 }
 
 func NewIndexer(
 	bulkIndexSize uint64,
 	elastic elastic_cache.Index,
-	txIndexer transaction.Indexer,
-	txService transaction.Service,
-	contractIndexer contract.Indexer,
-	nftIndexer nft.Indexer,
-	rewinder Rewinder,
+	txIndexer TransactionIndexer,
+	contractIndexer ContractIndexer,
+	nftIndexer NftIndexer,
+	txRepo repository.TransactionRepository,
+	cache *cache.Cache,
 ) Indexer {
 	return indexer{
 		bulkIndexSize,
 		elastic,
 		txIndexer,
-		txService,
 		contractIndexer,
 		nftIndexer,
-		rewinder,
+		txRepo,
+		cache,
 	}
 }
 
 func (i indexer) Index(option IndexOption.IndexOption, target uint64) error {
-	lastBlockIndexed, err := i.txService.GetLastBlockNumIndexed()
+	lastBlockIndexed, err := i.GetLastBlockNumIndexed()
 	if err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to get last block num from txs")
 		lastBlockIndexed = 0
@@ -77,6 +80,7 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 		zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Warn("Failed to index transactions")
 		return err
 	}
+	i.SetLastBlockNumIndexed(height + size - 1)
 
 	if option == IndexOption.SingleIndex {
 		_, err = i.contractIndexer.Index(txs)
@@ -109,4 +113,44 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 	}
 
 	return i.index(height, target, option)
+}
+
+func (i indexer) RewindToHeight(blockNum uint64) error {
+	zap.L().With(zap.Uint64("blockNum", blockNum)).Info("Rewinding to blockNum")
+
+	i.elastic.ClearRequests()
+
+	zap.L().With(zap.Uint64("blockNum", blockNum)).Info("Rewinding transaction index")
+
+	if err := i.elastic.DeleteBlockNumGT(blockNum, elastic_cache.TransactionIndex.Get()); err != nil {
+		return err
+	}
+
+	zap.L().With(zap.Uint64("blockNum", blockNum)).Info("Rewound to height")
+	i.elastic.Persist()
+
+	return nil
+}
+
+func (i indexer) ClearLastBlockNumIndexed() {
+	i.cache.Delete("lastBlockNumIndexed")
+}
+
+func (i indexer) SetLastBlockNumIndexed(blockNum uint64) {
+	i.cache.Set("lastBlockNumIndexed", blockNum, cache.NoExpiration)
+}
+
+func (i indexer) GetLastBlockNumIndexed() (uint64, error) {
+	if lastBlockNumIndexed, exists := i.cache.Get("lastBlockNumIndexed"); exists {
+		blockNum := lastBlockNumIndexed.(uint64)
+		return blockNum, nil
+	}
+
+	blockNum, err := i.txRepo.GetBestBlockNum()
+	if err != nil {
+		return 0, err
+	}
+	i.SetLastBlockNumIndexed(blockNum)
+
+	return blockNum, nil
 }

@@ -1,36 +1,37 @@
-package transaction
+package repository
 
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
+	"go.uber.org/zap"
 )
 
-type Repository interface {
+type TransactionRepository interface {
 	GetBestBlockNum() (uint64, error)
-	GetTx(txId string) (zil.Transaction, error)
-	GetContractCreationTx(contractAddress string) (zil.Transaction, error)
-	GetContractTxs(contractAddress string, size, from int) ([]zil.Transaction, int64, error)
+	GetTx(txId string) (entity.Transaction, error)
+	GetContractCreationTx(contractAddress string) (entity.Transaction, error)
+	GetContractTxs(contractAddress string, size, from int) ([]entity.Transaction, int64, error)
 
-	GetContractCreationTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error)
-	GetContractExecutionTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error)
-	GetContractExecutionsWithTransition(contractAddr string, transitionName zil.TRANSITION, size, from int) ([]zil.Transaction, int64, error)
+	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
+	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
+	GetContractExecutionsWithTransition(contractAddr string, transitionName entity.TRANSITION, size, from int) ([]entity.Transaction, int64, error)
 
-	//GetMintTxsForContract(contract string, size, from int) ([]zil.Transaction, int64, error)
 	GetMintersForZrc1Contract(contract string) ([]string, error)
 }
 
-type repository struct {
+type transactionRepository struct {
 	elastic elastic_cache.Index
 }
 
-func NewRepo(elastic elastic_cache.Index) Repository {
-	return repository{elastic}
+func NewTransactionRepository(elastic elastic_cache.Index) TransactionRepository {
+	return transactionRepository{elastic}
 }
 
-func (r repository) GetTx(txId string) (zil.Transaction, error) {
+func (r transactionRepository) GetTx(txId string) (entity.Transaction, error) {
 	results, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(elastic.NewTermQuery("ID", txId)).
@@ -39,7 +40,7 @@ func (r repository) GetTx(txId string) (zil.Transaction, error) {
 	return r.findOne(results, err)
 }
 
-func (r repository) GetContractCreationTx(contractAddress string) (zil.Transaction, error) {
+func (r transactionRepository) GetContractCreationTx(contractAddress string) (entity.Transaction, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractAddress.keyword", contractAddress),
 		elastic.NewTermQuery("ContractCreation", true),
@@ -54,11 +55,20 @@ func (r repository) GetContractCreationTx(contractAddress string) (zil.Transacti
 	return r.findOne(result, err)
 }
 
-func (r repository) GetContractTxs(contractAddress string, size, from int) ([]zil.Transaction, int64, error) {
+func (r transactionRepository) GetContractTxs(contractAddress string, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractAddress.keyword", contractAddress),
 		elastic.NewTermQuery("ContractExecution", true),
 	)
+
+	from := size*page - size
+
+	zap.L().With(
+		zap.String("contractAddress", contractAddress),
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetContractTxs")
 
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
@@ -72,7 +82,7 @@ func (r repository) GetContractTxs(contractAddress string, size, from int) ([]zi
 	return r.findMany(result, err)
 }
 
-func (r repository) GetBestBlockNum() (uint64, error) {
+func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Sort("BlockNum", false).
@@ -83,10 +93,10 @@ func (r repository) GetBestBlockNum() (uint64, error) {
 	}
 
 	if len(result.Hits.Hits) == 0 {
-		return 0, ErrTxBlockTransactionNotFound
+		return 0, errors.New("best block not found")
 	}
 
-	var tx *zil.Transaction
+	var tx *entity.Transaction
 	hit := result.Hits.Hits[0]
 	if err = json.Unmarshal(hit.Source, &tx); err != nil {
 		return 0, err
@@ -95,12 +105,21 @@ func (r repository) GetBestBlockNum() (uint64, error) {
 	return tx.BlockNum, nil
 }
 
-func (r repository) GetContractCreationTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error) {
+func (r transactionRepository) GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractCreation", true),
 		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
 	)
 
+	from := size*page - size
+
+	zap.L().With(
+		zap.Uint64("blockNum", fromBlockNum),
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetContractCreationTxs")
+
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
@@ -113,12 +132,21 @@ func (r repository) GetContractCreationTxs(fromBlockNum uint64, size, from int) 
 	return r.findMany(result, err)
 }
 
-func (r repository) GetContractExecutionTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error) {
+func (r transactionRepository) GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
 	)
 
+	from := size*page - size
+
+	zap.L().With(
+		zap.Uint64("blockNum", fromBlockNum),
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetContractExecutionTxs")
+
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
@@ -131,7 +159,7 @@ func (r repository) GetContractExecutionTxs(fromBlockNum uint64, size, from int)
 	return r.findMany(result, err)
 }
 
-func (r repository) GetMintTxsForContract(contract string, size, from int) ([]zil.Transaction, int64, error) {
+func (r transactionRepository) GetMintTxsForContract(contract string, size, from int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
@@ -150,7 +178,7 @@ func (r repository) GetMintTxsForContract(contract string, size, from int) ([]zi
 	return r.findMany(result, err)
 }
 
-func (r repository) GetContractExecutionsWithTransition(contractAddr string, transition zil.TRANSITION, size, from int) ([]zil.Transaction, int64, error) {
+func (r transactionRepository) GetContractExecutionsWithTransition(contractAddr string, transition entity.TRANSITION, size, from int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
@@ -170,7 +198,7 @@ func (r repository) GetContractExecutionsWithTransition(contractAddr string, tra
 	return r.findMany(result, err)
 }
 
-func (r repository) GetMintersForZrc1Contract(contract string) (minters []string, err error) {
+func (r transactionRepository) GetMintersForZrc1Contract(contract string) (minters []string, err error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractAddress.keyword", contract),
 		elastic.NewTermQuery("Data._tag.keyword", "ConfigureMinter"),
@@ -203,30 +231,30 @@ func (r repository) GetMintersForZrc1Contract(contract string) (minters []string
 	return
 }
 
-func (r repository) findOne(results *elastic.SearchResult, err error) (zil.Transaction, error) {
+func (r transactionRepository) findOne(results *elastic.SearchResult, err error) (entity.Transaction, error) {
 	if err != nil {
-		return zil.Transaction{}, err
+		return entity.Transaction{}, err
 	}
 
 	if len(results.Hits.Hits) == 0 {
-		return zil.Transaction{}, ErrTxBlockTransactionNotFound
+		return entity.Transaction{}, errors.New("no transaction found")
 	}
 
-	var tx zil.Transaction
+	var tx entity.Transaction
 	err = json.Unmarshal(results.Hits.Hits[0].Source, &tx)
 
 	return tx, err
 }
 
-func (r repository) findMany(results *elastic.SearchResult, err error) ([]zil.Transaction, int64, error) {
-	txs := make([]zil.Transaction, 0)
+func (r transactionRepository) findMany(results *elastic.SearchResult, err error) ([]entity.Transaction, int64, error) {
+	txs := make([]entity.Transaction, 0)
 
 	if err != nil {
 		return txs, 0, err
 	}
 
 	for _, hit := range results.Hits.Hits {
-		var tx zil.Transaction
+		var tx entity.Transaction
 		if err := json.Unmarshal(hit.Source, &tx); err == nil {
 			txs = append(txs, tx)
 		}

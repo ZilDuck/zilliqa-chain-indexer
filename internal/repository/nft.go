@@ -1,11 +1,11 @@
-package nft
+package repository
 
 import (
 	"context"
 	"encoding/json"
 	"errors"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 )
 
@@ -13,19 +13,19 @@ var (
 	ErrNftNotFound = errors.New("nft not found")
 )
 
-type Repository interface {
-	GetNft(contract string, tokenId uint64) (zil.NFT, error)
+type NftRepository interface {
+	GetNft(contract string, tokenId uint64) (entity.NFT, error)
 }
 
-type repository struct {
+type nftRepository struct {
 	elastic elastic_cache.Index
 }
 
-func NewRepo(elastic elastic_cache.Index) Repository {
-	return repository{elastic}
+func NewNftRepository(elastic elastic_cache.Index) NftRepository {
+	return nftRepository{elastic}
 }
 
-func (r repository) GetNft(contract string, tokenId uint64) (zil.NFT, error) {
+func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("contract.keyword", contract),
 		elastic.NewTermQuery("tokenId", tokenId),
@@ -40,16 +40,16 @@ func (r repository) GetNft(contract string, tokenId uint64) (zil.NFT, error) {
 	return r.findOne(result, err)
 }
 
-func (r repository) findOne(results *elastic.SearchResult, err error) (zil.NFT, error) {
+func (r nftRepository) findOne(results *elastic.SearchResult, err error) (entity.NFT, error) {
 	if err != nil {
-		return zil.NFT{}, err
+		return entity.NFT{}, err
 	}
 
 	if len(results.Hits.Hits) == 0 {
-		return zil.NFT{}, ErrNftNotFound
+		return entity.NFT{}, ErrNftNotFound
 	}
 
-	var nft zil.NFT
+	var nft entity.NFT
 	hit := results.Hits.Hits[0]
 	err = json.Unmarshal(hit.Source, &nft)
 

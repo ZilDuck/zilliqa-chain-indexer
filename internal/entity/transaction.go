@@ -1,4 +1,4 @@
-package zil
+package entity
 
 import (
 	"errors"

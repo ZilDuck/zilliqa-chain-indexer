@@ -2,12 +2,12 @@ package di
 
 import (
 	"github.com/dantudor/zil-indexer/internal/config"
+	"github.com/dantudor/zil-indexer/internal/daemon"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
+	"github.com/dantudor/zil-indexer/internal/factory"
 	"github.com/dantudor/zil-indexer/internal/indexer"
-	"github.com/dantudor/zil-indexer/internal/service/contract"
-	"github.com/dantudor/zil-indexer/internal/service/nft"
-	"github.com/dantudor/zil-indexer/internal/service/transaction"
-	"github.com/dantudor/zil-indexer/internal/service/zilliqa"
+	"github.com/dantudor/zil-indexer/internal/repository"
+	"github.com/dantudor/zil-indexer/internal/zilliqa"
 	"github.com/patrickmn/go-cache"
 	"github.com/sarulabs/dingo/v3"
 	"go.uber.org/zap"
@@ -40,29 +40,29 @@ var Definitions = []dingo.Def{
 		},
 	},
 	{
-		Name: "indexer",
+		Name: "daemon",
 		Build: func(
 			elastic elastic_cache.Index,
-			txIndexer transaction.Indexer,
-			txService transaction.Service,
-			contractIndexer contract.Indexer,
-			nftIndexer nft.Indexer,
-			rewinder indexer.Rewinder,
-		) (indexer.Indexer, error) {
-			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, txService, contractIndexer, nftIndexer, rewinder), nil
+			indexer indexer.Indexer,
+			zilliqa zilliqa.Service,
+			txRepo repository.TransactionRepository,
+			contractIndexer indexer.ContractIndexer,
+			nftIndexer indexer.NftIndexer,
+		) (*daemon.Daemon, error) {
+			return daemon.NewDaemon(elastic, indexer, zilliqa, txRepo, contractIndexer, nftIndexer), nil
 		},
 	},
 	{
-		Name: "rewinder",
+		Name: "indexer",
 		Build: func(
 			elastic elastic_cache.Index,
-			txRewinder transaction.Rewinder,
-			txService transaction.Service,
-			txRepo transaction.Repository,
-			contractRewinder nft.Rewinder,
-			nftRewinder nft.Rewinder,
-		) (indexer.Rewinder, error) {
-			return indexer.NewRewinder(elastic, txRewinder, txService, txRepo, contractRewinder, nftRewinder), nil
+			txIndexer indexer.TransactionIndexer,
+			contractIndexer indexer.ContractIndexer,
+			nftIndexer indexer.NftIndexer,
+			txRepo repository.TransactionRepository,
+			cache *cache.Cache,
+		) (indexer.Indexer, error) {
+			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, contractIndexer, nftIndexer, txRepo, cache), nil
 		},
 	},
 	{
@@ -70,83 +70,61 @@ var Definitions = []dingo.Def{
 		Build: func(
 			zilliqa zilliqa.Service,
 			elastic elastic_cache.Index,
-			transactionFactory transaction.Factory,
-			repository transaction.Repository,
-			service transaction.Service,
-		) (transaction.Indexer, error) {
-			return transaction.NewIndexer(zilliqa, elastic, transactionFactory, repository, service), nil
-		},
-	},
-	{
-		Name: "tx.rewinder",
-		Build: func(elastic elastic_cache.Index) (transaction.Rewinder, error) {
-			return transaction.NewRewinder(elastic), nil
-		},
-	},
-	{
-		Name: "tx.repo",
-		Build: func(elastic elastic_cache.Index) (transaction.Repository, error) {
-			return transaction.NewRepo(elastic), nil
-		},
-	},
-	{
-		Name: "tx.service",
-		Build: func(repository transaction.Repository, cache *cache.Cache) (transaction.Service, error) {
-			return transaction.NewService(repository, cache), nil
-		},
-	},
-	{
-		Name: "tx.factory",
-		Build: func(zilliqa zilliqa.Service) (transaction.Factory, error) {
-			return transaction.NewTransactionFactory(zilliqa), nil
+			transactionFactory factory.TransactionFactory,
+			txRepo repository.TransactionRepository,
+		) (indexer.TransactionIndexer, error) {
+			return indexer.NewTransactionIndexer(zilliqa, elastic, transactionFactory, txRepo), nil
 		},
 	},
 	{
 		Name: "contract.indexer",
 		Build: func(
 			elastic elastic_cache.Index,
-			factory contract.Factory,
-			txRepo transaction.Repository,
-		) (contract.Indexer, error) {
-			return contract.NewIndexer(elastic, factory, txRepo), nil
-		},
-	},
-	{
-		Name: "contract.rewinder",
-		Build: func(elastic elastic_cache.Index) (contract.Rewinder, error) {
-			return contract.NewRewinder(elastic), nil
-		},
-	},
-	{
-		Name: "contract.factory",
-		Build: func(zilliqa zilliqa.Service) (contract.Factory, error) {
-			return contract.NewFactory(zilliqa), nil
-		},
-	},
-	{
-		Name: "contract.repo",
-		Build: func(
-			elastic elastic_cache.Index,
-		) (contract.Repository, error) {
-			return contract.NewRepo(elastic), nil
+			factory factory.ContractFactory,
+			txRepo repository.TransactionRepository,
+		) (indexer.ContractIndexer, error) {
+			return indexer.NewContractIndexer(elastic, factory, txRepo), nil
 		},
 	},
 	{
 		Name: "nft.indexer",
-		Build: func(elastic elastic_cache.Index, contractRepo contract.Repository, nftRepo nft.Repository, txRepo transaction.Repository) (nft.Indexer, error) {
-			return nft.NewIndexer(elastic, contractRepo, nftRepo, txRepo), nil
+		Build: func(
+			elastic elastic_cache.Index,
+			contractRepo repository.ContractRepository,
+			nftRepo repository.NftRepository,
+			txRepo repository.TransactionRepository,
+		) (indexer.NftIndexer, error) {
+			return indexer.NewNftIndexer(elastic, contractRepo, nftRepo, txRepo), nil
 		},
 	},
 	{
-		Name: "nft.rewinder",
-		Build: func(elastic elastic_cache.Index) (nft.Rewinder, error) {
-			return nft.NewRewinder(elastic), nil
+		Name: "tx.repo",
+		Build: func(elastic elastic_cache.Index) (repository.TransactionRepository, error) {
+			return repository.NewTransactionRepository(elastic), nil
+		},
+	},
+	{
+		Name: "contract.repo",
+		Build: func(elastic elastic_cache.Index) (repository.ContractRepository, error) {
+			return repository.NewContractRepository(elastic), nil
 		},
 	},
 	{
 		Name: "nft.repo",
-		Build: func(elastic elastic_cache.Index) (nft.Repository, error) {
-			return nft.NewRepo(elastic), nil
+		Build: func(elastic elastic_cache.Index) (repository.NftRepository, error) {
+			return repository.NewNftRepository(elastic), nil
+		},
+	},
+	{
+		Name: "tx.factory",
+		Build: func(zilliqa zilliqa.Service) (factory.TransactionFactory, error) {
+			return factory.NewTransactionFactory(zilliqa), nil
+		},
+	},
+	{
+		Name: "contract.factory",
+		Build: func(zilliqa zilliqa.Service) (factory.ContractFactory, error) {
+			return factory.NewContractFactory(zilliqa), nil
 		},
 	},
 }

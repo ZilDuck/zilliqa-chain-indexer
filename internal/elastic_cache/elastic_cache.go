@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/dantudor/zil-indexer/internal/config"
-	"github.com/dantudor/zil-indexer/pkg/zil"
+	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -19,17 +19,17 @@ type Index interface {
 
 	InstallMappings()
 
-	AddIndexRequest(index string, entity zil.Entity)
-	AddIndexRequests(index string, entity []zil.Entity)
-	AddUpdateRequest(index string, entity zil.Entity)
-	HasRequest(entity zil.Entity) bool
-	AddRequest(index string, entity zil.Entity, reqType RequestType)
-	GetEntitiesByIndex(index string) []zil.Entity
+	AddIndexRequest(index string, entity entity.Entity)
+	AddIndexRequests(index string, entity []entity.Entity)
+	AddUpdateRequest(index string, entity entity.Entity)
+	HasRequest(entity entity.Entity) bool
+	AddRequest(index string, entity entity.Entity, reqType RequestType)
+	GetEntitiesByIndex(index string) []entity.Entity
 	GetRequests() []Request
 	GetRequest(id string) *Request
 	ClearRequests()
 
-	Save(index string, entity zil.Entity)
+	Save(index string, entity entity.Entity)
 	BatchPersist() bool
 	Persist() int
 
@@ -44,7 +44,7 @@ type index struct {
 
 type Request struct {
 	Index  string
-	Entity zil.Entity
+	Entity entity.Entity
 	Type   RequestType
 }
 
@@ -147,31 +147,31 @@ func (i index) createIndex(index string, mapping []byte) error {
 	return nil
 }
 
-func (i index) AddIndexRequest(index string, entity zil.Entity) {
+func (i index) AddIndexRequest(index string, entity entity.Entity) {
 	zap.L().With(zap.String("slug", entity.Slug())).Debug("ElasticCache: AddIndexRequest")
 
 	i.AddRequest(index, entity, IndexRequest)
 }
 
-func (i index) AddIndexRequests(index string, entities []zil.Entity) {
+func (i index) AddIndexRequests(index string, entities []entity.Entity) {
 	for _, entity := range entities {
 		i.AddIndexRequest(index, entity)
 	}
 }
 
-func (i index) AddUpdateRequest(index string, entity zil.Entity) {
+func (i index) AddUpdateRequest(index string, entity entity.Entity) {
 	zap.L().With(zap.String("slug", entity.Slug())).Debug("ElasticCache: AddUpdateRequest")
 
 	i.AddRequest(index, entity, UpdateRequest)
 }
 
-func (i index) HasRequest(entity zil.Entity) bool {
+func (i index) HasRequest(entity entity.Entity) bool {
 	_, found := i.cache.Get(entity.Slug())
 
 	return found
 }
 
-func (i index) AddRequest(index string, entity zil.Entity, reqType RequestType) {
+func (i index) AddRequest(index string, entity entity.Entity, reqType RequestType) {
 	zap.L().With(
 		zap.String("index", index),
 		zap.String("type", string(reqType)),
@@ -185,8 +185,8 @@ func (i index) AddRequest(index string, entity zil.Entity, reqType RequestType) 
 	i.cache.Set(entity.Slug(), Request{index, entity, reqType}, cache.DefaultExpiration)
 }
 
-func (i index) GetEntitiesByIndex(index string) []zil.Entity {
-	entities := make([]zil.Entity, 0)
+func (i index) GetEntitiesByIndex(index string) []entity.Entity {
+	entities := make([]entity.Entity, 0)
 	for _, req := range i.GetRequests() {
 		if req.Index == index {
 			entities = append(entities, req.Entity)
@@ -219,11 +219,11 @@ func (i index) ClearRequests() {
 	i.cache.Flush()
 }
 
-func (i index) Save(index string, entity zil.Entity) {
+func (i index) Save(index string, entity entity.Entity) {
 	i.save(index, entity, 1)
 }
 
-func (i index) save(index string, entity zil.Entity, attempt int) {
+func (i index) save(index string, entity entity.Entity, attempt int) {
 	if attempt > saveAttempts {
 		zap.L().With(zap.String("index", index), zap.String("slug", entity.Slug())).
 			Fatal("ElasticCache: Failed to save entity, Too many attempts")
