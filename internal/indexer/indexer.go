@@ -6,6 +6,7 @@ import (
 	"github.com/dantudor/zil-indexer/internal/repository"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
+	"time"
 )
 
 type Indexer interface {
@@ -49,8 +50,12 @@ func NewIndexer(
 func (i indexer) Index(option IndexOption.IndexOption, target uint64) error {
 	lastBlockIndexed, err := i.GetLastBlockNumIndexed()
 	if err != nil {
-		zap.L().With(zap.Error(err)).Error("Failed to get last block num from txs")
-		lastBlockIndexed = 0
+		if err.Error() == "best block not found" {
+			lastBlockIndexed = 0
+		} else {
+			time.Sleep(5 * time.Second)
+			zap.L().With(zap.Error(err)).Fatal("Failed to get last block num from txs")
+		}
 	}
 
 	height := lastBlockIndexed + 1
