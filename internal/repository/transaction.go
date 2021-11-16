@@ -93,12 +93,12 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 		Sort("BlockNum", false).
 		Size(1).
 		Do(context.Background())
-	if err != nil || result == nil {
+	if err != nil {
 		time.Sleep(5 * time.Second)
 		return 0, err
 	}
 
-	if len(result.Hits.Hits) == 0 {
+	if result == nil || len(result.Hits.Hits) == 0 {
 		return 0, ErrBestBlockNumFound
 	}
 
