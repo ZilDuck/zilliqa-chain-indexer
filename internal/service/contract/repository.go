@@ -7,6 +7,7 @@ import (
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
 	"github.com/dantudor/zil-indexer/pkg/zil"
 	"github.com/olivere/elastic/v7"
+	"go.uber.org/zap"
 )
 
 var (
@@ -59,6 +60,8 @@ func (r repository) GetContractByAddressBech32(contractAddr string) (zil.Contrac
 }
 
 func (r repository) GetContractByMinterFallbackToAddress(contractAddr string) (zil.Contract, error) {
+	zap.S().Debugf("GetContractByMinterFallbackToAddress: %s", contractAddr)
+
 	results, err := r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("minters.keyword", contractAddr)).

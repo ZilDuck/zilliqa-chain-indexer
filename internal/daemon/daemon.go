@@ -22,10 +22,11 @@ func Execute() {
 		return
 	}
 
-	rewind()
+	bestBlock := rewind()
 
 	if config.Get().BulkIndex == true {
-		bulkIndex()
+		bulkIndex(bestBlock)
+		zap.L().Info("Bulk indexing complete")
 	}
 
 	if config.Get().Subscribe == true {
@@ -39,17 +40,19 @@ func initialize() {
 	zap.L().Info("Indexer Started")
 }
 
-func rewind() {
+func rewind() uint64 {
 	bestBlockNum, err := container.GetTxRepo().GetBestBlockNum()
 	if err != nil {
-		return
+		return 0
 	}
 
 	target := targetHeight(bestBlockNum)
 
 	zap.L().Info("Rewind Index", zap.Uint64("from", bestBlockNum), zap.Uint64("to", target))
 	if err := container.GetRewinder().RewindToHeight(target); err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to rewind index")
+		zap.L().With(zap.Error(err)).Error("Failed to rewind index")
+		time.Sleep(5 * time.Second)
+		return rewind()
 	}
 
 	container.GetElastic().Persist()
@@ -61,19 +64,21 @@ func rewind() {
 		zap.L().With(zap.Error(err)).Fatal("Failed to get best block")
 	}
 
-	container.GetTxService().SetLastBlockNumIndexed(bestBlockNum)
-	bestBlockNum, err = container.GetTxRepo().GetBestBlockNum()
-	if err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to get best block")
+	if target != bestBlockNum {
+		return rewind()
 	}
+
+	container.GetTxService().SetLastBlockNumIndexed(bestBlockNum)
 
 	zap.L().With(
 		zap.Uint64("height", bestBlockNum),
 	).Info("Best block")
+
+	return bestBlockNum
 }
 
-func bulkIndex() {
-	zap.L().Info("Bulk indexing")
+func bulkIndex(bestBlock uint64) {
+	zap.S().Infof("Bulk indexing from %d", bestBlock)
 
 	targetHeight := config.Get().BulkTargetHeight
 	if targetHeight == 0 {
@@ -89,18 +94,18 @@ func bulkIndex() {
 	zap.S().Infof("Target Height: %d", targetHeight)
 
 	if err := container.GetIndexer().Index(IndexOption.BatchIndex, targetHeight); err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to bulk index blocks")
+		zap.L().With(zap.Error(err)).Fatal("Failed to bulk index transactions")
 	}
 	container.GetElastic().Persist()
 	time.Sleep(2 * time.Second)
 
-	if err := container.GetContractIndexer().BulkIndex(); err != nil {
+	if err := container.GetContractIndexer().BulkIndex(bestBlock); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to bulk index contracts")
 	}
 	container.GetElastic().Persist()
 	time.Sleep(2 * time.Second)
 
-	if err := container.GetNftIndexer().BulkIndex(); err != nil {
+	if err := container.GetNftIndexer().BulkIndex(bestBlock); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to bulk index NFTs")
 	}
 	container.GetElastic().Persist()
@@ -108,6 +113,7 @@ func bulkIndex() {
 }
 
 func subscribe() {
+	zap.L().Info("Starting subscriber")
 	for {
 		latestCoreTxBlock, err := container.GetZilliqa().GetLatestTxBlock()
 		if err == nil {
@@ -115,9 +121,7 @@ func subscribe() {
 			if err != nil {
 				zap.L().With(zap.Error(err)).Fatal("Failed to parse latest block num")
 			} else {
-				if err = container.GetIndexer().Index(IndexOption.SingleIndex, targetHeight); err != nil {
-					zap.L().With(zap.Error(err)).Error("Failed to bulk index blocks")
-				}
+				err = container.GetIndexer().Index(IndexOption.SingleIndex, targetHeight)
 			}
 			if err != nil {
 				container.GetElastic().Persist()

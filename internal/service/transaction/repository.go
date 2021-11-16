@@ -14,8 +14,8 @@ type Repository interface {
 	GetContractCreationTx(contractAddress string) (zil.Transaction, error)
 	GetContractTxs(contractAddress string, size, from int) ([]zil.Transaction, int64, error)
 
-	GetContractCreationTxs(size, from int) ([]zil.Transaction, int64, error)
-	GetContractExecutionTxs(size, from int) ([]zil.Transaction, int64, error)
+	GetContractCreationTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error)
+	GetContractExecutionTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error)
 	GetContractExecutionsWithTransition(contractAddr string, transitionName zil.TRANSITION, size, from int) ([]zil.Transaction, int64, error)
 
 	//GetMintTxsForContract(contract string, size, from int) ([]zil.Transaction, int64, error)
@@ -95,10 +95,15 @@ func (r repository) GetBestBlockNum() (uint64, error) {
 	return tx.BlockNum, nil
 }
 
-func (r repository) GetContractCreationTxs(size, from int) ([]zil.Transaction, int64, error) {
+func (r repository) GetContractCreationTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("ContractCreation", true),
+		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
+	)
+
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
-		Query(elastic.NewTermQuery("ContractCreation", true)).
+		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
@@ -108,11 +113,16 @@ func (r repository) GetContractCreationTxs(size, from int) ([]zil.Transaction, i
 	return r.findMany(result, err)
 }
 
-func (r repository) GetContractExecutionTxs(size, from int) ([]zil.Transaction, int64, error) {
+func (r repository) GetContractExecutionTxs(fromBlockNum uint64, size, from int) ([]zil.Transaction, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("ContractExecution", true),
+		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
+	)
+
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
-		Query(elastic.NewTermQuery("ContractExecution", true)).
-		Sort("BlockNum", false).
+		Query(query).
+		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
 		From(from).

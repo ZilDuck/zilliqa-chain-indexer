@@ -18,8 +18,25 @@ func main() {
 
 	container.GetElastic().InstallMappings()
 
-	if err := container.GetNftIndexer().BulkIndex(); err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to bulk index NFTs")
+	size := 100
+	from := 0
+
+	for {
+		contracts, _, err := container.GetContractRepo().GetAllZrc1Contracts(size, from)
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to get contracts")
+			panic(err)
+		}
+		if len(contracts) == 0 {
+			break
+		}
+		for _, c := range contracts {
+			err := container.GetNftIndexer().IndexContract(c)
+			if err != nil {
+				zap.S().Errorf("Failed to index NFTs for contract %s", c.Address)
+			}
+		}
+		container.GetElastic().BatchPersist()
 	}
 }
 

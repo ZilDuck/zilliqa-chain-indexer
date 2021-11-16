@@ -57,7 +57,11 @@ func CreateNftsFromMintingTx(tx zil.Transaction, c zil.Contract) ([]zil.NFT, err
 			OwnerBech32:     recipientBech32,
 		}
 
-		zap.L().With(zap.String("symbol", nft.Symbol), zap.Uint64("tokenId", nft.TokenId)).Info("Index NFT")
+		zap.L().With(
+			zap.Uint64("blockNum", tx.BlockNum),
+			zap.String("symbol", nft.Symbol),
+			zap.Uint64("tokenId", nft.TokenId),
+		).Info("Index NFT")
 		nfts = append(nfts, nft)
 	}
 

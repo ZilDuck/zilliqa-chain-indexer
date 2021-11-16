@@ -9,7 +9,7 @@ import (
 
 type Indexer interface {
 	Index(txs []zil.Transaction) ([]zil.Contract, error)
-	BulkIndex() error
+	BulkIndex(fromBlockNum uint64) error
 }
 
 type indexer struct {
@@ -44,28 +44,30 @@ func (i indexer) Index(txs []zil.Transaction) ([]zil.Contract, error) {
 	return contracts, nil
 }
 
-func (i indexer) BulkIndex() error {
+func (i indexer) BulkIndex(fromBlockNum uint64) error {
+	zap.L().With(zap.Uint64("from", fromBlockNum)).Info("Bulk index contracts")
 	size := 100
 	from := 0
 
 	for {
-		contractTxs, _, err := i.txRepo.GetContractCreationTxs(size, from)
+		txs, _, err := i.txRepo.GetContractCreationTxs(fromBlockNum, size, from)
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
 			return err
 		}
 
-		if len(contractTxs) == 0 {
+		if len(txs) == 0 {
+			zap.L().Info("No more contract creation txs found")
 			break
 		}
 
-		for _, contractTx := range contractTxs {
-			contract, err := i.factory.CreateContractFromTx(contractTx)
+		for _, tx := range txs {
+			contract, err := i.factory.CreateContractFromTx(tx)
 			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txId", contractTx.ID)).Error("Failed to create contract txs")
+				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create contract txs")
 				break
 			}
-			if contract.Name == "Resolver" || contract.Name == "QuizBot" {
+			if !contract.ZRC1 {
 				continue
 			}
 			zap.L().With(
@@ -78,7 +80,7 @@ func (i indexer) BulkIndex() error {
 			//if contract.ZRC1 {
 			minters, err := i.txRepo.GetMintersForZrc1Contract(contract.Address)
 			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txId", contractTx.ID)).Error("Failed to get contract minters")
+				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to get contract minters")
 				return err
 			}
 			contract.Minters = minters
