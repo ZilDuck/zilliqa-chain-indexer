@@ -31,6 +31,14 @@ type Config struct {
 
 	Zilliqa       ZilliqaConfig
 	ElasticSearch ElasticSearchConfig
+	Aws           AwsConfig
+}
+
+type AwsConfig struct {
+	AccessKey string
+	SecretKey string
+	Token     string
+	Region    string
 }
 
 type ZilliqaConfig struct {
@@ -38,6 +46,7 @@ type ZilliqaConfig struct {
 }
 
 type ElasticSearchConfig struct {
+	Aws         bool
 	Hosts       []string
 	Sniff       bool
 	HealthCheck bool
@@ -89,10 +98,17 @@ func Get() *Config {
 		BulkIndexSize:    getUint64("BULK_INDEX_SIZE", 100),
 		Subscribe:        getBool("SUBSCRIBE", true),
 		SentryDsn:        getString("SENTRY_DSN", ""),
+		Aws: AwsConfig{
+			AccessKey: getString("AWS_ACCESS_KEY", ""),
+			SecretKey: getString("AWS_SECRET_KEY", ""),
+			Token:     getString("AWS_TOKEN", ""),
+			Region:    getString("AWS_REGION", ""),
+		},
 		Zilliqa: ZilliqaConfig{
 			Url: getString("ZILLIQA_URL", ""),
 		},
 		ElasticSearch: ElasticSearchConfig{
+			Aws:         getBool("ELASTIC_SEARCH_AWS", true),
 			Hosts:       getSlice("ELASTIC_SEARCH_HOSTS", make([]string, 0), ","),
 			Sniff:       getBool("ELASTIC_SEARCH_SNIFF", true),
 			HealthCheck: getBool("ELASTIC_SEARCH_HEALTH_CHECK", true),

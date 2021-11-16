@@ -3,10 +3,13 @@ package elastic_cache
 import (
 	"context"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/dantudor/zil-indexer/internal/config"
 	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"github.com/patrickmn/go-cache"
+	"github.com/sha1sum/aws_signing_client"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"path/filepath"
@@ -58,10 +61,35 @@ var (
 const saveAttempts int = 3
 
 func New() (Index, error) {
+	client, err := newClient()
+	if err != nil {
+		zap.L().With(zap.Error(err)).Fatal("ElasticCache: Failed to create client")
+	}
+
+	return index{client, cache.New(5*time.Minute, 10*time.Minute)}, err
+}
+
+func newClient() (*elastic.Client, error) {
 	opts := []elastic.ClientOptionFunc{
 		elastic.SetURL(strings.Join(config.Get().ElasticSearch.Hosts, ",")),
 		elastic.SetSniff(config.Get().ElasticSearch.Sniff),
 		elastic.SetHealthcheck(config.Get().ElasticSearch.HealthCheck),
+	}
+
+	if config.Get().ElasticSearch.Debug {
+		opts = append(opts, elastic.SetTraceLog(ElasticLogger{}))
+	}
+
+	if config.Get().ElasticSearch.Aws {
+		creds := credentials.NewStaticCredentials(config.Get().Aws.AccessKey, config.Get().Aws.SecretKey, config.Get().Aws.Token)
+		awsClient, err := aws_signing_client.New(v4.NewSigner(creds), nil, "es", config.Get().Aws.Region)
+		if err != nil {
+			return nil, err
+		}
+
+		opts = append(opts, elastic.SetHttpClient(awsClient))
+		opts = append(opts, elastic.SetScheme("https"))
+		return elastic.NewClient(opts...)
 	}
 
 	if config.Get().ElasticSearch.Username != "" {
@@ -71,19 +99,7 @@ func New() (Index, error) {
 		))
 	}
 
-	if config.Get().ElasticSearch.Debug {
-		opts = append(opts, elastic.SetTraceLog(ElasticLogger{}))
-	}
-
-	client, err := elastic.NewClient(opts...)
-	if err != nil {
-		zap.L().With(zap.Error(err)).Fatal("ElasticCache: Failed to create client")
-	}
-
-	return index{
-		client: client,
-		cache:  cache.New(5*time.Minute, 10*time.Minute),
-	}, err
+	return elastic.NewClient(opts...)
 }
 
 func (i index) GetClient() *elastic.Client {

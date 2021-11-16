@@ -5,7 +5,6 @@ import (
 	"github.com/dantudor/zil-indexer/internal/config"
 	"github.com/getsentry/sentry-go"
 	"github.com/sarulabs/dingo/v3"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -16,9 +15,11 @@ func main() {
 
 	initialize()
 
-	if err := container.GetContractIndexer().BulkIndex(uint64(0)); err != nil {
-		zap.L().Fatal("Failed to bulk index contracts")
-	}
+	container.GetElastic().InstallMappings()
+
+	//if err := container.GetContractIndexer().BulkIndex(uint64(0)); err != nil {
+	//	zap.L().Fatal("Failed to bulk index contracts")
+	//}
 }
 
 func initialize() {
