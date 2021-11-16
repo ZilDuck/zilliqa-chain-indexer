@@ -9,7 +9,7 @@ import (
 	"github.com/dantudor/zil-indexer/internal/repository"
 	"github.com/dantudor/zil-indexer/internal/zilliqa"
 	"github.com/patrickmn/go-cache"
-	"github.com/sarulabs/dingo/v3"
+	"github.com/sarulabs/dingo/v4"
 	"go.uber.org/zap"
 	"time"
 )
