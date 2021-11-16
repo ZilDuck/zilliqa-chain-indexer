@@ -48,7 +48,7 @@ func (d *Daemon) Execute() {
 func (d *Daemon) rewind() uint64 {
 	bestBlockNum, err := d.txRepo.GetBestBlockNum()
 	if err != nil {
-		return 0
+		return 943800
 	}
 
 	target := targetHeight(bestBlockNum)
