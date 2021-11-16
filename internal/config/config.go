@@ -46,14 +46,15 @@ type ZilliqaConfig struct {
 }
 
 type ElasticSearchConfig struct {
-	Aws         bool
-	Hosts       []string
-	Sniff       bool
-	HealthCheck bool
-	Debug       bool
-	Username    string
-	Password    string
-	MappingDir  string
+	Aws              bool
+	Hosts            []string
+	Sniff            bool
+	HealthCheck      bool
+	Debug            bool
+	Username         string
+	Password         string
+	MappingDir       string
+	BulkPersistCount int
 }
 
 func Init() {
@@ -108,14 +109,15 @@ func Get() *Config {
 			Url: getString("ZILLIQA_URL", ""),
 		},
 		ElasticSearch: ElasticSearchConfig{
-			Aws:         getBool("ELASTIC_SEARCH_AWS", true),
-			Hosts:       getSlice("ELASTIC_SEARCH_HOSTS", make([]string, 0), ","),
-			Sniff:       getBool("ELASTIC_SEARCH_SNIFF", true),
-			HealthCheck: getBool("ELASTIC_SEARCH_HEALTH_CHECK", true),
-			Debug:       getBool("ELASTIC_SEARCH_DEBUG", false),
-			Username:    getString("ELASTIC_SEARCH_USERNAME", ""),
-			Password:    getString("ELASTIC_SEARCH_PASSWORD", ""),
-			MappingDir:  getString("ELASTIC_SEARCH_MAPPING_DIR", "/data/mappings"),
+			Aws:              getBool("ELASTIC_SEARCH_AWS", true),
+			Hosts:            getSlice("ELASTIC_SEARCH_HOSTS", make([]string, 0), ","),
+			Sniff:            getBool("ELASTIC_SEARCH_SNIFF", true),
+			HealthCheck:      getBool("ELASTIC_SEARCH_HEALTH_CHECK", true),
+			Debug:            getBool("ELASTIC_SEARCH_DEBUG", false),
+			Username:         getString("ELASTIC_SEARCH_USERNAME", ""),
+			Password:         getString("ELASTIC_SEARCH_PASSWORD", ""),
+			MappingDir:       getString("ELASTIC_SEARCH_MAPPING_DIR", "/data/mappings"),
+			BulkPersistCount: getInt("ELASTIC_SEARCH_BULK_PERSIST_COUNT", 300),
 		},
 	}
 }

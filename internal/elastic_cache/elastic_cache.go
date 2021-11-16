@@ -287,7 +287,7 @@ func (i index) Persist() int {
 		}
 
 		actions := bulk.NumberOfActions()
-		if actions >= 200 {
+		if actions >= config.Get().ElasticSearch.BulkPersistCount {
 			i.persist(bulk)
 			bulk = i.client.Bulk()
 		}
