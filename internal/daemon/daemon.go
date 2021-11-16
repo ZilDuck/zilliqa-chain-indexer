@@ -49,6 +49,7 @@ func (d *Daemon) rewind() uint64 {
 	bestBlockNum, err := d.txRepo.GetBestBlockNum()
 	if err != nil {
 		if err == repository.ErrBestBlockNumFound {
+			d.indexer.SetLastBlockNumIndexed(943800)
 			return 0
 		}
 		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")

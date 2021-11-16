@@ -50,12 +50,8 @@ func NewIndexer(
 func (i indexer) Index(option IndexOption.IndexOption, target uint64) error {
 	lastBlockIndexed, err := i.GetLastBlockNumIndexed()
 	if err != nil {
-		if err.Error() == "best block not found" {
-			lastBlockIndexed = 943800
-		} else {
-			time.Sleep(5 * time.Second)
-			zap.L().With(zap.Error(err)).Fatal("Failed to get last block num from txs")
-		}
+		time.Sleep(5 * time.Second)
+		zap.L().With(zap.Error(err)).Fatal("Failed to get last block num from txs")
 	}
 
 	height := lastBlockIndexed + 1

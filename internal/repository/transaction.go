@@ -90,7 +90,6 @@ func (r transactionRepository) GetContractTxs(contractAddress string, size, page
 func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	result, err := r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
-		Sort("BlockNum", false).
 		Size(1).
 		Do(context.Background())
 	if err != nil {
@@ -99,7 +98,18 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	}
 
 	if result == nil || len(result.Hits.Hits) == 0 {
+		zap.L().Info("Best block num not found giving 0")
 		return 0, ErrBestBlockNumFound
+	}
+
+	result, err = r.elastic.GetClient().
+		Search(elastic_cache.TransactionIndex.Get()).
+		Sort("BlockNum", false).
+		Size(1).
+		Do(context.Background())
+	if err != nil {
+		time.Sleep(5 * time.Second)
+		return 0, err
 	}
 
 	var tx *entity.Transaction
