@@ -8,6 +8,11 @@ import (
 	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"go.uber.org/zap"
+	"time"
+)
+
+var (
+	ErrBestBlockNumFound = errors.New("best block num not found")
 )
 
 type TransactionRepository interface {
@@ -89,11 +94,12 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 		Size(1).
 		Do(context.Background())
 	if err != nil || result == nil {
+		time.Sleep(5 * time.Second)
 		return 0, err
 	}
 
 	if len(result.Hits.Hits) == 0 {
-		return 0, errors.New("best block not found")
+		return 0, ErrBestBlockNumFound
 	}
 
 	var tx *entity.Transaction

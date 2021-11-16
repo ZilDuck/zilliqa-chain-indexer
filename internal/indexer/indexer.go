@@ -153,7 +153,10 @@ func (i indexer) GetLastBlockNumIndexed() (uint64, error) {
 
 	blockNum, err := i.txRepo.GetBestBlockNum()
 	if err != nil {
-		return 0, err
+		if err == repository.ErrBestBlockNumFound {
+			return 0, err
+		}
+		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")
 	}
 	i.SetLastBlockNumIndexed(blockNum)
 

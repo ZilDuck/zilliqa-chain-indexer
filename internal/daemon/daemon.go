@@ -48,7 +48,10 @@ func (d *Daemon) Execute() {
 func (d *Daemon) rewind() uint64 {
 	bestBlockNum, err := d.txRepo.GetBestBlockNum()
 	if err != nil {
-		return 0
+		if err == repository.ErrBestBlockNumFound {
+			return 0
+		}
+		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")
 	}
 
 	target := targetHeight(bestBlockNum)
@@ -67,7 +70,7 @@ func (d *Daemon) rewind() uint64 {
 
 	bestBlockNum, err = d.txRepo.GetBestBlockNum()
 	if err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to get best block")
+		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")
 	}
 
 	if target != bestBlockNum {
