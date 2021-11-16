@@ -14,7 +14,6 @@ require (
 	github.com/olivere/elastic/v7 v7.0.29
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sarulabs/di/v2 v2.4.2
-	github.com/sarulabs/dingo/v3 v3.1.0 // indirect
 	github.com/sarulabs/dingo/v4 v4.1.1
 	github.com/sha1sum/aws_signing_client v0.0.0-20200229211254-f7815c59d5c1
 	github.com/ybbus/jsonrpc v2.1.2+incompatible
