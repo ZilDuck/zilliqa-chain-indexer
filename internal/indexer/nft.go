@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"errors"
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
 	"github.com/dantudor/zil-indexer/internal/entity"
@@ -86,27 +87,40 @@ func (i nftIndexer) BulkIndex(fromBlockNum uint64) error {
 	page := 1
 
 	for {
-		txs, _, err := i.txRepo.GetContractExecutionTxs(fromBlockNum, size, page)
-		if err != nil {
-			zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
-			return err
-		}
-
-		if len(txs) == 0 {
-			zap.L().Info("No more contract execution txs found")
-			break
-		}
-
-		if err := i.Index(txs); err != nil {
-			zap.L().With(zap.Error(err)).Error("Failed to index NFTs")
+		if err := i.bulkIndexPage(fromBlockNum, size, page); err != nil {
+			if err.Error() == "no more contract execution txs found" {
+				break
+			}
 		}
 
 		i.elastic.BatchPersist()
-
 		page++
 	}
 
 	i.elastic.Persist()
+
+	return nil
+}
+
+func (i nftIndexer) bulkIndexPage(fromBlockNum uint64, size, page int) error {
+	txs, _, err := i.txRepo.GetContractExecutionTxs(fromBlockNum, size, page)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
+		if err.Error() == "elastic: Error 429 (Too Many Requests)" {
+			time.Sleep(5 * time.Second)
+			zap.L().With(zap.Uint64("blockNum", fromBlockNum), zap.Int("size", size), zap.Int("page", page)).Warn("Retrying bulk index NFTs")
+			return i.bulkIndexPage(fromBlockNum, size, page)
+		}
+		return err
+	}
+
+	if len(txs) == 0 {
+		return errors.New("no more contract execution txs found")
+	}
+
+	if err := i.Index(txs); err != nil {
+		zap.L().With(zap.Error(err)).Error("Failed to index NFTs")
+	}
 
 	return nil
 }
