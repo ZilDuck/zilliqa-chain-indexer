@@ -87,13 +87,21 @@ func (d *Daemon) rewind() uint64 {
 	return bestBlockNum
 }
 
-func (d *Daemon) bulkIndex(bestBlock uint64) {
+func (d *Daemon) bulkIndex(bestBlockNum uint64) {
 	if !config.Get().BulkIndex {
 		return
 	}
 
-	zap.S().Infof("Bulk indexing from %d", bestBlock)
+	zap.S().Infof("Bulk indexing from %d", bestBlockNum)
 
+	d.bulkIndexTxs()
+	d.bulkIndexContracts(bestBlockNum)
+	d.bulkIndexNfts(bestBlockNum)
+
+	zap.L().Info("Bulk indexing complete")
+}
+
+func (d *Daemon) getTargetHeight() uint64 {
 	targetHeight := config.Get().BulkTargetHeight
 	if targetHeight == 0 {
 		latestCoreTxBlock, err := d.zilliqa.GetLatestTxBlock()
@@ -107,25 +115,44 @@ func (d *Daemon) bulkIndex(bestBlock uint64) {
 	}
 	zap.S().Infof("Target Height: %d", targetHeight)
 
-	if err := d.indexer.Index(IndexOption.BatchIndex, targetHeight); err != nil {
+	return targetHeight
+}
+
+func (d *Daemon) bulkIndexTxs() {
+	if err := d.indexer.Index(IndexOption.BatchIndex, d.getTargetHeight()); err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Failed to bulk index transactions")
 	}
+
 	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
+}
 
-	if err := d.contractIndexer.BulkIndex(bestBlock); err != nil {
+func (d *Daemon) bulkIndexContracts(bestBlockNum uint64) {
+	bulkIndexContractsFrom := config.Get().BulkIndexContractsFrom
+	if bulkIndexContractsFrom == -1 {
+		bulkIndexContractsFrom = int(bestBlockNum)
+	}
+
+	if err := d.contractIndexer.BulkIndex(uint64(bulkIndexContractsFrom)); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to bulk index contracts")
 	}
+
 	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
+}
 
-	if err := d.nftIndexer.BulkIndex(bestBlock); err != nil {
+func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
+	BulkIndexNftsFrom := config.Get().BulkIndexNftsFrom
+	if BulkIndexNftsFrom == -1 {
+		BulkIndexNftsFrom = int(bestBlockNum)
+	}
+
+	if err := d.nftIndexer.BulkIndex(uint64(BulkIndexNftsFrom)); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to bulk index NFTs")
 	}
+
 	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
-
-	zap.L().Info("Bulk indexing complete")
 }
 
 func (d *Daemon) subscribe() {

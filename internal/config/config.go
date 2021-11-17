@@ -13,19 +13,22 @@ import (
 )
 
 type Config struct {
-	Env              string
-	Logging          bool
-	LogPath          string
-	Network          string
-	Index            string
-	Debug            bool
-	Reindex          bool
-	ReindexSize      uint64
-	RewindToHeight   uint64
-	BulkIndex        bool
-	BulkTargetHeight uint64
-	BulkIndexSize    uint64
-	Subscribe        bool
+	Env            string
+	Logging        bool
+	LogPath        string
+	Network        string
+	Index          string
+	Debug          bool
+	Reindex        bool
+	ReindexSize    uint64
+	RewindToHeight uint64
+
+	BulkIndex              bool
+	BulkTargetHeight       uint64
+	BulkIndexSize          uint64
+	BulkIndexContractsFrom int
+	BulkIndexNftsFrom      int
+	Subscribe              bool
 
 	SentryDsn string
 
@@ -85,20 +88,22 @@ func initSentry() {
 
 func Get() *Config {
 	return &Config{
-		Env:              getString("ENV", ""),
-		Logging:          getBool("LOGGING", false),
-		LogPath:          getString("LOG_PATH", "/app/logs"),
-		Network:          getString("NETWORK", "zilliqa"),
-		Index:            getString("INDEX_NAME", "xxx"),
-		Debug:            getBool("DEBUG", false),
-		Reindex:          getBool("REINDEX", false),
-		ReindexSize:      getUint64("REINDEX_SIZE", 50),
-		RewindToHeight:   getUint64("REWIND_TO_HEIGHT", 0),
-		BulkIndex:        getBool("BULK_INDEX", false),
-		BulkTargetHeight: getUint64("BULK_TARGET_HEIGHT", 0),
-		BulkIndexSize:    getUint64("BULK_INDEX_SIZE", 100),
-		Subscribe:        getBool("SUBSCRIBE", true),
-		SentryDsn:        getString("SENTRY_DSN", ""),
+		Env:                    getString("ENV", ""),
+		Logging:                getBool("LOGGING", false),
+		LogPath:                getString("LOG_PATH", "/app/logs"),
+		Network:                getString("NETWORK", "zilliqa"),
+		Index:                  getString("INDEX_NAME", "xxx"),
+		Debug:                  getBool("DEBUG", false),
+		Reindex:                getBool("REINDEX", false),
+		ReindexSize:            getUint64("REINDEX_SIZE", 50),
+		RewindToHeight:         getUint64("REWIND_TO_HEIGHT", 0),
+		BulkIndex:              getBool("BULK_INDEX", false),
+		BulkTargetHeight:       getUint64("BULK_TARGET_HEIGHT", 0),
+		BulkIndexSize:          getUint64("BULK_INDEX_SIZE", 100),
+		BulkIndexContractsFrom: getInt("BULK_INDEX_CONTRACTS_FROM", -1),
+		BulkIndexNftsFrom:      getInt("BULK_INDEX_NFTS_FROM", -1),
+		Subscribe:              getBool("SUBSCRIBE", true),
+		SentryDsn:              getString("SENTRY_DSN", ""),
 		Aws: AwsConfig{
 			AccessKey: getString("AWS_ACCESS_KEY", ""),
 			SecretKey: getString("AWS_SECRET_KEY", ""),
