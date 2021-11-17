@@ -35,7 +35,7 @@ jobs:
           REMOTE_USER: "ec2-user"
           TARGET: "/app/indexerd"
       - name: Build Contract Importer
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/contractImporter ./cmd/importConracts/main.go
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/contractImporter ./cmd/importContracts/main.go
       - name: Deploy Contract Importer to EC2
         uses: easingthemes/ssh-deploy@v2.1.5
         env:
