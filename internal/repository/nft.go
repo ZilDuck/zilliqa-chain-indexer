@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
