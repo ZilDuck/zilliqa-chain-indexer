@@ -37,6 +37,8 @@ func main() {
 		}
 		container.GetElastic().BatchPersist()
 		page++
+
+		time.Sleep(5 * time.Second)
 	}
 	container.GetElastic().Persist()
 }
