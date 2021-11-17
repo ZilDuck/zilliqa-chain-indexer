@@ -170,9 +170,9 @@ func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 
 	indexContractMints := func(contractAddr string) error {
 		size := defaultSize
-		from := 1
+		page := 1
 		for {
-			txs, _, err := i.txRepo.GetContractTxs(contractAddr, size, from)
+			txs, _, err := i.txRepo.GetContractTxs(contractAddr, size, page)
 			if err != nil {
 				zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address)).Fatal("Failed to get txs for contract")
 			}
@@ -187,7 +187,7 @@ func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 				break
 			}
 
-			from = from + size - 1
+			page++
 			i.elastic.BatchPersist()
 		}
 
@@ -252,10 +252,10 @@ func (i nftIndexer) IndexContractDuckRegenerations(c entity.Contract) error {
 
 	indexDuckRegenerations := func(contractAddr string) error {
 		size := defaultSize
-		from := 0
+		page := 1
 
 		for {
-			txs, _, err := i.txRepo.GetContractExecutionsWithTransition(contractAddr, entity.TransitionRegenerateDuck, size, from)
+			txs, _, err := i.txRepo.GetContractExecutionsWithTransition(contractAddr, entity.TransitionRegenerateDuck, size, page)
 			if err != nil {
 				return err
 			}
@@ -270,7 +270,7 @@ func (i nftIndexer) IndexContractDuckRegenerations(c entity.Contract) error {
 				}
 			}
 
-			from = from + size - 1
+			page++
 			i.elastic.BatchPersist()
 		}
 
@@ -301,10 +301,10 @@ func (i nftIndexer) IndexContractTransfers(c entity.Contract) error {
 	zap.L().With(zap.String("contractAddr", c.Address)).Info("Index Contract Transfers")
 
 	size := defaultSize
-	from := 0
+	page := 1
 
 	for {
-		txs, _, err := i.txRepo.GetContractExecutionsWithTransition(c.Address, entity.TransitionRecipientAcceptTransfer, size, from)
+		txs, _, err := i.txRepo.GetContractExecutionsWithTransition(c.Address, entity.TransitionRecipientAcceptTransfer, size, page)
 		if err != nil {
 			return err
 		}
@@ -321,7 +321,7 @@ func (i nftIndexer) IndexContractTransfers(c entity.Contract) error {
 			}
 		}
 
-		from = from + size - 1
+		page++
 		i.elastic.BatchPersist()
 	}
 

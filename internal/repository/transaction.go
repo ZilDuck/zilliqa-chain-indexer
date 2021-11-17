@@ -19,11 +19,11 @@ type TransactionRepository interface {
 	GetBestBlockNum() (uint64, error)
 	GetTx(txId string) (entity.Transaction, error)
 	GetContractCreationTx(contractAddress string) (entity.Transaction, error)
-	GetContractTxs(contractAddress string, size, from int) ([]entity.Transaction, int64, error)
+	GetContractTxs(contractAddress string, size, page int) ([]entity.Transaction, int64, error)
 
 	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
-	GetContractExecutionsWithTransition(contractAddr string, transitionName entity.TRANSITION, size, from int) ([]entity.Transaction, int64, error)
+	GetContractExecutionsWithTransition(contractAddr string, transitionName entity.TRANSITION, size, page int) ([]entity.Transaction, int64, error)
 
 	GetMintersForZrc1Contract(contract string) ([]string, error)
 }
@@ -194,7 +194,16 @@ func (r transactionRepository) GetMintTxsForContract(contract string, size, from
 	return r.findMany(result, err)
 }
 
-func (r transactionRepository) GetContractExecutionsWithTransition(contractAddr string, transition entity.TRANSITION, size, from int) ([]entity.Transaction, int64, error) {
+func (r transactionRepository) GetContractExecutionsWithTransition(contractAddr string, transition entity.TRANSITION, size, page int) ([]entity.Transaction, int64, error) {
+	from := size*page - size
+
+	zap.L().With(
+		zap.String("contractAddr", contractAddr),
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetContractExecutionsWithTransition")
+
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
