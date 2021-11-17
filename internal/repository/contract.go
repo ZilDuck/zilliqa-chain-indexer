@@ -15,7 +15,7 @@ var (
 )
 
 type ContractRepository interface {
-	GetAllZrc1Contracts(size, from int) ([]entity.Contract, int64, error)
+	GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error)
 	GetContractByAddress(contractAddr string) (entity.Contract, error)
 	GetContractByAddressBech32(contractAddr string) (entity.Contract, error)
 	GetContractByMinterFallbackToAddress(contractAddr string) (entity.Contract, error)
@@ -29,7 +29,15 @@ func NewContractRepository(elastic elastic_cache.Index) ContractRepository {
 	return contractRepository{elastic}
 }
 
-func (r contractRepository) GetAllZrc1Contracts(size, from int) ([]entity.Contract, int64, error) {
+func (r contractRepository) GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error) {
+	from := size*page - size
+
+	zap.L().With(
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetAllZrc1Contracts")
+
 	results, err := r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("zrc1", true)).

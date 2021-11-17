@@ -18,10 +18,10 @@ func main() {
 	container.GetElastic().InstallMappings()
 
 	size := 100
-	from := 0
+	page := 1
 
 	for {
-		contracts, _, err := container.GetContractRepo().GetAllZrc1Contracts(size, from)
+		contracts, _, err := container.GetContractRepo().GetAllZrc1Contracts(size, page)
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contracts")
 			panic(err)
@@ -36,7 +36,9 @@ func main() {
 			}
 		}
 		container.GetElastic().BatchPersist()
+		page++
 	}
+	container.GetElastic().Persist()
 }
 
 func initialize() {
