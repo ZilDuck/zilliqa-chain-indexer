@@ -12,6 +12,10 @@ import (
 	"time"
 )
 
+var (
+	FirstContractBlockNum = uint64(943800)
+)
+
 type Daemon struct {
 	elastic         elastic_cache.Index
 	indexer         indexer.Indexer
@@ -49,42 +53,21 @@ func (d *Daemon) rewind() uint64 {
 	bestBlockNum, err := d.txRepo.GetBestBlockNum()
 	if err != nil {
 		if err == repository.ErrBestBlockNumFound {
-			d.indexer.SetLastBlockNumIndexed(943800)
-			return 0
+			d.indexer.SetLastBlockNumIndexed(FirstContractBlockNum)
+			return FirstContractBlockNum
 		}
 		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")
 	}
 
-	target := targetHeight(bestBlockNum)
+	targetHeight := targetHeight(bestBlockNum)
 
-	zap.L().Info("Rewind Index", zap.Uint64("from", bestBlockNum), zap.Uint64("to", target))
-	if err := d.indexer.RewindToHeight(target); err != nil {
-		zap.L().With(zap.Error(err)).Error("Failed to rewind index")
-		time.Sleep(2 * time.Second)
-
-		return d.rewind()
-	}
-
-	d.elastic.Persist()
-	zap.L().Info("Sleep for 5 seconds")
-	time.Sleep(5 * time.Second)
-
-	bestBlockNum, err = d.txRepo.GetBestBlockNum()
-	if err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")
-	}
-
-	if target != bestBlockNum {
-		return d.rewind()
-	}
-
-	d.indexer.SetLastBlockNumIndexed(bestBlockNum)
+	d.indexer.SetLastBlockNumIndexed(targetHeight)
 
 	zap.L().With(
-		zap.Uint64("height", bestBlockNum),
+		zap.Uint64("height", targetHeight),
 	).Info("Best block")
 
-	return bestBlockNum
+	return targetHeight
 }
 
 func (d *Daemon) bulkIndex(bestBlockNum uint64) {
@@ -191,5 +174,5 @@ func targetHeight(bestBlockNum uint64) uint64 {
 		return height - config.Get().ReindexSize
 	}
 
-	return 0
+	return FirstContractBlockNum
 }
