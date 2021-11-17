@@ -31,11 +31,10 @@ func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, erro
 		elastic.NewTermQuery("tokenId", tokenId),
 	)
 
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.NftIndex.Get()).
 		Query(query).
-		Size(1).
-		Do(context.Background())
+		Size(1))
 
 	return r.findOne(result, err)
 }

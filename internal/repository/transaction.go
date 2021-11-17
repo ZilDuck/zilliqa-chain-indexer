@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"github.com/dantudor/zil-indexer/internal/elastic_cache"
@@ -37,10 +36,9 @@ func NewTransactionRepository(elastic elastic_cache.Index) TransactionRepository
 }
 
 func (r transactionRepository) GetTx(txId string) (entity.Transaction, error) {
-	results, err := r.elastic.GetClient().
+	results, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
-		Query(elastic.NewTermQuery("ID", txId)).
-		Do(context.Background())
+		Query(elastic.NewTermQuery("ID", txId)))
 
 	return r.findOne(results, err)
 }
@@ -51,11 +49,10 @@ func (r transactionRepository) GetContractCreationTx(contractAddress string) (en
 		elastic.NewTermQuery("ContractCreation", true),
 	)
 
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
-		Size(1).
-		Do(context.Background())
+		Size(1))
 
 	return r.findOne(result, err)
 }
@@ -75,23 +72,22 @@ func (r transactionRepository) GetContractTxs(contractAddress string, size, page
 		zap.Int("from", from),
 	).Info("GetContractTxs")
 
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
-		From(from).
-		Do(context.Background())
+		From(from))
 
 	return r.findMany(result, err)
 }
 
 func (r transactionRepository) GetBestBlockNum() (uint64, error) {
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
-		Size(1).
-		Do(context.Background())
+		Size(1))
+
 	if err != nil {
 		time.Sleep(5 * time.Second)
 		return 0, err
@@ -102,11 +98,10 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 		return 0, ErrBestBlockNumFound
 	}
 
-	result, err = r.elastic.GetClient().
+	result, err = search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Sort("BlockNum", false).
-		Size(1).
-		Do(context.Background())
+		Size(1))
 	if err != nil {
 		time.Sleep(5 * time.Second)
 		return 0, err
@@ -136,14 +131,13 @@ func (r transactionRepository) GetContractCreationTxs(fromBlockNum uint64, size,
 		zap.Int("from", from),
 	).Info("GetContractCreationTxs")
 
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
-		From(from).
-		Do(context.Background())
+		From(from))
 
 	return r.findMany(result, err)
 }
@@ -163,14 +157,13 @@ func (r transactionRepository) GetContractExecutionTxs(fromBlockNum uint64, size
 		zap.Int("from", from),
 	).Info("GetContractExecutionTxs")
 
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
-		From(from).
-		Do(context.Background())
+		From(from))
 
 	return r.findMany(result, err)
 }
@@ -182,14 +175,13 @@ func (r transactionRepository) GetMintTxsForContract(contract string, size, from
 		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", contract)),
 		elastic.NewNestedQuery("Receipt.transitions.msg", elastic.NewTermQuery("Receipt.transitions.msg._tag.keyword", "Mint")),
 	)
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
-		From(from).
-		Do(context.Background())
+		From(from))
 
 	return r.findMany(result, err)
 }
@@ -211,14 +203,13 @@ func (r transactionRepository) GetContractExecutionsWithTransition(contractAddr 
 		elastic.NewNestedQuery("Receipt.transitions.msg", elastic.NewTermQuery("Receipt.transitions.msg._tag.keyword", transition)),
 	)
 
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
 		Size(size).
-		From(from).
-		Do(context.Background())
+		From(from))
 
 	return r.findMany(result, err)
 }
@@ -230,13 +221,12 @@ func (r transactionRepository) GetMintersForZrc1Contract(contract string) (minte
 		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
 		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "AddMinterSuccess")),
 	)
-	result, err := r.elastic.GetClient().
+	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
-		Size(1000).
-		Do(context.Background())
+		Size(1000))
 
 	txs, _, err := r.findMany(result, err)
 	if err != nil {
