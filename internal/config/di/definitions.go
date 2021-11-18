@@ -49,7 +49,7 @@ var Definitions = []dingo.Def{
 			contractIndexer indexer.ContractIndexer,
 			nftIndexer indexer.NftIndexer,
 		) (*daemon.Daemon, error) {
-			return daemon.NewDaemon(elastic, indexer, zilliqa, txRepo, contractIndexer, nftIndexer), nil
+			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, contractIndexer, nftIndexer), nil
 		},
 	},
 	{

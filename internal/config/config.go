@@ -28,6 +28,7 @@ type Config struct {
 	BulkIndexSize          uint64
 	BulkIndexContractsFrom int
 	BulkIndexNftsFrom      int
+	FirstBlockNum          uint64
 	Subscribe              bool
 
 	SentryDsn string
@@ -61,7 +62,12 @@ type ElasticSearchConfig struct {
 }
 
 func Init() {
-	err := godotenv.Load()
+	args := os.Args[1:]
+	if len(args) < 1 {
+		panic("specify the environment")
+	}
+
+	err := godotenv.Load(args[0])
 	if err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Unable to init config")
 	}
@@ -102,6 +108,7 @@ func Get() *Config {
 		BulkIndexSize:          getUint64("BULK_INDEX_SIZE", 100),
 		BulkIndexContractsFrom: getInt("BULK_INDEX_CONTRACTS_FROM", -1),
 		BulkIndexNftsFrom:      getInt("BULK_INDEX_NFTS_FROM", -1),
+		FirstBlockNum:          getUint64("FIRST_BLOCK_NUM", 0),
 		Subscribe:              getBool("SUBSCRIBE", true),
 		SentryDsn:              getString("SENTRY_DSN", ""),
 		Aws: AwsConfig{

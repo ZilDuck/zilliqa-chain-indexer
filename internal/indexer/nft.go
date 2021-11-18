@@ -20,9 +20,9 @@ type NftIndexer interface {
 	Index(txs []entity.Transaction) error
 	BulkIndex(fromBlockNum uint64) error
 
-	IndexTxMints(tx entity.Transaction, c entity.Contract) error
-	IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) error
-	IndexTxTransfers(tx entity.Transaction, c entity.Contract) error
+	IndexTxMints(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
+	IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
+	IndexTxTransfers(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
 
 	IndexContract(c entity.Contract) error
 	IndexContractMints(c entity.Contract) error
@@ -47,6 +47,8 @@ func NewNftIndexer(
 }
 
 func (i nftIndexer) Index(txs []entity.Transaction) error {
+	nfts := make([]entity.NFT, 0)
+
 	contracts := map[string]*entity.Contract{}
 	for _, tx := range txs {
 		if _, ok := contracts[tx.ContractAddress]; !ok {
@@ -64,17 +66,23 @@ func (i nftIndexer) Index(txs []entity.Transaction) error {
 			continue
 		}
 
-		if err := i.IndexTxMints(tx, *contracts[tx.ContractAddress]); err != nil {
+		mintedNfts, err := i.IndexTxMints(tx, *contracts[tx.ContractAddress])
+		if err != nil {
 			return err
 		}
+		nfts = append(nfts, mintedNfts...)
 
-		if err := i.IndexTxDuckRegenerations(tx, *contracts[tx.ContractAddress]); err != nil {
+		duckRegenNFts, err := i.IndexTxDuckRegenerations(tx, *contracts[tx.ContractAddress])
+		if err != nil {
 			return err
 		}
+		nfts = append(nfts, duckRegenNFts...)
 
-		if err := i.IndexTxTransfers(tx, *contracts[tx.ContractAddress]); err != nil {
+		transferNfts, err := i.IndexTxTransfers(tx, *contracts[tx.ContractAddress])
+		if err != nil {
 			return err
 		}
+		nfts = append(nfts, transferNfts...)
 	}
 
 	return nil
@@ -150,19 +158,18 @@ func (i nftIndexer) IndexContract(c entity.Contract) error {
 	return nil
 }
 
-func (i nftIndexer) IndexTxMints(tx entity.Transaction, c entity.Contract) error {
+func (i nftIndexer) IndexTxMints(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts, err := factory.CreateNftsFromMintingTx(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create nft from minting tx")
-		return err
+		return nil, err
 	}
 
 	for idx := range nfts {
 		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nfts[idx])
 	}
-	zap.L().With(zap.Int("count", len(nfts))).Info("Index nft mints")
 
-	return nil
+	return nfts, err
 }
 
 func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
@@ -178,7 +185,7 @@ func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 			}
 
 			for _, tx := range txs {
-				if err := i.IndexTxMints(tx, c); err != nil {
+				if _, err := i.IndexTxMints(tx, c); err != nil {
 					return err
 				}
 			}
@@ -209,9 +216,10 @@ func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 	return
 }
 
-func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) error {
-	transitions := tx.GetTransition(entity.TransitionRegenerateDuck)
-	for _, transition := range transitions {
+func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	nfts := make([]entity.NFT, 0)
+
+	for _, transition := range tx.GetTransition(entity.TransitionRegenerateDuck) {
 		if !transition.Msg.Params.HasParam("token_id", "Uint256") {
 			continue
 		}
@@ -220,13 +228,13 @@ func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Con
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
 			zap.L().With(zap.Uint64("tokenId", tokenId)).Error("Failed to get the nft from the index on duck regeneration")
-			return err
+			return nil, err
 		}
 
 		newDuckMetaData, err := transition.Msg.Params.GetParam("new_duck_metadata")
 		if err != nil {
 			zap.L().Error("Failed to get the new duck metadata on duck regeneration")
-			return err
+			return nil, err
 		}
 
 		nft.TokenUri = newDuckMetaData.Value.Primitive.(string)
@@ -237,10 +245,10 @@ func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Con
 		).Info("Regenerate NFD")
 
 		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nft)
+		nfts = append(nfts, nft)
 	}
-	zap.L().With(zap.Int("count", len(transitions))).Info("Index nft duck regenerations")
 
-	return nil
+	return nfts, nil
 }
 
 func (i nftIndexer) IndexContractDuckRegenerations(c entity.Contract) error {
@@ -265,7 +273,7 @@ func (i nftIndexer) IndexContractDuckRegenerations(c entity.Contract) error {
 			}
 
 			for _, tx := range txs {
-				if err := i.IndexTxDuckRegenerations(tx, c); err != nil {
+				if _, err := i.IndexTxDuckRegenerations(tx, c); err != nil {
 					return err
 				}
 			}
@@ -289,12 +297,12 @@ func (i nftIndexer) IndexContractDuckRegenerations(c entity.Contract) error {
 	return nil
 }
 
-func (i nftIndexer) IndexTxTransfers(tx entity.Transaction, c entity.Contract) error {
-	err := i.handleTransfersForTx(c, tx)
+func (i nftIndexer) IndexTxTransfers(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	nfts, err := i.handleTransfersForTx(c, tx)
 	if err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to handle transfers")
 	}
-	return err
+	return nfts, err
 }
 
 func (i nftIndexer) IndexContractTransfers(c entity.Contract) error {
@@ -314,7 +322,7 @@ func (i nftIndexer) IndexContractTransfers(c entity.Contract) error {
 		}
 
 		for _, tx := range txs {
-			err = i.handleTransfersForTx(c, tx)
+			_, err := i.handleTransfersForTx(c, tx)
 			if err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to handle transfers")
 				return err
@@ -328,7 +336,9 @@ func (i nftIndexer) IndexContractTransfers(c entity.Contract) error {
 	return nil
 }
 
-func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transaction) error {
+func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transaction) ([]entity.NFT, error) {
+	nfts := make([]entity.NFT, 0)
+
 	rats := tx.GetTransition(entity.TransitionRecipientAcceptTransfer)
 	for _, rat := range rats {
 		tokenId, err := factory.GetTokenId(rat.Msg.Params)
@@ -347,7 +357,6 @@ func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transactio
 				nft, err = i.nftRepo.GetNft(c.Address, tokenId)
 				if err != nil {
 					zap.L().With(zap.Error(err), zap.String("contract", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
-
 					continue
 				}
 			}
@@ -358,7 +367,7 @@ func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transactio
 		newOwner, err := rat.Msg.Params.GetParam("recipient")
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get new owner")
-			return err
+			return nil, err
 		}
 
 		nft.Owner = newOwner.Value.Primitive.(string)
@@ -372,10 +381,12 @@ func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transactio
 			zap.String("from", previousOwner),
 			zap.String("to", nft.Owner),
 		).Info("Transfer NFT")
+
 		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nft)
+		nfts = append(nfts, nft)
 	}
 
 	zap.L().With(zap.Int("count", len(rats))).Info("Index nft transfers")
 
-	return nil
+	return nfts, nil
 }

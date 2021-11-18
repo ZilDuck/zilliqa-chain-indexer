@@ -12,12 +12,9 @@ import (
 	"time"
 )
 
-var (
-	FirstContractBlockNum = uint64(943800)
-)
-
 type Daemon struct {
 	elastic         elastic_cache.Index
+	firstBlockNum   uint64
 	indexer         indexer.Indexer
 	zilliqa         zilliqa.Service
 	txRepo          repository.TransactionRepository
@@ -27,13 +24,14 @@ type Daemon struct {
 
 func NewDaemon(
 	elastic elastic_cache.Index,
+	firstBlockNum uint64,
 	indexer indexer.Indexer,
 	zilliqa zilliqa.Service,
 	txRepo repository.TransactionRepository,
 	contractIndexer indexer.ContractIndexer,
 	nftIndexer indexer.NftIndexer,
 ) *Daemon {
-	return &Daemon{elastic, indexer, zilliqa, txRepo, contractIndexer, nftIndexer}
+	return &Daemon{elastic, firstBlockNum, indexer, zilliqa, txRepo, contractIndexer, nftIndexer}
 }
 
 func (d *Daemon) Execute() {
@@ -53,13 +51,13 @@ func (d *Daemon) rewind() uint64 {
 	bestBlockNum, err := d.txRepo.GetBestBlockNum()
 	if err != nil {
 		if err == repository.ErrBestBlockNumFound {
-			d.indexer.SetLastBlockNumIndexed(FirstContractBlockNum)
-			return FirstContractBlockNum
+			d.indexer.SetLastBlockNumIndexed(d.firstBlockNum)
+			return d.firstBlockNum
 		}
 		zap.L().With(zap.Error(err)).Fatal("Failed to find the best block num")
 	}
 
-	targetHeight := targetHeight(bestBlockNum)
+	targetHeight := d.targetHeight(bestBlockNum)
 
 	d.indexer.SetLastBlockNumIndexed(targetHeight)
 
@@ -162,7 +160,7 @@ func (d *Daemon) subscribe() {
 	}
 }
 
-func targetHeight(bestBlockNum uint64) uint64 {
+func (d Daemon) targetHeight(bestBlockNum uint64) uint64 {
 	if config.Get().RewindToHeight != 0 {
 		zap.L().With(zap.Uint64("height", config.Get().RewindToHeight)).Info("Rewinding to height from config")
 		return config.Get().RewindToHeight
@@ -174,5 +172,5 @@ func targetHeight(bestBlockNum uint64) uint64 {
 		return height - config.Get().ReindexSize
 	}
 
-	return FirstContractBlockNum
+	return d.firstBlockNum
 }
