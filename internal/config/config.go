@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"github.com/dantudor/zil-indexer/internal/log"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
@@ -64,7 +65,7 @@ func Init() {
 		panic("specify the environment")
 	}
 
-	err := godotenv.Load(args[0])
+	err := godotenv.Load(fmt.Sprintf("%s.env", args[0]))
 	if err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Unable to init config")
 	}
