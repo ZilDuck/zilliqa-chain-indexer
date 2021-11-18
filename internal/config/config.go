@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/dantudor/zil-indexer/internal/log"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
@@ -14,8 +13,6 @@ import (
 
 type Config struct {
 	Env            string
-	Logging        bool
-	LogPath        string
 	Network        string
 	Index          string
 	Debug          bool
@@ -77,7 +74,7 @@ func Init() {
 	initSentry()
 }
 func initLogger() {
-	log.NewLogger(fmt.Sprintf("%s/indexer.log", Get().LogPath), Get().Debug, Get().SentryDsn)
+	log.NewLogger(Get().Debug, Get().SentryDsn)
 }
 
 func initSentry() {
@@ -95,8 +92,6 @@ func initSentry() {
 func Get() *Config {
 	return &Config{
 		Env:                    getString("ENV", ""),
-		Logging:                getBool("LOGGING", false),
-		LogPath:                getString("LOG_PATH", "/app/logs"),
 		Network:                getString("NETWORK", "zilliqa"),
 		Index:                  getString("INDEX_NAME", "xxx"),
 		Debug:                  getBool("DEBUG", false),

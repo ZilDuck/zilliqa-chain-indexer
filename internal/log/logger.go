@@ -5,21 +5,13 @@ import (
 	"github.com/mattn/go-colorable"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
-	"log"
-	"os"
 )
 
-func NewLogger(path string, debug bool, sentryDsn string) {
-	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
-	if err != nil {
-		log.Fatal(err)
-	}
-
+func NewLogger(debug bool, sentryDsn string) {
 	pe := zap.NewProductionEncoderConfig()
 	pe.EncodeTime = zapcore.ISO8601TimeEncoder
 	pe.MessageKey = "message"
 	pe.TimeKey = "time"
-	fileEncoder := zapcore.NewJSONEncoder(pe)
 
 	pe.EncodeLevel = zapcore.CapitalColorLevelEncoder
 	consoleEncoder := zapcore.NewConsoleEncoder(pe)
@@ -30,7 +22,6 @@ func NewLogger(path string, debug bool, sentryDsn string) {
 	}
 
 	core := zapcore.NewTee(
-		zapcore.NewCore(fileEncoder, zapcore.AddSync(f), level),
 		zapcore.NewCore(consoleEncoder, zapcore.AddSync(colorable.NewColorableStdout()), level),
 	)
 
