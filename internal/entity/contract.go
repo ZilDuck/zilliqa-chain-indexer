@@ -23,6 +23,7 @@ type Contract struct {
 	ImmutableParams Params   `json:"immutableParams"`
 	Transitions     []string `json:"transitions"`
 	ZRC1            bool     `json:"zrc1"`
+	ZRC6            bool     `json:"zrc6"`
 	Minters         []string `json:"minters"`
 }
 

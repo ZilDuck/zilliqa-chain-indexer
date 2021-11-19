@@ -39,7 +39,9 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 		MutableParams:   f.getMutableParams(tx.Code),
 		Transitions:     f.getTransitions(tx.Code),
 	}
-	contract.ZRC1 = IsNFT(contract)
+
+	contract.ZRC1 = IsZrc1(contract)
+	contract.ZRC6 = IsZrc6(contract)
 
 	return contract, nil
 }
@@ -85,7 +87,7 @@ func (f contractFactory) getTransitions(code string) (transitions []string) {
 	return
 }
 
-func IsNFT(c entity.Contract) bool {
+func IsZrc1(c entity.Contract) bool {
 	if c.AddressBech32 == "zil167flx79fykulp57ykmh9gnf3curcnyux6dcj5e" {
 		// The Bear Market
 		return true
@@ -99,16 +101,20 @@ func IsNFT(c entity.Contract) bool {
 		return true
 	}
 
-	return hasNftImmutables(c) && hasNftMutables(c) && hasTransitions(c)
+	return hasZrc1Immutables(c) && hasZrc1Mutables(c) && hasZrc1Transitions(c)
 }
 
-func hasNftImmutables(c entity.Contract) bool {
+func IsZrc6(c entity.Contract) bool {
+	return hasZrc6Immutables(c) && hasZrc6Mutables(c) && hasZrc6Transitions(c)
+}
+
+func hasZrc1Immutables(c entity.Contract) bool {
 	return c.ImmutableParams.HasParam("contract_owner", "ByStr20") &&
 		c.ImmutableParams.HasParam("name", "String") &&
 		c.ImmutableParams.HasParam("symbol", "String")
 }
 
-func hasNftMutables(c entity.Contract) bool {
+func hasZrc1Mutables(c entity.Contract) bool {
 	return c.MutableParams.HasParam("minters", "Map ByStr20 Dummy") &&
 		c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") &&
 		c.MutableParams.HasParam("owned_token_count", "Map ByStr20 Uint256") &&
@@ -119,7 +125,7 @@ func hasNftMutables(c entity.Contract) bool {
 		c.MutableParams.HasParam("token_id_count", "Uint256")
 }
 
-func hasTransitions(c entity.Contract) bool {
+func hasZrc1Transitions(c entity.Contract) bool {
 	return hasTransition(c, "Mint(to:ByStr20,token_uri:String)") &&
 		hasTransition(c, "Transfer(to:ByStr20,token_id:Uint256)") &&
 		hasTransition(c, "Burn(token_id:Uint256)") &&
@@ -133,4 +139,52 @@ func hasTransition(c entity.Contract, t string) bool {
 		}
 	}
 	return false
+}
+
+func hasZrc6Immutables(c entity.Contract) bool {
+	return c.ImmutableParams.HasParam("initial_contract_owner", "ByStr20") &&
+		c.ImmutableParams.HasParam("initial_base_uri", "String") &&
+		c.ImmutableParams.HasParam("name", "String") &&
+		c.ImmutableParams.HasParam("symbol", "String") &&
+		c.ImmutableParams.HasParam("_scilla_version", "Uint32") &&
+		c.ImmutableParams.HasParam("_creation_block", "BNum") &&
+		c.ImmutableParams.HasParam("_this_address", "ByStr20")
+}
+
+func hasZrc6Mutables(c entity.Contract) bool {
+	return c.MutableParams.HasParam("is_paused", "Bool") &&
+		c.MutableParams.HasParam("token_name", "String") &&
+		c.MutableParams.HasParam("token_symbol", "String") &&
+		c.MutableParams.HasParam("contract_owner", "ByStr20") &&
+		c.MutableParams.HasParam("contract_owner_candidate", "ByStr20") &&
+		c.MutableParams.HasParam("royalty_recipient", "ByStr20") &&
+		c.MutableParams.HasParam("royalty_fee_bps", "Uint128") &&
+		c.MutableParams.HasParam("base_uri", "String") &&
+		c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") &&
+		c.MutableParams.HasParam("token_id_count", "Uint256") &&
+		c.MutableParams.HasParam("total_supply", "Uint256") &&
+		c.MutableParams.HasParam("balances", "Map ByStr20 Uint256") &&
+		c.MutableParams.HasParam("minters", "Map ByStr20 Bool") &&
+		c.MutableParams.HasParam("spenders", "Map Uint256 ByStr20") &&
+		c.MutableParams.HasParam("operators", "Map ByStr20 (Map ByStr20 Bool)")
+}
+
+func hasZrc6Transitions(c entity.Contract) bool {
+	return hasTransition(c, "Pause()") &&
+		hasTransition(c, "Unpause()") &&
+		hasTransition(c, "SetRoyaltyRecipient(to:ByStr20)") &&
+		hasTransition(c, "SetRoyaltyFeeBPS(fee_bps:Uint128)") &&
+		hasTransition(c, "SetBaseURI(uri:String)") &&
+		hasTransition(c, "Mint(to:ByStr20)") &&
+		hasTransition(c, "BatchMint(to_list:ListByStr20)") &&
+		hasTransition(c, "Burn(token_id:Uint256)") &&
+		hasTransition(c, "AddMinter(minter:ByStr20)") &&
+		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
+		hasTransition(c, "AddSpender(spender:ByStr20,token_id:Uint256)") &&
+		hasTransition(c, "RemoveSpender(spender:ByStr20,token_id:Uint256)") &&
+		hasTransition(c, "AddOperator(operator:ByStr20)") &&
+		hasTransition(c, "RemoveOperator(operator:ByStr20)") &&
+		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)") &&
+		hasTransition(c, "SetContractOwnerCandidate(to:ByStr20)") &&
+		hasTransition(c, "AcceptContractOwnership()")
 }
