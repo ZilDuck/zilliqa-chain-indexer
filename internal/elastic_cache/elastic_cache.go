@@ -3,10 +3,10 @@ package elastic_cache
 import (
 	"context"
 	"fmt"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
-	"github.com/dantudor/zil-indexer/internal/config"
-	"github.com/dantudor/zil-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"github.com/patrickmn/go-cache"
 	"github.com/sha1sum/aws_signing_client"

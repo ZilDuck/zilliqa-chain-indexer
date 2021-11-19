@@ -1,9 +1,9 @@
 package indexer
 
 import (
-	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/indexer/IndexOption"
-	"github.com/dantudor/zil-indexer/internal/repository"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer/IndexOption"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"time"

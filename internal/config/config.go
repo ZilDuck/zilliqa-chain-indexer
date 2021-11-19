@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/dantudor/zil-indexer/internal/log"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/log"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"

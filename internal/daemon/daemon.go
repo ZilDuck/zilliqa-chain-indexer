@@ -1,12 +1,12 @@
 package daemon
 
 import (
-	"github.com/dantudor/zil-indexer/internal/config"
-	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/indexer"
-	"github.com/dantudor/zil-indexer/internal/indexer/IndexOption"
-	"github.com/dantudor/zil-indexer/internal/repository"
-	"github.com/dantudor/zil-indexer/internal/zilliqa"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer/IndexOption"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"go.uber.org/zap"
 	"strconv"
 	"time"

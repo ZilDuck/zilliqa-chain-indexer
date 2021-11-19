@@ -1,4 +1,4 @@
-module github.com/dantudor/zil-indexer
+module github.com/ZilDuck/zilliqa-chain-indexer
 
 go 1.16
 
