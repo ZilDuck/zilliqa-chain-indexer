@@ -27,6 +27,7 @@ jobs:
 
       - name: Copy Mappings
         run: |
+          mkdir -p ./build
           cp -r config ./build/config
 
       - name: Build Indexerd
