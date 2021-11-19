@@ -1,8 +1,8 @@
 package factory
 
 import (
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
-	"github.com/dantudor/zil-indexer/internal/entity"
 	"go.uber.org/zap"
 	"strconv"
 )

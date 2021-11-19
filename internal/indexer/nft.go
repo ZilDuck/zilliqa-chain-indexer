@@ -2,11 +2,11 @@ package indexer
 
 import (
 	"errors"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
-	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/entity"
-	"github.com/dantudor/zil-indexer/internal/factory"
-	"github.com/dantudor/zil-indexer/internal/repository"
 	"go.uber.org/zap"
 	"log"
 	"time"

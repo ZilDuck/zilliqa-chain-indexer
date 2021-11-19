@@ -1,9 +1,9 @@
 package factory
 
 import (
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"github.com/Zilliqa/gozilliqa-sdk/core"
-	"github.com/dantudor/zil-indexer/internal/entity"
-	"github.com/dantudor/zil-indexer/internal/zilliqa"
 	"regexp"
 	"strings"
 )

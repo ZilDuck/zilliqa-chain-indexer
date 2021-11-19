@@ -2,11 +2,11 @@ package indexer
 
 import (
 	"fmt"
-	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/entity"
-	"github.com/dantudor/zil-indexer/internal/factory"
-	"github.com/dantudor/zil-indexer/internal/repository"
-	"github.com/dantudor/zil-indexer/internal/zilliqa"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"go.uber.org/zap"
 )
 

@@ -3,8 +3,8 @@ package repository
 import (
 	"encoding/json"
 	"errors"
-	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"go.uber.org/zap"
 )

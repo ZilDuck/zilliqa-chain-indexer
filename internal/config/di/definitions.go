@@ -1,13 +1,13 @@
 package di
 
 import (
-	"github.com/dantudor/zil-indexer/internal/config"
-	"github.com/dantudor/zil-indexer/internal/daemon"
-	"github.com/dantudor/zil-indexer/internal/elastic_cache"
-	"github.com/dantudor/zil-indexer/internal/factory"
-	"github.com/dantudor/zil-indexer/internal/indexer"
-	"github.com/dantudor/zil-indexer/internal/repository"
-	"github.com/dantudor/zil-indexer/internal/zilliqa"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/daemon"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"github.com/patrickmn/go-cache"
 	"github.com/sarulabs/dingo/v4"
 	"go.uber.org/zap"

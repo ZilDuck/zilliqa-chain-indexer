@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/dantudor/zil-indexer/internal/config/di"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config/di"
 	"os"
 
 	"github.com/sarulabs/dingo/v4"
