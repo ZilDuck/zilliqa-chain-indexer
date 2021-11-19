@@ -1,0 +1,62 @@
+name: Deploy mainnet
+
+on:
+  push:
+    branches:
+      - master
+  pull_request:
+    branches:
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16.0'
+      - name: Inject Dependencies
+        run: |
+          ./bin/di
+      - name: Install vendors
+        run: |
+          go version
+          go mod vendor
+
+      - name: Build Indexerd
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/indexerd ./cmd/indexerd/main.go
+
+      - name: Build Contract Importer
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/contractImporter ./cmd/importContracts/main.go
+
+      - name: Build NFT Importer
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/nftImporter ./cmd/importNfts/main.go
+
+      - name: Deploy Indexerd EC2
+        uses: easingthemes/ssh-deploy@v2.1.5
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ZILKROAD_INDEXER_PEM }}
+          SOURCE: "./build/indexerd"
+          REMOTE_HOST: "ec2-18-204-211-115.compute-1.amazonaws.com"
+          REMOTE_USER: "ec2-user"
+          TARGET: "/app/mainnet/indexerd"
+
+      - name: Deploy Contract Importer to EC2
+        uses: easingthemes/ssh-deploy@v2.1.5
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ZILKROAD_INDEXER_PEM }}
+          SOURCE: "./build/contractImporter"
+          REMOTE_HOST: "ec2-18-204-211-115.compute-1.amazonaws.com"
+          REMOTE_USER: "ec2-user"
+          TARGET: "/app/mainnet/contractImporter"
+
+      - name: Deploy NFT Importer to EC2
+        uses: easingthemes/ssh-deploy@v2.1.5
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.ZILKROAD_INDEXER_PEM }}
+          SOURCE: "./build/nftImporter"
+          REMOTE_HOST: "ec2-18-204-211-115.compute-1.amazonaws.com"
+          REMOTE_USER: "ec2-user"
+          TARGET: "/app/mainnet/nftImporter"

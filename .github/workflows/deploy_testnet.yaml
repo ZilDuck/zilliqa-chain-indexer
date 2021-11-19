@@ -1,12 +1,12 @@
-name: Build and deploy
+name: Deploy testnet
 
 on:
   push:
     branches:
-      - master
+      - develop
   pull_request:
     branches:
-      - master
+      - develop
 
 jobs:
   build:
@@ -41,7 +41,7 @@ jobs:
           SOURCE: "./build/indexerd"
           REMOTE_HOST: "ec2-18-204-211-115.compute-1.amazonaws.com"
           REMOTE_USER: "ec2-user"
-          TARGET: "/app/indexerd"
+          TARGET: "/app/testnet/indexerd"
 
       - name: Deploy Contract Importer to EC2
         uses: easingthemes/ssh-deploy@v2.1.5
@@ -50,7 +50,7 @@ jobs:
           SOURCE: "./build/contractImporter"
           REMOTE_HOST: "ec2-18-204-211-115.compute-1.amazonaws.com"
           REMOTE_USER: "ec2-user"
-          TARGET: "/app/contractImporter"
+          TARGET: "/app/testnet/contractImporter"
 
       - name: Deploy NFT Importer to EC2
         uses: easingthemes/ssh-deploy@v2.1.5
@@ -59,4 +59,4 @@ jobs:
           SOURCE: "./build/nftImporter"
           REMOTE_HOST: "ec2-18-204-211-115.compute-1.amazonaws.com"
           REMOTE_USER: "ec2-user"
-          TARGET: "/app/nftImporter"
+          TARGET: "/app/testnet/nftImporter"
