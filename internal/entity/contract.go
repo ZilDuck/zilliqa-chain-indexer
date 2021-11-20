@@ -11,6 +11,7 @@ var (
 	TransitionRegenerateDuck          TRANSITION = "regenerateDuck"
 	TransitionRecipientAcceptTransfer TRANSITION = "RecipientAcceptTransfer"
 	TransitionZRC6BatchMintCallback   TRANSITION = "ZRC6_BatchMintCallback"
+	TransitionZRC6SetBaseURICallback  TRANSITION = "ZRC6_SetBaseURICallback"
 )
 
 type Contract struct {

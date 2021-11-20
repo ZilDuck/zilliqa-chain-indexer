@@ -17,7 +17,7 @@ var (
 
 type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (entity.NFT, error)
-	GetNfts(contract string) ([]entity.NFT, int64, error)
+	GetNfts(contract string, size, page int) ([]entity.NFT, int64, error)
 	GetNextTokenId(contractAddr string, blockNum uint64) (uint64, error)
 
 	DeleteAll() error
@@ -45,14 +45,18 @@ func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, erro
 	return r.findOne(result, err)
 }
 
-func (r nftRepository) GetNfts(contract string) ([]entity.NFT, int64, error) {
+func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.NFT, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("contract.keyword", contract),
 	)
 
+	from := size*page - size
+
 	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.NftIndex.Get()).
 		Query(query).
+		Size(size).
+		From(from).
 		TrackTotalHits(true).
 		Size(100))
 

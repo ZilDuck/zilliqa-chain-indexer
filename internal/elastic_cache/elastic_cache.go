@@ -23,7 +23,6 @@ type Index interface {
 	InstallMappings()
 
 	AddIndexRequest(index string, entity entity.Entity)
-	AddIndexRequests(index string, entity []entity.Entity)
 	AddUpdateRequest(index string, entity entity.Entity)
 	HasRequest(entity entity.Entity) bool
 	AddRequest(index string, entity entity.Entity, reqType RequestType)
@@ -167,12 +166,6 @@ func (i index) AddIndexRequest(index string, entity entity.Entity) {
 	zap.L().With(zap.String("slug", entity.Slug())).Debug("ElasticCache: AddIndexRequest")
 
 	i.AddRequest(index, entity, IndexRequest)
-}
-
-func (i index) AddIndexRequests(index string, entities []entity.Entity) {
-	for _, entity := range entities {
-		i.AddIndexRequest(index, entity)
-	}
 }
 
 func (i index) AddUpdateRequest(index string, entity entity.Entity) {

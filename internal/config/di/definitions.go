@@ -82,8 +82,10 @@ var Definitions = []dingo.Def{
 			elastic elastic_cache.Index,
 			factory factory.ContractFactory,
 			txRepo repository.TransactionRepository,
+			contractRepo repository.ContractRepository,
+			nftRepo repository.NftRepository,
 		) (indexer.ContractIndexer, error) {
-			return indexer.NewContractIndexer(elastic, factory, txRepo), nil
+			return indexer.NewContractIndexer(elastic, factory, txRepo, contractRepo, nftRepo), nil
 		},
 	},
 	{
