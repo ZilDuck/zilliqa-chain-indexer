@@ -54,11 +54,11 @@ func createZrc6NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]en
 			BlockNum:        tx.BlockNum,
 			TokenId:         tokenId,
 			TokenUri:        fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), tokenId),
-			By:              recipient,
+			By:              strings.ToLower(recipient),
 			ByBech32:        recipientBech32,
-			Recipient:       recipient,
+			Recipient:       strings.ToLower(recipient),
 			RecipientBech32: recipientBech32,
-			Owner:           recipient,
+			Owner:           strings.ToLower(recipient),
 			OwnerBech32:     recipientBech32,
 		}
 
@@ -116,11 +116,11 @@ func createZrc1NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]en
 			BlockNum:        tx.BlockNum,
 			TokenId:         tokenId,
 			TokenUri:        tokenUri,
-			By:              mintedBy.Value.Primitive.(string),
+			By:              strings.ToLower(mintedBy.Value.Primitive.(string)),
 			ByBech32:        mintedByBech32,
-			Recipient:       recipient,
+			Recipient:       strings.ToLower(recipient),
 			RecipientBech32: recipientBech32,
-			Owner:           recipient,
+			Owner:           strings.ToLower(recipient),
 			OwnerBech32:     recipientBech32,
 		}
 

@@ -47,11 +47,11 @@ func CreateNftsFromBatchMintingTx(tx entity.Transaction, c entity.Contract, next
 					BlockNum:        tx.BlockNum,
 					TokenId:         nextTokenId,
 					TokenUri:        fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), nextTokenId),
-					By:              recipient,
+					By:              strings.ToLower(recipient),
 					ByBech32:        recipientBech32,
-					Recipient:       recipient,
+					Recipient:       strings.ToLower(recipient),
 					RecipientBech32: recipientBech32,
-					Owner:           recipient,
+					Owner:           strings.ToLower(recipient),
 					OwnerBech32:     recipientBech32,
 				}
 
