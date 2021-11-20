@@ -62,7 +62,7 @@ func (i nftIndexer) Index(txs []entity.Transaction) error {
 			continue
 		}
 
-		if contracts[tx.ContractAddress].ZRC1 == false {
+		if contracts[tx.ContractAddress].ZRC1 == false && contracts[tx.ContractAddress].ZRC6 == false {
 			continue
 		}
 

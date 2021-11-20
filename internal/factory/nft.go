@@ -1,13 +1,79 @@
 package factory
 
 import (
+	"errors"
+	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 )
 
 func CreateNftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	if c.ZRC1 == true {
+		return createZrc1NftsFromMintingTx(tx, c)
+	}
+
+	if c.ZRC6 == true {
+		return createZrc6NftsFromMintingTx(tx, c)
+	}
+
+	return nil, errors.New("contract is not zrc1 or zrc6")
+}
+
+func createZrc6NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	nfts := make([]entity.NFT, 0)
+
+	for _, event := range tx.GetEventLogs("Mint") {
+		tokenId, err := GetTokenId(event.Params)
+		if err != nil {
+			return nil, err
+		}
+
+		tokenUri, err := c.Data.Params.GetParam("initial_base_uri")
+		if err != nil {
+			return nil, err
+		}
+
+		recipient, err := getPrimitiveParam(event.Params, "to")
+		if err != nil {
+			return nil, err
+		}
+		recipientBech32, _ := bech32.ToBech32Address(recipient)
+
+		name, _ := c.Data.Params.GetParam("name")
+		symbol, _ := c.Data.Params.GetParam("symbol")
+
+		nft := entity.NFT{
+			Contract:        c.Address,
+			ContractBech32:  c.AddressBech32,
+			Name:            name.Value.Primitive.(string),
+			Symbol:          symbol.Value.Primitive.(string),
+			TxID:            tx.ID,
+			BlockNum:        tx.BlockNum,
+			TokenId:         tokenId,
+			TokenUri:        fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), tokenId),
+			By:              recipient,
+			ByBech32:        recipientBech32,
+			Recipient:       recipient,
+			RecipientBech32: recipientBech32,
+			Owner:           recipient,
+			OwnerBech32:     recipientBech32,
+		}
+
+		zap.L().With(
+			zap.Uint64("blockNum", tx.BlockNum),
+			zap.String("symbol", nft.Symbol),
+			zap.Uint64("tokenId", nft.TokenId),
+		).Info("Index NFT")
+		nfts = append(nfts, nft)
+	}
+
+	return nfts, nil
+}
+
+func createZrc1NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	if c.Name == "Unicutes" {
 		return createNftsFromUnicuteMintingTx(tx, c)
 	}
