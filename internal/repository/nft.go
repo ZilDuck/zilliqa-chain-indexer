@@ -1,11 +1,14 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
+	"go.uber.org/zap"
+	"time"
 )
 
 var (
@@ -15,6 +18,9 @@ var (
 type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (entity.NFT, error)
 	GetNfts(contract string) ([]entity.NFT, int64, error)
+	GetNextTokenId(contractAddr string, blockNum uint64) (uint64, error)
+
+	DeleteAll() error
 }
 
 type nftRepository struct {
@@ -51,6 +57,46 @@ func (r nftRepository) GetNfts(contract string) ([]entity.NFT, int64, error) {
 		Size(100))
 
 	return r.findMany(result, err)
+}
+
+func (r nftRepository) GetNextTokenId(contractAddr string, blockNum uint64) (uint64, error) {
+	r.elastic.Persist()
+	time.Sleep(2 * time.Second)
+
+	nextTokenId := uint64(1)
+
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("contract.keyword", contractAddr),
+		elastic.NewRangeQuery("blockNum").Lt(blockNum),
+	)
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_cache.NftIndex.Get()).
+		Query(query).
+		Sort("tokenId", false).
+		Size(1))
+
+	nft, err := r.findOne(result, err)
+	if err != nil {
+		if errors.Is(ErrNftNotFound, err) {
+			return nextTokenId, nil
+		}
+		zap.L().With(zap.Error(err)).Error("Failed to get nft")
+		return 0, err
+	}
+
+	zap.L().With(zap.String("contractAddr", contractAddr), zap.Uint64("tokenId", nextTokenId)).
+		Info("Found next token in the index")
+	return nft.TokenId + 1, nil
+}
+
+func (r nftRepository) DeleteAll() error {
+	_, err := r.elastic.GetClient().
+		DeleteByQuery(elastic_cache.NftIndex.Get()).
+		Query(elastic.NewMatchAllQuery()).
+		Do(context.Background())
+
+	return err
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (entity.NFT, error) {

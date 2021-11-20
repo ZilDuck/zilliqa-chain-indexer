@@ -33,4 +33,5 @@ func main() {
 func initialize() {
 	config.Init()
 	container, _ = dic.NewContainer()
+	container.GetElastic().InstallMappings()
 }

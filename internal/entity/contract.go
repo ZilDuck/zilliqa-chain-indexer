@@ -10,6 +10,7 @@ type TRANSITION string
 var (
 	TransitionRegenerateDuck          TRANSITION = "regenerateDuck"
 	TransitionRecipientAcceptTransfer TRANSITION = "RecipientAcceptTransfer"
+	TransitionZRC6BatchMintCallback   TRANSITION = "ZRC6_BatchMintCallback"
 )
 
 type Contract struct {

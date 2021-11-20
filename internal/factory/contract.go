@@ -143,48 +143,29 @@ func hasTransition(c entity.Contract, t string) bool {
 
 func hasZrc6Immutables(c entity.Contract) bool {
 	return c.ImmutableParams.HasParam("initial_contract_owner", "ByStr20") &&
-		c.ImmutableParams.HasParam("initial_base_uri", "String") &&
-		c.ImmutableParams.HasParam("name", "String") &&
-		c.ImmutableParams.HasParam("symbol", "String") &&
-		c.ImmutableParams.HasParam("_scilla_version", "Uint32") &&
-		c.ImmutableParams.HasParam("_creation_block", "BNum") &&
-		c.ImmutableParams.HasParam("_this_address", "ByStr20")
+		c.ImmutableParams.HasParam("initial_base_uri", "String")
 }
 
 func hasZrc6Mutables(c entity.Contract) bool {
-	return c.MutableParams.HasParam("is_paused", "Bool") &&
-		c.MutableParams.HasParam("token_name", "String") &&
-		c.MutableParams.HasParam("token_symbol", "String") &&
-		c.MutableParams.HasParam("contract_owner", "ByStr20") &&
-		c.MutableParams.HasParam("contract_owner_candidate", "ByStr20") &&
-		c.MutableParams.HasParam("royalty_recipient", "ByStr20") &&
-		c.MutableParams.HasParam("royalty_fee_bps", "Uint128") &&
+	return c.MutableParams.HasParam("contract_owner", "ByStr20") &&
 		c.MutableParams.HasParam("base_uri", "String") &&
-		c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") &&
-		c.MutableParams.HasParam("token_id_count", "Uint256") &&
-		c.MutableParams.HasParam("total_supply", "Uint256") &&
-		c.MutableParams.HasParam("balances", "Map ByStr20 Uint256") &&
 		c.MutableParams.HasParam("minters", "Map ByStr20 Bool") &&
+		c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") &&
 		c.MutableParams.HasParam("spenders", "Map Uint256 ByStr20") &&
-		c.MutableParams.HasParam("operators", "Map ByStr20 (Map ByStr20 Bool)")
+		c.MutableParams.HasParam("operators", "Map ByStr20 (Map ByStr20 Bool)") &&
+		c.MutableParams.HasParam("token_id_count", "Uint256") &&
+		c.MutableParams.HasParam("balances", "Map ByStr20 Uint256") &&
+		c.MutableParams.HasParam("total_supply", "Uint256")
 }
 
 func hasZrc6Transitions(c entity.Contract) bool {
 	return hasTransition(c, "Pause()") &&
-		hasTransition(c, "Unpause()") &&
-		hasTransition(c, "SetRoyaltyRecipient(to:ByStr20)") &&
-		hasTransition(c, "SetRoyaltyFeeBPS(fee_bps:Uint128)") &&
-		hasTransition(c, "SetBaseURI(uri:String)") &&
 		hasTransition(c, "Mint(to:ByStr20)") &&
-		hasTransition(c, "BatchMint(to_list:ListByStr20)") &&
-		hasTransition(c, "Burn(token_id:Uint256)") &&
 		hasTransition(c, "AddMinter(minter:ByStr20)") &&
 		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
 		hasTransition(c, "AddSpender(spender:ByStr20,token_id:Uint256)") &&
 		hasTransition(c, "RemoveSpender(spender:ByStr20,token_id:Uint256)") &&
 		hasTransition(c, "AddOperator(operator:ByStr20)") &&
 		hasTransition(c, "RemoveOperator(operator:ByStr20)") &&
-		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)") &&
-		hasTransition(c, "SetContractOwnerCandidate(to:ByStr20)") &&
-		hasTransition(c, "AcceptContractOwnership()")
+		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)")
 }

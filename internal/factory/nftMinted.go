@@ -11,11 +11,11 @@ import (
 )
 
 func CreateNftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
-	if c.ZRC1 == true {
+	if c.ZRC1 {
 		return createZrc1NftsFromMintingTx(tx, c)
 	}
 
-	if c.ZRC6 == true {
+	if c.ZRC6 {
 		return createZrc6NftsFromMintingTx(tx, c)
 	}
 
@@ -63,6 +63,7 @@ func createZrc6NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]en
 		}
 
 		zap.L().With(
+			zap.String("recipient", recipient),
 			zap.Uint64("blockNum", tx.BlockNum),
 			zap.String("symbol", nft.Symbol),
 			zap.Uint64("tokenId", nft.TokenId),

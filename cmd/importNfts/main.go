@@ -21,7 +21,7 @@ func main() {
 	page := 1
 
 	for {
-		contracts, _, err := container.GetContractRepo().GetAllZrc1Contracts(size, page)
+		contracts, _, err := container.GetContractRepo().GetAllNftContracts(size, page)
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contracts")
 			panic(err)

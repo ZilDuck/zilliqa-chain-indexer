@@ -21,6 +21,7 @@ type NftIndexer interface {
 	BulkIndex(fromBlockNum uint64) error
 
 	IndexTxMints(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
+	IndexTxBatchMints(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
 	IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
 	IndexTxTransfers(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error)
 
@@ -71,6 +72,12 @@ func (i nftIndexer) Index(txs []entity.Transaction) error {
 			return err
 		}
 		nfts = append(nfts, mintedNfts...)
+
+		batchMintedNfts, err := i.IndexTxBatchMints(tx, *contracts[tx.ContractAddress])
+		if err != nil {
+			return err
+		}
+		nfts = append(nfts, batchMintedNfts...)
 
 		duckRegenNFts, err := i.IndexTxDuckRegenerations(tx, *contracts[tx.ContractAddress])
 		if err != nil {
@@ -159,6 +166,8 @@ func (i nftIndexer) IndexContract(c entity.Contract) error {
 }
 
 func (i nftIndexer) IndexTxMints(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	zap.L().With(zap.String("txId", tx.ID)).Info("IndexTxMints")
+
 	nfts, err := factory.CreateNftsFromMintingTx(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create nft from minting tx")
@@ -186,6 +195,9 @@ func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 
 			for _, tx := range txs {
 				if _, err := i.IndexTxMints(tx, c); err != nil {
+					return err
+				}
+				if _, err := i.IndexTxBatchMints(tx, c); err != nil {
 					return err
 				}
 			}
@@ -216,6 +228,34 @@ func (i nftIndexer) IndexContractMints(c entity.Contract) (err error) {
 	return
 }
 
+func (i nftIndexer) IndexTxBatchMints(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+	if !c.ZRC6 {
+		return nil, nil
+	}
+
+	if !tx.HasTransition(entity.TransitionZRC6BatchMintCallback) {
+		return nil, nil
+	}
+
+	nextTokenId, err := i.nftRepo.GetNextTokenId(c.Address, tx.BlockNum)
+	if err != nil {
+		return nil, err
+	}
+
+	nfts, err := factory.CreateNftsFromBatchMintingTx(tx, c, nextTokenId)
+	if err != nil {
+		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create nft from batch minting tx")
+		return nil, err
+	}
+
+	for idx := range nfts {
+		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nfts[idx])
+	}
+	i.elastic.Persist()
+
+	return nfts, err
+}
+
 func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
@@ -244,7 +284,7 @@ func (i nftIndexer) IndexTxDuckRegenerations(tx entity.Transaction, c entity.Con
 			zap.Uint64("tokenId", nft.TokenId),
 		).Info("Regenerate NFD")
 
-		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nft)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft)
 		nfts = append(nfts, nft)
 	}
 
@@ -382,7 +422,7 @@ func (i nftIndexer) handleTransfersForTx(c entity.Contract, tx entity.Transactio
 			zap.String("to", nft.Owner),
 		).Info("Transfer NFT")
 
-		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nft)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft)
 		nfts = append(nfts, nft)
 	}
 

@@ -14,6 +14,7 @@ var (
 )
 
 type ContractRepository interface {
+	GetAllNftContracts(size, page int) ([]entity.Contract, int64, error)
 	GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error)
 	GetContractByAddress(contractAddr string) (entity.Contract, error)
 	GetContractByAddressBech32(contractAddr string) (entity.Contract, error)
@@ -26,6 +27,30 @@ type contractRepository struct {
 
 func NewContractRepository(elastic elastic_cache.Index) ContractRepository {
 	return contractRepository{elastic}
+}
+
+func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contract, int64, error) {
+	from := size*page - size
+
+	zap.L().With(
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetAllNftContracts")
+
+	query := elastic.NewBoolQuery().Should(
+		elastic.NewTermQuery("zrc1", true),
+		elastic.NewTermQuery("zrc6", true),
+	)
+
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_cache.ContractIndex.Get()).
+		Query(query).
+		Sort("blockNum", true).
+		Size(size).
+		From(from))
+
+	return r.findMany(results, err)
 }
 
 func (r contractRepository) GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error) {
