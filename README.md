@@ -1,6 +1,11 @@
 # zilliqa-chain-indexer
 prodpeak sailing on a wave of txs
 
+## ZRC1 Support
+- [x] Mint NFT
+- [x] Transfer NFT
+- [ ] Burn NFT
+
 ## ZRC6 Support
 - [x] Mint NFTs
 - [x] Batch Mint NFTs
@@ -8,6 +13,5 @@ prodpeak sailing on a wave of txs
 - [ ] Burn NFT
 - [ ] Add Minter
 - [ ] Remove Minter
-- [ ] Set Spender
 - [ ] Transfer From
 - [ ] Batch Transfer From
