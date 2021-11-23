@@ -7,14 +7,26 @@ import (
 
 type TRANSITION string
 
+const (
+	ZRC1RegenerateDuck          TRANSITION = "regenerateDuck"
+	ZRC1RecipientAcceptTransfer TRANSITION = "RecipientAcceptTransfer"
+	ZRC1BurnCallBack            TRANSITION = "BurnCallBack"
+
+	ZRC6MintCallback                TRANSITION = "ZRC6_MintCallback"
+	ZRC6BatchMintCallback           TRANSITION = "ZRC6_BatchMintCallback"
+	ZRC6SetBaseURICallback          TRANSITION = "ZRC6_SetBaseURICallback"
+	ZRC6RecipientAcceptTransferFrom TRANSITION = "ZRC6_RecipientAcceptTransferFrom"
+	ZRC6BurnCallback                TRANSITION = "ZRC6_BurnCallback"
+	ZRC6BatchBurnCallback           TRANSITION = "ZRC6_BatchBurnCallback"
+)
+
 var (
-	TransitionRegenerateDuck          TRANSITION = "regenerateDuck"
-	TransitionRecipientAcceptTransfer TRANSITION = "RecipientAcceptTransfer"
-	TransitionZRC6BatchMintCallback   TRANSITION = "ZRC6_BatchMintCallback"
-	TransitionZRC6SetBaseURICallback  TRANSITION = "ZRC6_SetBaseURICallback"
+	Zrc1Transitions = []TRANSITION{ZRC1RegenerateDuck, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
+	Zrc6Transitions = []TRANSITION{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
 )
 
 type Contract struct {
+	//immutable
 	Name            string   `json:"name"`
 	Address         string   `json:"address"`
 	AddressBech32   string   `json:"addressBech32"`
@@ -26,7 +38,9 @@ type Contract struct {
 	Transitions     []string `json:"transitions"`
 	ZRC1            bool     `json:"zrc1"`
 	ZRC6            bool     `json:"zrc6"`
-	Minters         []string `json:"minters"`
+
+	//mutable
+	BaseUri string `json:"baseuri"`
 }
 
 func (c Contract) Slug() string {

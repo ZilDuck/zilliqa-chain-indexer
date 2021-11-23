@@ -10,8 +10,7 @@ prodpeak sailing on a wave of txs
 - [x] Mint NFTs
 - [x] Batch Mint NFTs
 - [x] Update contract base uri
-- [ ] Burn NFT
-- [ ] Add Minter
-- [ ] Remove Minter
-- [ ] Transfer From
+- [X] Burn NFT
+- [ ] Batch Burn NFT
+- [X] Transfer From
 - [ ] Batch Transfer From

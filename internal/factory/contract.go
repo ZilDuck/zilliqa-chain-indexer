@@ -28,7 +28,7 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 		contractValues, _ = f.zilliqa.GetSmartContractInit(tx.ContractAddressBech32)
 	}
 
-	contract := entity.Contract{
+	c := entity.Contract{
 		Address:         tx.ContractAddress,
 		AddressBech32:   tx.ContractAddressBech32,
 		BlockNum:        tx.BlockNum,
@@ -40,10 +40,16 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 		Transitions:     f.getTransitions(tx.Code),
 	}
 
-	contract.ZRC1 = IsZrc1(contract)
-	contract.ZRC6 = IsZrc6(contract)
+	c.ZRC1 = IsZrc1(c)
 
-	return contract, nil
+	c.ZRC6 = IsZrc6(c)
+	if c.ZRC6 {
+		if initialBaseUri, err := tx.Data.Params.GetParam("initial_base_uri"); err == nil {
+			c.BaseUri = initialBaseUri.Value.Primitive.(string)
+		}
+	}
+
+	return c, nil
 }
 
 func (f contractFactory) getContractName(code string) string {

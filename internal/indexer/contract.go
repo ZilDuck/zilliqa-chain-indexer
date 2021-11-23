@@ -6,7 +6,6 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
-	"time"
 )
 
 type ContractIndexer interface {
@@ -46,16 +45,8 @@ func (i contractIndexer) Index(txs []entity.Transaction) ([]entity.Contract, err
 				return nil, err
 			}
 
-			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c)
+			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
 			contracts = append(contracts, c)
-		}
-
-		if tx.IsContractExecution {
-			if tx.HasTransition(entity.TransitionZRC6SetBaseURICallback) {
-				if err := i.setBaseUri(tx); err != nil {
-					return nil, err
-				}
-			}
 		}
 	}
 
@@ -75,41 +66,36 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 			zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
 			return err
 		}
-
 		if len(txs) == 0 {
-			zap.L().Info("No more contract creation txs found")
 			break
 		}
 
 		for _, tx := range txs {
-			contract, err := i.factory.CreateContractFromTx(tx)
+			c, err := i.factory.CreateContractFromTx(tx)
 			if err != nil {
 				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create contract txs")
 				break
 			}
-			if !contract.ZRC1 {
+
+			zap.L().With(
+				zap.Uint64("blockNum", tx.BlockNum),
+				zap.String("contractAddr", c.Address),
+				zap.Bool("zrc1", c.ZRC1),
+				zap.Bool("zrc6", c.ZRC6),
+			).Info(c.Name)
+			if !c.ZRC1 && !c.ZRC6 {
 				continue
 			}
+
 			zap.L().With(
-				zap.Uint64("blockNum", contract.BlockNum),
-				zap.String("name", contract.Name),
-				zap.String("address", contract.Address),
-				zap.Bool("zrc1", contract.ZRC1),
+				zap.Uint64("blockNum", c.BlockNum),
+				zap.String("name", c.Name),
+				zap.String("address", c.Address),
+				zap.Bool("zrc1", c.ZRC1),
+				zap.Bool("zrc6", c.ZRC6),
 			).Info("Index contract")
 
-			//if contract.ZRC1 {
-			minters, err := i.txRepo.GetMintersForZrc1Contract(contract.Address)
-			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to get contract minters")
-				return err
-			}
-			contract.Minters = minters
-			if contract.Minters != nil {
-				zap.S().Infof("Adding minters to: %s", contract.Address)
-			}
-			//}
-
-			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), contract)
+			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
 		}
 
 		i.elastic.BatchPersist()
@@ -118,47 +104,6 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	}
 
 	i.elastic.Persist()
-
-	return nil
-}
-
-func (i contractIndexer) setBaseUri(tx entity.Transaction) error {
-	if !tx.HasTransition(entity.TransitionZRC6SetBaseURICallback) {
-		return nil
-	}
-
-	zap.L().With(zap.String("txId", tx.ID)).Info("Updating the baseUri for contract")
-	i.elastic.Persist()
-	time.Sleep(2 * time.Second)
-
-	for _, t := range tx.GetTransition(entity.TransitionZRC6SetBaseURICallback) {
-		baseUri, err := t.Msg.Params.GetParam("base_uri")
-		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to get base_uri from BaseUriCallback")
-		}
-
-		page := 1
-		for {
-			nfts, _, err := i.nftRepo.GetNfts(t.Addr, 100, page)
-			if err != nil {
-				return err
-			}
-
-			if len(nfts) == 0 {
-				break
-			}
-
-			for _, nft := range nfts {
-				nft.TokenUri = baseUri.Value.Primitive.(string)
-				i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft)
-			}
-
-			i.elastic.BatchPersist()
-			page++
-		}
-
-		i.elastic.Persist()
-	}
 
 	return nil
 }

@@ -1,87 +1,56 @@
 package factory
 
 import (
-	"errors"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
-	"github.com/Zilliqa/gozilliqa-sdk/bech32"
-	"go.uber.org/zap"
 	"strconv"
 	"strings"
 )
 
-func CreateNftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
-	if c.ZRC1 {
-		return createZrc1NftsFromMintingTx(tx, c)
-	}
-
-	if c.ZRC6 {
-		return createZrc6NftsFromMintingTx(tx, c)
-	}
-
-	return nil, errors.New("contract is not zrc1 or zrc6")
-}
-
-func createZrc6NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
-	for _, event := range tx.GetEventLogs("Mint") {
-		tokenId, err := GetTokenId(event.Params)
-		if err != nil {
-			return nil, err
-		}
-
-		tokenUri, err := c.Data.Params.GetParam("initial_base_uri")
-		if err != nil {
-			return nil, err
-		}
-
-		recipient, err := getPrimitiveParam(event.Params, "to")
-		if err != nil {
-			return nil, err
-		}
-		recipientBech32, _ := bech32.ToBech32Address(recipient)
-
+	for _, transition := range tx.GetTransition(entity.ZRC6MintCallback) {
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
-		nft := entity.NFT{
-			Contract:        c.Address,
-			ContractBech32:  c.AddressBech32,
-			Name:            name.Value.Primitive.(string),
-			Symbol:          symbol.Value.Primitive.(string),
-			TxID:            tx.ID,
-			BlockNum:        tx.BlockNum,
-			TokenId:         tokenId,
-			TokenUri:        fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), tokenId),
-			By:              strings.ToLower(recipient),
-			ByBech32:        recipientBech32,
-			Recipient:       strings.ToLower(recipient),
-			RecipientBech32: recipientBech32,
-			Owner:           strings.ToLower(recipient),
-			OwnerBech32:     recipientBech32,
+		tokenId, err := GetTokenId(transition.Msg.Params)
+		if err != nil {
+			return nil, err
 		}
 
-		zap.L().With(
-			zap.String("recipient", recipient),
-			zap.Uint64("blockNum", tx.BlockNum),
-			zap.String("symbol", nft.Symbol),
-			zap.Uint64("tokenId", nft.TokenId),
-		).Info("Index NFT")
+		to, err := getPrimitiveParam(transition.Msg.Params, "to")
+		if err != nil {
+			return nil, err
+		}
+
+		nft := entity.NFT{
+			Contract: c.Address,
+			TxID:     tx.ID,
+			BlockNum: tx.BlockNum,
+			Name:     name.Value.Primitive.(string),
+			Symbol:   symbol.Value.Primitive.(string),
+			TokenId:  tokenId,
+			TokenUri: fmt.Sprintf("%s%d", c.BaseUri, tokenId),
+			Owner:    strings.ToLower(to),
+		}
 		nfts = append(nfts, nft)
 	}
 
 	return nfts, nil
 }
 
-func createZrc1NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+func CreateZrc1FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	if c.Name == "Unicutes" {
-		return createNftsFromUnicuteMintingTx(tx, c)
+		return createUincuteFromMintTx(tx, c)
 	}
 
 	nfts := make([]entity.NFT, 0)
 
 	for _, mintSuccess := range tx.GetEventLogs("MintSuccess") {
+		name, _ := c.Data.Params.GetParam("name")
+		symbol, _ := c.Data.Params.GetParam("symbol")
+
 		tokenId, err := GetTokenId(mintSuccess.Params)
 		if err != nil {
 			return nil, err
@@ -97,48 +66,30 @@ func createZrc1NftsFromMintingTx(tx entity.Transaction, c entity.Contract) ([]en
 			return nil, err
 		}
 
-		mintedBy, err := mintSuccess.Params.GetParam("by")
-		if err != nil {
-			return nil, err
-		}
-		mintedByBech32, _ := bech32.ToBech32Address(mintedBy.Value.Primitive.(string))
-		recipientBech32, _ := bech32.ToBech32Address(recipient)
-
-		name, _ := c.Data.Params.GetParam("name")
-		symbol, _ := c.Data.Params.GetParam("symbol")
-
 		nft := entity.NFT{
-			Contract:        c.Address,
-			ContractBech32:  c.AddressBech32,
-			Name:            name.Value.Primitive.(string),
-			Symbol:          symbol.Value.Primitive.(string),
-			TxID:            tx.ID,
-			BlockNum:        tx.BlockNum,
-			TokenId:         tokenId,
-			TokenUri:        tokenUri,
-			By:              strings.ToLower(mintedBy.Value.Primitive.(string)),
-			ByBech32:        mintedByBech32,
-			Recipient:       strings.ToLower(recipient),
-			RecipientBech32: recipientBech32,
-			Owner:           strings.ToLower(recipient),
-			OwnerBech32:     recipientBech32,
+			Contract: c.Address,
+			TxID:     tx.ID,
+			BlockNum: tx.BlockNum,
+			Name:     name.Value.Primitive.(string),
+			Symbol:   symbol.Value.Primitive.(string),
+			TokenId:  tokenId,
+			TokenUri: tokenUri,
+			Owner:    strings.ToLower(recipient),
 		}
 
-		zap.L().With(
-			zap.Uint64("blockNum", tx.BlockNum),
-			zap.String("symbol", nft.Symbol),
-			zap.Uint64("tokenId", nft.TokenId),
-		).Info("Index NFT")
 		nfts = append(nfts, nft)
 	}
 
 	return nfts, nil
 }
 
-func createNftsFromUnicuteMintingTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+func createUincuteFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
 	for _, mintSuccess := range tx.GetEventLogs("UnicuteInsertDrandValues") {
+		name, _ := c.Data.Params.GetParam("name")
+		symbol, _ := c.Data.Params.GetParam("symbol")
+
 		tokenId, err := GetTokenId(mintSuccess.Params)
 		if err != nil {
 			return nil, err
@@ -154,31 +105,17 @@ func createNftsFromUnicuteMintingTx(tx entity.Transaction, c entity.Contract) ([
 			return nil, err
 		}
 
-		mintedBy := mintSuccess.Address
-		mintedByBech32, _ := bech32.ToBech32Address(mintedBy)
-		recipientBech32, _ := bech32.ToBech32Address(recipient)
-
-		name, _ := c.Data.Params.GetParam("name")
-		symbol, _ := c.Data.Params.GetParam("symbol")
-
 		nft := entity.NFT{
-			Contract:        c.Address,
-			ContractBech32:  c.AddressBech32,
-			Name:            name.Value.Primitive.(string),
-			Symbol:          symbol.Value.Primitive.(string),
-			TxID:            tx.ID,
-			BlockNum:        tx.BlockNum,
-			TokenId:         tokenId,
-			TokenUri:        tokenUri,
-			By:              mintedBy,
-			ByBech32:        mintedByBech32,
-			Recipient:       recipient,
-			RecipientBech32: recipientBech32,
-			Owner:           recipient,
-			OwnerBech32:     recipientBech32,
+			Contract: c.Address,
+			TxID:     tx.ID,
+			BlockNum: tx.BlockNum,
+			Name:     name.Value.Primitive.(string),
+			Symbol:   symbol.Value.Primitive.(string),
+			TokenId:  tokenId,
+			TokenUri: tokenUri,
+			Owner:    recipient,
 		}
 
-		zap.L().With(zap.String("symbol", nft.Symbol), zap.Uint64("tokenId", nft.TokenId)).Info("Index NFT")
 		nfts = append(nfts, nft)
 	}
 

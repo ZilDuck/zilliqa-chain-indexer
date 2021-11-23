@@ -7,8 +7,6 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
-	"go.uber.org/zap"
-	"time"
 )
 
 var (
@@ -18,7 +16,7 @@ var (
 type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (entity.NFT, error)
 	GetNfts(contract string, size, page int) ([]entity.NFT, int64, error)
-	GetNextTokenId(contractAddr string, blockNum uint64) (uint64, error)
+	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
 
 	DeleteAll() error
 }
@@ -32,6 +30,11 @@ func NewNftRepository(elastic elastic_cache.Index) NftRepository {
 }
 
 func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, error) {
+	pendingRequest := r.elastic.GetRequest(entity.CreateNftSlug(tokenId, contract))
+	if pendingRequest != nil {
+		return pendingRequest.Entity.(entity.NFT), nil
+	}
+
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("contract.keyword", contract),
 		elastic.NewTermQuery("tokenId", tokenId),
@@ -63,12 +66,7 @@ func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.NFT, i
 	return r.findMany(result, err)
 }
 
-func (r nftRepository) GetNextTokenId(contractAddr string, blockNum uint64) (uint64, error) {
-	r.elastic.Persist()
-	time.Sleep(2 * time.Second)
-
-	nextTokenId := uint64(1)
-
+func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("contract.keyword", contractAddr),
 		elastic.NewRangeQuery("blockNum").Lt(blockNum),
@@ -83,15 +81,12 @@ func (r nftRepository) GetNextTokenId(contractAddr string, blockNum uint64) (uin
 	nft, err := r.findOne(result, err)
 	if err != nil {
 		if errors.Is(ErrNftNotFound, err) {
-			return nextTokenId, nil
+			return 0, nil
 		}
-		zap.L().With(zap.Error(err)).Error("Failed to get nft")
 		return 0, err
 	}
 
-	zap.L().With(zap.String("contractAddr", contractAddr), zap.Uint64("tokenId", nextTokenId)).
-		Info("Found next token in the index")
-	return nft.TokenId + 1, nil
+	return nft.TokenId, nil
 }
 
 func (r nftRepository) DeleteAll() error {

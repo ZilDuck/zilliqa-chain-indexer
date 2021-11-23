@@ -41,7 +41,7 @@ func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contrac
 	query := elastic.NewBoolQuery().Should(
 		elastic.NewTermQuery("zrc1", true),
 		elastic.NewTermQuery("zrc6", true),
-	)
+	).MinimumShouldMatch("1")
 
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).

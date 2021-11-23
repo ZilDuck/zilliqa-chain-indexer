@@ -63,7 +63,6 @@ func (i transactionIndexer) CreateTransactions(height uint64, size uint64) ([]en
 				continue
 			}
 
-			i.elastic.AddIndexRequest(elastic_cache.TransactionIndex.Get(), tx)
 			txs = append(txs, tx)
 		}
 	}
@@ -77,9 +76,8 @@ func (i transactionIndexer) CreateTransactions(height uint64, size uint64) ([]en
 	for idx, _ := range txs {
 		if contractAddr, ok := contractAddrs[txs[idx].ID]; ok {
 			txs[idx].ContractAddress = fmt.Sprintf("0x%s", contractAddr)
-			txs[idx].ContractAddressBech32 = factory.GetBech32Address(contractAddr)
-			i.elastic.AddUpdateRequest(elastic_cache.TransactionIndex.Get(), txs[idx])
 		}
+		i.elastic.AddIndexRequest(elastic_cache.TransactionIndex.Get(), txs[idx], elastic_cache.TransactionCreate)
 	}
 
 	zap.L().With(zap.Int("count", len(txs)), zap.Uint64("height", height)).Info("Index txs")

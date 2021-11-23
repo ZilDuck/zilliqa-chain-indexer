@@ -22,10 +22,10 @@ type Index interface {
 
 	InstallMappings()
 
-	AddIndexRequest(index string, entity entity.Entity)
-	AddUpdateRequest(index string, entity entity.Entity)
+	AddIndexRequest(index string, entity entity.Entity, reqAction RequestAction)
+	AddUpdateRequest(index string, entity entity.Entity, reqAction RequestAction)
 	HasRequest(entity entity.Entity) bool
-	AddRequest(index string, entity entity.Entity, reqType RequestType)
+	AddRequest(index string, entity entity.Entity, reqType RequestType, reqAction RequestAction)
 	GetEntitiesByIndex(index string) []entity.Entity
 	GetRequests() []Request
 	GetRequest(id string) *Request
@@ -48,13 +48,33 @@ type Request struct {
 	Index  string
 	Entity entity.Entity
 	Type   RequestType
+	Action RequestAction
 }
 
 type RequestType string
 
-var (
+const (
 	IndexRequest  RequestType = "index"
 	UpdateRequest RequestType = "update"
+)
+
+type RequestAction string
+
+const (
+	TransactionCreate RequestAction = "TransactionCreate"
+
+	ContractCreate     RequestAction = "ContractCreate"
+	ContractSetBaseUri RequestAction = "ContractSetBaseUri"
+
+	Zrc1Mint             RequestAction = "Zrc1Mint"
+	Zrc1DuckRegeneration RequestAction = "Zrc1DuckRegeneration"
+	Zrc1Transfer         RequestAction = "Zrc1Transfer"
+	Zrc1Burn             RequestAction = "Zrc1Burn"
+
+	Zrc6Mint       RequestAction = "Zrc6Mint"
+	Zrc6SetBaseUri RequestAction = "Zrc6SetBaseUri"
+	Zrc6Transfer   RequestAction = "Zrc6Transfer"
+	Zrc6Burn       RequestAction = "Zrc6Burn"
 )
 
 const saveAttempts int = 3
@@ -162,16 +182,32 @@ func (i index) createIndex(index string, mapping []byte) error {
 	return nil
 }
 
-func (i index) AddIndexRequest(index string, entity entity.Entity) {
-	zap.L().With(zap.String("slug", entity.Slug())).Debug("ElasticCache: AddIndexRequest")
+func (i index) AddIndexRequest(index string, entity entity.Entity, reqAction RequestAction) {
+	zap.L().With(
+		zap.String("index", index),
+		zap.String("slug", entity.Slug()),
+		zap.String("action", string(reqAction)),
+	).Debug("ElasticCache: AddIndexRequest")
 
-	i.AddRequest(index, entity, IndexRequest)
+	i.AddRequest(index, entity, IndexRequest, reqAction)
 }
 
-func (i index) AddUpdateRequest(index string, entity entity.Entity) {
-	zap.L().With(zap.String("slug", entity.Slug())).Debug("ElasticCache: AddUpdateRequest")
+func (i index) AddUpdateRequest(index string, entity entity.Entity, reqAction RequestAction) {
+	zap.L().With(
+		zap.String("index", index),
+		zap.String("slug", entity.Slug()),
+		zap.String("action", string(reqAction)),
+	).Debug("ElasticCache: AddUpdateRequest")
 
-	i.AddRequest(index, entity, UpdateRequest)
+	if cached, found := i.cache.Get(entity.Slug()); found == true {
+		entity = mergeRequests(index, cached.(Request), reqAction, entity)
+		if cached.(Request).Type == IndexRequest {
+			i.AddRequest(index, entity, IndexRequest, reqAction)
+			return
+		}
+	}
+
+	i.AddRequest(index, entity, UpdateRequest, reqAction)
 }
 
 func (i index) HasRequest(entity entity.Entity) bool {
@@ -180,18 +216,9 @@ func (i index) HasRequest(entity entity.Entity) bool {
 	return found
 }
 
-func (i index) AddRequest(index string, entity entity.Entity, reqType RequestType) {
-	zap.L().With(
-		zap.String("index", index),
-		zap.String("type", string(reqType)),
-		zap.String("slug", entity.Slug())).Debug("ElasticCache: AddRequest")
+func (i index) AddRequest(index string, entity entity.Entity, reqType RequestType, reqAction RequestAction) {
 
-	if cached, found := i.cache.Get(entity.Slug()); found == true && cached.(Request).Type == IndexRequest {
-		zap.L().With(zap.String("slug", entity.Slug())).Debug("ElasticCache: Switch update to index")
-		reqType = IndexRequest
-	}
-
-	i.cache.Set(entity.Slug(), Request{index, entity, reqType}, cache.DefaultExpiration)
+	i.cache.Set(entity.Slug(), Request{index, entity, reqType, reqAction}, cache.DefaultExpiration)
 }
 
 func (i index) GetEntitiesByIndex(index string) []entity.Entity {
@@ -298,7 +325,7 @@ func (i index) persist(bulk *elastic.BulkService) {
 	actions := bulk.NumberOfActions()
 	zap.S().Debugf("ElasticCache: Persisting %d actions", actions)
 
-	response, err := bulk.Do(context.Background())
+	response, err := bulk.Refresh("wait_for").Do(context.Background())
 	if err != nil {
 		if err.Error() == "elastic: Error 429 (Too Many Requests)" {
 			zap.L().With(zap.Error(err)).Warn("ElasticCache: 429 (Too Many Requests)")

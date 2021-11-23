@@ -4,19 +4,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
-	"github.com/Zilliqa/gozilliqa-sdk/bech32"
 	"go.uber.org/zap"
 	"strings"
 )
 
-func CreateNftsFromBatchMintingTx(tx entity.Transaction, c entity.Contract, nextTokenId uint64) ([]entity.NFT, error) {
+func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract, nextTokenId uint64) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
 	if !c.ZRC6 {
 		return nfts, nil
 	}
 
-	if tx.HasTransition(entity.TransitionZRC6BatchMintCallback) {
+	if tx.HasTransition(entity.ZRC6BatchMintCallback) {
 		if tx.Data.Tag == "BatchMint" {
 			toListParam, err := tx.Data.Params.GetParam("to_list")
 			if err != nil {
@@ -33,34 +32,19 @@ func CreateNftsFromBatchMintingTx(tx entity.Transaction, c entity.Contract, next
 					return nil, err
 				}
 
-				recipientBech32, _ := bech32.ToBech32Address(recipient)
-
 				name, _ := c.Data.Params.GetParam("name")
 				symbol, _ := c.Data.Params.GetParam("symbol")
 
 				nft := entity.NFT{
-					Contract:        c.Address,
-					ContractBech32:  c.AddressBech32,
-					Name:            name.Value.Primitive.(string),
-					Symbol:          symbol.Value.Primitive.(string),
-					TxID:            tx.ID,
-					BlockNum:        tx.BlockNum,
-					TokenId:         nextTokenId,
-					TokenUri:        fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), nextTokenId),
-					By:              strings.ToLower(recipient),
-					ByBech32:        recipientBech32,
-					Recipient:       strings.ToLower(recipient),
-					RecipientBech32: recipientBech32,
-					Owner:           strings.ToLower(recipient),
-					OwnerBech32:     recipientBech32,
+					Contract: c.Address,
+					TxID:     tx.ID,
+					BlockNum: tx.BlockNum,
+					Name:     name.Value.Primitive.(string),
+					Symbol:   symbol.Value.Primitive.(string),
+					TokenId:  nextTokenId,
+					TokenUri: fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), nextTokenId),
+					Owner:    strings.ToLower(recipient),
 				}
-
-				zap.L().With(
-					zap.String("recipient", recipient),
-					zap.Uint64("blockNum", tx.BlockNum),
-					zap.String("symbol", nft.Symbol),
-					zap.Uint64("tokenId", nft.TokenId),
-				).Info("Batch Index NFT")
 
 				nfts = append(nfts, nft)
 				nextTokenId++

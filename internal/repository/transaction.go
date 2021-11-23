@@ -17,14 +17,12 @@ var (
 type TransactionRepository interface {
 	GetBestBlockNum() (uint64, error)
 	GetTx(txId string) (entity.Transaction, error)
-	GetContractCreationTx(contractAddress string) (entity.Transaction, error)
-	GetContractTxs(contractAddress string, size, page int) ([]entity.Transaction, int64, error)
 
 	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
-	GetContractExecutionsWithTransition(contractAddr string, transitionName entity.TRANSITION, size, page int) ([]entity.Transaction, int64, error)
 
-	GetMintersForZrc1Contract(contract string) ([]string, error)
+	GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error)
+	GetContractExecutionsByContractFrom(c entity.Contract, fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 }
 
 type transactionRepository struct {
@@ -33,54 +31,6 @@ type transactionRepository struct {
 
 func NewTransactionRepository(elastic elastic_cache.Index) TransactionRepository {
 	return transactionRepository{elastic}
-}
-
-func (r transactionRepository) GetTx(txId string) (entity.Transaction, error) {
-	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
-		Query(elastic.NewTermQuery("ID", txId)))
-
-	return r.findOne(results, err)
-}
-
-func (r transactionRepository) GetContractCreationTx(contractAddress string) (entity.Transaction, error) {
-	query := elastic.NewBoolQuery().Must(
-		elastic.NewTermQuery("ContractAddress.keyword", contractAddress),
-		elastic.NewTermQuery("ContractCreation", true),
-	)
-
-	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
-		Query(query).
-		Size(1))
-
-	return r.findOne(result, err)
-}
-
-func (r transactionRepository) GetContractTxs(contractAddress string, size, page int) ([]entity.Transaction, int64, error) {
-	query := elastic.NewBoolQuery().Must(
-		elastic.NewTermQuery("ContractAddress.keyword", contractAddress),
-		elastic.NewTermQuery("ContractExecution", true),
-	)
-
-	from := size*page - size
-
-	zap.L().With(
-		zap.String("contractAddress", contractAddress),
-		zap.Int("size", size),
-		zap.Int("page", page),
-		zap.Int("from", from),
-	).Info("GetContractTxs")
-
-	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
-		Query(query).
-		Sort("BlockNum", true).
-		TrackTotalHits(true).
-		Size(size).
-		From(from))
-
-	return r.findMany(result, err)
 }
 
 func (r transactionRepository) GetBestBlockNum() (uint64, error) {
@@ -114,6 +64,14 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	}
 
 	return tx.BlockNum, nil
+}
+
+func (r transactionRepository) GetTx(txId string) (entity.Transaction, error) {
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_cache.TransactionIndex.Get()).
+		Query(elastic.NewTermQuery("ID", txId)))
+
+	return r.findOne(results, err)
 }
 
 func (r transactionRepository) GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
@@ -168,82 +126,43 @@ func (r transactionRepository) GetContractExecutionTxs(fromBlockNum uint64, size
 	return r.findMany(result, err)
 }
 
-func (r transactionRepository) GetMintTxsForContract(contract string, size, from int) ([]entity.Transaction, int64, error) {
+func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
-		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
-		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", contract)),
-		elastic.NewNestedQuery("Receipt.transitions.msg", elastic.NewTermQuery("Receipt.transitions.msg._tag.keyword", "Mint")),
+		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", c.Address)),
 	)
-	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
-		Query(query).
-		Sort("BlockNum", true).
-		TrackTotalHits(true).
-		Size(size).
-		From(from))
-
-	return r.findMany(result, err)
-}
-
-func (r transactionRepository) GetContractExecutionsWithTransition(contractAddr string, transition entity.TRANSITION, size, page int) ([]entity.Transaction, int64, error) {
 	from := size*page - size
 
-	zap.L().With(
-		zap.String("contractAddr", contractAddr),
-		zap.Int("size", size),
-		zap.Int("page", page),
-		zap.Int("from", from),
-	).Info("GetContractExecutionsWithTransition")
-
-	query := elastic.NewBoolQuery().Must(
-		elastic.NewTermQuery("ContractExecution", true),
-		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
-		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", contractAddr)),
-		elastic.NewNestedQuery("Receipt.transitions.msg", elastic.NewTermQuery("Receipt.transitions.msg._tag.keyword", transition)),
-	)
-
 	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
-		TrackTotalHits(true).
 		Size(size).
-		From(from))
+		From(from).
+		TrackTotalHits(true).
+		Size(size))
 
 	return r.findMany(result, err)
 }
 
-func (r transactionRepository) GetMintersForZrc1Contract(contract string) (minters []string, err error) {
+func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Contract, fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
-		elastic.NewTermQuery("ContractAddress.keyword", contract),
-		elastic.NewTermQuery("Data._tag.keyword", "ConfigureMinter"),
-		elastic.NewNestedQuery("Receipt", elastic.NewTermQuery("Receipt.success", true)),
-		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "AddMinterSuccess")),
+		elastic.NewTermQuery("ContractExecution", true),
+		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
+		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", c.Address)),
 	)
+	from := size*page - size
+
 	result, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
+		Size(size).
+		From(from).
 		TrackTotalHits(true).
-		Size(1000))
+		Size(size))
 
-	txs, _, err := r.findMany(result, err)
-	if err != nil {
-		return
-	}
-
-	for _, tx := range txs {
-		for _, eventLog := range tx.GetEventLogs("AddMinterSuccess") {
-			if eventLog.Params.HasParam("minter", "ByStr20") {
-				if minter, err := eventLog.Params.GetParam("minter"); err == nil {
-					minters = append(minters, minter.Value.Primitive.(string))
-				}
-			}
-		}
-	}
-
-	return
+	return r.findMany(result, err)
 }
 
 func (r transactionRepository) findOne(results *elastic.SearchResult, err error) (entity.Transaction, error) {
