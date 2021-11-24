@@ -42,7 +42,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 		}
 
 		if c, err := i.contractRepo.GetContractByAddress(transitions[0].Addr); err != nil {
-			if err := i.IndexTx(tx, c); err != nil {
+			if err := i.IndexTx(tx, *c); err != nil {
 				return err
 			}
 		}
@@ -155,7 +155,7 @@ func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) 
 			zap.Uint64("tokenId", nft.TokenId),
 		).Info("Regenerate ZRC1 Duck")
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc1DuckRegeneration)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc1DuckRegeneration)
 	}
 
 	return nil
@@ -196,7 +196,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			zap.String("to", nft.Owner),
 		).Info("Transfer ZRC1")
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc1Transfer)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc1Transfer)
 	}
 
 	return nil
@@ -227,7 +227,7 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 			zap.Uint64("tokenId", nft.TokenId),
 		).Info("Burn ZRC1")
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc1Burn)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc1Burn)
 	}
 
 	return nil

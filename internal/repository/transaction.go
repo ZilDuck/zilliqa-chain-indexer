@@ -16,7 +16,7 @@ var (
 
 type TransactionRepository interface {
 	GetBestBlockNum() (uint64, error)
-	GetTx(txId string) (entity.Transaction, error)
+	GetTx(txId string) (*entity.Transaction, error)
 
 	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
@@ -66,7 +66,7 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	return tx.BlockNum, nil
 }
 
-func (r transactionRepository) GetTx(txId string) (entity.Transaction, error) {
+func (r transactionRepository) GetTx(txId string) (*entity.Transaction, error) {
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_cache.TransactionIndex.Get()).
 		Query(elastic.NewTermQuery("ID", txId)))
@@ -165,19 +165,21 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 	return r.findMany(result, err)
 }
 
-func (r transactionRepository) findOne(results *elastic.SearchResult, err error) (entity.Transaction, error) {
+func (r transactionRepository) findOne(results *elastic.SearchResult, err error) (*entity.Transaction, error) {
 	if err != nil {
-		return entity.Transaction{}, err
+		return nil, err
 	}
 
 	if len(results.Hits.Hits) == 0 {
-		return entity.Transaction{}, errors.New("no transaction found")
+		return nil, errors.New("no transaction found")
 	}
 
 	var tx entity.Transaction
-	err = json.Unmarshal(results.Hits.Hits[0].Source, &tx)
+	if err = json.Unmarshal(results.Hits.Hits[0].Source, &tx); err != nil {
+		return nil, err
+	}
 
-	return tx, err
+	return &tx, nil
 }
 
 func (r transactionRepository) findMany(results *elastic.SearchResult, err error) ([]entity.Transaction, int64, error) {

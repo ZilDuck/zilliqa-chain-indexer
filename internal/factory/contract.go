@@ -4,6 +4,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"github.com/Zilliqa/gozilliqa-sdk/core"
+	"go.uber.org/zap"
 	"regexp"
 	"strings"
 )
@@ -25,7 +26,11 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 
 	contractValues := make([]core.ContractValue, 0)
 	if contractName != "Resolver" {
-		contractValues, _ = f.zilliqa.GetSmartContractInit(tx.ContractAddressBech32)
+		var err error
+		contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:])
+		if err != nil {
+			zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Fatal("GetSmartContractInit")
+		}
 	}
 
 	c := entity.Contract{
@@ -169,8 +174,7 @@ func hasZrc6Transitions(c entity.Contract) bool {
 		hasTransition(c, "Mint(to:ByStr20)") &&
 		hasTransition(c, "AddMinter(minter:ByStr20)") &&
 		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
-		hasTransition(c, "AddSpender(spender:ByStr20,token_id:Uint256)") &&
-		hasTransition(c, "RemoveSpender(spender:ByStr20,token_id:Uint256)") &&
+		hasTransition(c, "SetSpender(spender:ByStr20,token_id:Uint256)") &&
 		hasTransition(c, "AddOperator(operator:ByStr20)") &&
 		hasTransition(c, "RemoveOperator(operator:ByStr20)") &&
 		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)")

@@ -43,7 +43,7 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 		}
 
 		if c, err := i.contractRepo.GetContractByAddress(transitions[0].Addr); err != nil {
-			if err := i.IndexTx(tx, c); err != nil {
+			if err := i.IndexTx(tx, *c); err != nil {
 				return err
 			}
 		}
@@ -241,7 +241,7 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 
 		nft.Owner = to.Value.Primitive.(string)
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc6Transfer)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc6Transfer)
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
 			zap.Uint64("blockNum", tx.BlockNum),
@@ -281,7 +281,7 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 
 		nft.BurnedAt = tx.BlockNum
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc6Burn)
+		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc6Burn)
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
 			zap.Uint64("blockNum", tx.BlockNum),
