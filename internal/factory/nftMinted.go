@@ -32,6 +32,7 @@ func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 			TokenId:  tokenId,
 			TokenUri: c.BaseUri,
 			Owner:    strings.ToLower(to),
+			Zrc6:     true,
 		}
 		nfts = append(nfts, nft)
 	}
@@ -74,6 +75,7 @@ func CreateZrc1FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 			TokenId:  tokenId,
 			TokenUri: tokenUri,
 			Owner:    strings.ToLower(recipient),
+			Zrc1:     true,
 		}
 
 		nfts = append(nfts, nft)
@@ -113,6 +115,7 @@ func createUincuteFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity
 			TokenId:  tokenId,
 			TokenUri: tokenUri,
 			Owner:    recipient,
+			Zrc1:     true,
 		}
 
 		nfts = append(nfts, nft)

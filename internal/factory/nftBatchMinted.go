@@ -43,6 +43,7 @@ func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract, nextToken
 					TokenId:  nextTokenId,
 					TokenUri: strings.TrimSpace(tokenUri.Value.Primitive.(string)),
 					Owner:    strings.ToLower(recipient),
+					Zrc6:     true,
 				}
 
 				nfts = append(nfts, nft)

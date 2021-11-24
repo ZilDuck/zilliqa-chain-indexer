@@ -15,6 +15,8 @@ type NFT struct {
 	TokenUri string `json:"tokenUri"`
 	Owner    string `json:"owner"`
 	BurnedAt uint64 `json:"burnedAt"`
+	Zrc1     bool   `json:"zrc1"`
+	Zrc6     bool   `json:"zrc6"`
 }
 
 func (n NFT) Slug() string {

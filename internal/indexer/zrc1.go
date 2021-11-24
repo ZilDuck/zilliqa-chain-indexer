@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/dev"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
@@ -205,9 +204,6 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 	if !tx.HasTransition(entity.ZRC1BurnCallBack) {
 		return nil
 	}
-
-	dev.Dump(c)
-	dev.DD(tx)
 
 	for _, transition := range tx.GetTransition(entity.ZRC1BurnCallBack) {
 		tokenId, err := factory.GetTokenId(transition.Msg.Params)
