@@ -4,7 +4,7 @@ prodpeak sailing on a wave of txs
 ## ZRC1 Support
 - [x] Mint NFT
 - [x] Transfer NFT
-- [ ] Burn NFT
+- [X] Burn NFT
 
 ## ZRC6 Support
 - [x] Mint NFTs
