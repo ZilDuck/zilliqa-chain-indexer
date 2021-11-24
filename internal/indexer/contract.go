@@ -14,34 +14,40 @@ type ContractIndexer interface {
 }
 
 type contractIndexer struct {
-	elastic elastic_cache.Index
-	factory factory.ContractFactory
-	txRepo  repository.TransactionRepository
+	elastic      elastic_cache.Index
+	factory      factory.ContractFactory
+	txRepo       repository.TransactionRepository
+	contractRepo repository.ContractRepository
+	nftRepo      repository.NftRepository
 }
 
 func NewContractIndexer(
 	elastic elastic_cache.Index,
 	factory factory.ContractFactory,
 	txRepo repository.TransactionRepository,
+	contractRepo repository.ContractRepository,
+	nftRepo repository.NftRepository,
 ) ContractIndexer {
-	return contractIndexer{elastic, factory, txRepo}
+	return contractIndexer{elastic, factory, txRepo, contractRepo, nftRepo}
 }
 
 func (i contractIndexer) Index(txs []entity.Transaction) ([]entity.Contract, error) {
 	contracts := make([]entity.Contract, 0)
 	for _, tx := range txs {
-		if tx.Receipt.Success == false || tx.IsContractCreation == false {
+		if tx.Receipt.Success == false {
 			continue
 		}
 
-		contract, err := i.factory.CreateContractFromTx(tx)
-		if err != nil {
-			zap.L().With(zap.Error(err)).Error("failed to create contract")
-			return nil, err
-		}
+		if tx.IsContractCreation {
+			c, err := i.factory.CreateContractFromTx(tx)
+			if err != nil {
+				zap.L().With(zap.Error(err)).Error("failed to create contract")
+				return nil, err
+			}
 
-		i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), contract)
-		contracts = append(contracts, contract)
+			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
+			contracts = append(contracts, c)
+		}
 	}
 
 	zap.L().With(zap.Int("count", len(contracts))).Info("Index contracts")
@@ -60,41 +66,36 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 			zap.L().With(zap.Error(err)).Error("Failed to get contract txs")
 			return err
 		}
-
 		if len(txs) == 0 {
-			zap.L().Info("No more contract creation txs found")
 			break
 		}
 
 		for _, tx := range txs {
-			contract, err := i.factory.CreateContractFromTx(tx)
+			c, err := i.factory.CreateContractFromTx(tx)
 			if err != nil {
 				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create contract txs")
 				break
 			}
-			if !contract.ZRC1 {
+
+			zap.L().With(
+				zap.Uint64("blockNum", tx.BlockNum),
+				zap.String("contractAddr", c.Address),
+				zap.Bool("zrc1", c.ZRC1),
+				zap.Bool("zrc6", c.ZRC6),
+			).Info(c.Name)
+			if !c.ZRC1 && !c.ZRC6 {
 				continue
 			}
+
 			zap.L().With(
-				zap.Uint64("blockNum", contract.BlockNum),
-				zap.String("name", contract.Name),
-				zap.String("address", contract.Address),
-				zap.Bool("zrc1", contract.ZRC1),
+				zap.Uint64("blockNum", c.BlockNum),
+				zap.String("name", c.Name),
+				zap.String("address", c.Address),
+				zap.Bool("zrc1", c.ZRC1),
+				zap.Bool("zrc6", c.ZRC6),
 			).Info("Index contract")
 
-			//if contract.ZRC1 {
-			minters, err := i.txRepo.GetMintersForZrc1Contract(contract.Address)
-			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to get contract minters")
-				return err
-			}
-			contract.Minters = minters
-			if contract.Minters != nil {
-				zap.S().Infof("Adding minters to: %s", contract.Address)
-			}
-			//}
-
-			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), contract)
+			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
 		}
 
 		i.elastic.BatchPersist()

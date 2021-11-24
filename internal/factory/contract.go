@@ -28,7 +28,7 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 		contractValues, _ = f.zilliqa.GetSmartContractInit(tx.ContractAddressBech32)
 	}
 
-	contract := entity.Contract{
+	c := entity.Contract{
 		Address:         tx.ContractAddress,
 		AddressBech32:   tx.ContractAddressBech32,
 		BlockNum:        tx.BlockNum,
@@ -39,9 +39,17 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 		MutableParams:   f.getMutableParams(tx.Code),
 		Transitions:     f.getTransitions(tx.Code),
 	}
-	contract.ZRC1 = IsNFT(contract)
 
-	return contract, nil
+	c.ZRC1 = IsZrc1(c)
+
+	c.ZRC6 = IsZrc6(c)
+	if c.ZRC6 {
+		if initialBaseUri, err := tx.Data.Params.GetParam("initial_base_uri"); err == nil {
+			c.BaseUri = initialBaseUri.Value.Primitive.(string)
+		}
+	}
+
+	return c, nil
 }
 
 func (f contractFactory) getContractName(code string) string {
@@ -85,7 +93,7 @@ func (f contractFactory) getTransitions(code string) (transitions []string) {
 	return
 }
 
-func IsNFT(c entity.Contract) bool {
+func IsZrc1(c entity.Contract) bool {
 	if c.AddressBech32 == "zil167flx79fykulp57ykmh9gnf3curcnyux6dcj5e" {
 		// The Bear Market
 		return true
@@ -99,16 +107,20 @@ func IsNFT(c entity.Contract) bool {
 		return true
 	}
 
-	return hasNftImmutables(c) && hasNftMutables(c) && hasTransitions(c)
+	return hasZrc1Immutables(c) && hasZrc1Mutables(c) && hasZrc1Transitions(c)
 }
 
-func hasNftImmutables(c entity.Contract) bool {
+func IsZrc6(c entity.Contract) bool {
+	return hasZrc6Immutables(c) && hasZrc6Mutables(c) && hasZrc6Transitions(c)
+}
+
+func hasZrc1Immutables(c entity.Contract) bool {
 	return c.ImmutableParams.HasParam("contract_owner", "ByStr20") &&
 		c.ImmutableParams.HasParam("name", "String") &&
 		c.ImmutableParams.HasParam("symbol", "String")
 }
 
-func hasNftMutables(c entity.Contract) bool {
+func hasZrc1Mutables(c entity.Contract) bool {
 	return c.MutableParams.HasParam("minters", "Map ByStr20 Dummy") &&
 		c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") &&
 		c.MutableParams.HasParam("owned_token_count", "Map ByStr20 Uint256") &&
@@ -119,7 +131,7 @@ func hasNftMutables(c entity.Contract) bool {
 		c.MutableParams.HasParam("token_id_count", "Uint256")
 }
 
-func hasTransitions(c entity.Contract) bool {
+func hasZrc1Transitions(c entity.Contract) bool {
 	return hasTransition(c, "Mint(to:ByStr20,token_uri:String)") &&
 		hasTransition(c, "Transfer(to:ByStr20,token_id:Uint256)") &&
 		hasTransition(c, "Burn(token_id:Uint256)") &&
@@ -133,4 +145,33 @@ func hasTransition(c entity.Contract, t string) bool {
 		}
 	}
 	return false
+}
+
+func hasZrc6Immutables(c entity.Contract) bool {
+	return c.ImmutableParams.HasParam("initial_contract_owner", "ByStr20") &&
+		c.ImmutableParams.HasParam("initial_base_uri", "String")
+}
+
+func hasZrc6Mutables(c entity.Contract) bool {
+	return c.MutableParams.HasParam("contract_owner", "ByStr20") &&
+		c.MutableParams.HasParam("base_uri", "String") &&
+		c.MutableParams.HasParam("minters", "Map ByStr20 Bool") &&
+		c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") &&
+		c.MutableParams.HasParam("spenders", "Map Uint256 ByStr20") &&
+		c.MutableParams.HasParam("operators", "Map ByStr20 (Map ByStr20 Bool)") &&
+		c.MutableParams.HasParam("token_id_count", "Uint256") &&
+		c.MutableParams.HasParam("balances", "Map ByStr20 Uint256") &&
+		c.MutableParams.HasParam("total_supply", "Uint256")
+}
+
+func hasZrc6Transitions(c entity.Contract) bool {
+	return hasTransition(c, "Pause()") &&
+		hasTransition(c, "Mint(to:ByStr20)") &&
+		hasTransition(c, "AddMinter(minter:ByStr20)") &&
+		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
+		hasTransition(c, "AddSpender(spender:ByStr20,token_id:Uint256)") &&
+		hasTransition(c, "RemoveSpender(spender:ByStr20,token_id:Uint256)") &&
+		hasTransition(c, "AddOperator(operator:ByStr20)") &&
+		hasTransition(c, "RemoveOperator(operator:ByStr20)") &&
+		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)")
 }

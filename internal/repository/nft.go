@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
@@ -14,6 +15,10 @@ var (
 
 type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (entity.NFT, error)
+	GetNfts(contract string, size, page int) ([]entity.NFT, int64, error)
+	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
+
+	DeleteAll() error
 }
 
 type nftRepository struct {
@@ -25,6 +30,11 @@ func NewNftRepository(elastic elastic_cache.Index) NftRepository {
 }
 
 func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, error) {
+	pendingRequest := r.elastic.GetRequest(entity.CreateNftSlug(tokenId, contract))
+	if pendingRequest != nil {
+		return pendingRequest.Entity.(entity.NFT), nil
+	}
+
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("contract.keyword", contract),
 		elastic.NewTermQuery("tokenId", tokenId),
@@ -36,6 +46,56 @@ func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, erro
 		Size(1))
 
 	return r.findOne(result, err)
+}
+
+func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.NFT, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("contract.keyword", contract),
+	)
+
+	from := size*page - size
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_cache.NftIndex.Get()).
+		Query(query).
+		Size(size).
+		From(from).
+		TrackTotalHits(true).
+		Size(100))
+
+	return r.findMany(result, err)
+}
+
+func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("contract.keyword", contractAddr),
+		elastic.NewRangeQuery("blockNum").Lt(blockNum),
+	)
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_cache.NftIndex.Get()).
+		Query(query).
+		Sort("tokenId", false).
+		Size(1))
+
+	nft, err := r.findOne(result, err)
+	if err != nil {
+		if errors.Is(ErrNftNotFound, err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+
+	return nft.TokenId, nil
+}
+
+func (r nftRepository) DeleteAll() error {
+	_, err := r.elastic.GetClient().
+		DeleteByQuery(elastic_cache.NftIndex.Get()).
+		Query(elastic.NewMatchAllQuery()).
+		Do(context.Background())
+
+	return err
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (entity.NFT, error) {
@@ -52,4 +112,21 @@ func (r nftRepository) findOne(results *elastic.SearchResult, err error) (entity
 	err = json.Unmarshal(hit.Source, &nft)
 
 	return nft, err
+}
+
+func (r nftRepository) findMany(results *elastic.SearchResult, err error) ([]entity.NFT, int64, error) {
+	nfts := make([]entity.NFT, 0)
+
+	if err != nil {
+		return nfts, 0, err
+	}
+
+	for _, hit := range results.Hits.Hits {
+		var nft entity.NFT
+		if err := json.Unmarshal(hit.Source, &nft); err == nil {
+			nfts = append(nfts, nft)
+		}
+	}
+
+	return nfts, results.TotalHits(), nil
 }

@@ -18,8 +18,10 @@ type Daemon struct {
 	indexer         indexer.Indexer
 	zilliqa         zilliqa.Service
 	txRepo          repository.TransactionRepository
+	contractRepo    repository.ContractRepository
 	contractIndexer indexer.ContractIndexer
-	nftIndexer      indexer.NftIndexer
+	zrc1Indexer     indexer.Zrc1Indexer
+	zrc6Indexer     indexer.Zrc6Indexer
 }
 
 func NewDaemon(
@@ -28,10 +30,23 @@ func NewDaemon(
 	indexer indexer.Indexer,
 	zilliqa zilliqa.Service,
 	txRepo repository.TransactionRepository,
+	contractRepo repository.ContractRepository,
 	contractIndexer indexer.ContractIndexer,
-	nftIndexer indexer.NftIndexer,
+	zrc1Indexer indexer.Zrc1Indexer,
+	zrc6Indexer indexer.Zrc6Indexer,
+
 ) *Daemon {
-	return &Daemon{elastic, firstBlockNum, indexer, zilliqa, txRepo, contractIndexer, nftIndexer}
+	return &Daemon{
+		elastic,
+		firstBlockNum,
+		indexer,
+		zilliqa,
+		txRepo,
+		contractRepo,
+		contractIndexer,
+		zrc1Indexer,
+		zrc6Indexer,
+	}
 }
 
 func (d *Daemon) Execute() {
@@ -123,13 +138,53 @@ func (d *Daemon) bulkIndexContracts(bestBlockNum uint64) {
 }
 
 func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
-	BulkIndexNftsFrom := config.Get().BulkIndexNftsFrom
-	if BulkIndexNftsFrom == -1 {
-		BulkIndexNftsFrom = int(bestBlockNum)
+	zap.L().Info("Bulk index NFTs")
+	bulkIndexNftsFrom := config.Get().BulkIndexNftsFrom
+	if bulkIndexNftsFrom == -1 {
+		bulkIndexNftsFrom = int(bestBlockNum)
 	}
 
-	if err := d.nftIndexer.BulkIndex(uint64(BulkIndexNftsFrom)); err != nil {
-		zap.L().With(zap.Error(err)).Error("Failed to bulk index NFTs")
+	size := 100
+	contractPage := 1
+
+	for {
+		contracts, _, err := d.contractRepo.GetAllNftContracts(size, contractPage)
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to get contracts when bulk indexing nfts")
+		}
+		if len(contracts) == 0 {
+			break
+		}
+
+		for _, c := range contracts {
+			txPage := 1
+			for {
+				txs, _, err := d.txRepo.GetContractExecutionsByContractFrom(c, uint64(bulkIndexNftsFrom), size, txPage)
+				if err != nil {
+					zap.L().With(zap.Error(err)).Error("Failed to get txs when bulk indexing nfts")
+				}
+				if len(txs) == 0 {
+					break
+				}
+
+				for _, tx := range txs {
+					if c.ZRC1 {
+						if err := d.zrc1Indexer.IndexTx(tx, c); err != nil {
+							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc1")
+						}
+					}
+					if c.ZRC6 {
+						if err := d.zrc6Indexer.IndexTx(tx, c); err != nil {
+							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc6")
+						}
+					}
+				}
+				txPage++
+			}
+			d.elastic.BatchPersist()
+		}
+
+		contractPage++
 	}
 
 	d.elastic.Persist()

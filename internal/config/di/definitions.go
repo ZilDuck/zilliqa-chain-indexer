@@ -46,10 +46,12 @@ var Definitions = []dingo.Def{
 			indexer indexer.Indexer,
 			zilliqa zilliqa.Service,
 			txRepo repository.TransactionRepository,
+			contractRepo repository.ContractRepository,
 			contractIndexer indexer.ContractIndexer,
-			nftIndexer indexer.NftIndexer,
+			zrc1Indexer indexer.Zrc1Indexer,
+			zrc6Indexer indexer.Zrc6Indexer,
 		) (*daemon.Daemon, error) {
-			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, contractIndexer, nftIndexer), nil
+			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer), nil
 		},
 	},
 	{
@@ -58,11 +60,12 @@ var Definitions = []dingo.Def{
 			elastic elastic_cache.Index,
 			txIndexer indexer.TransactionIndexer,
 			contractIndexer indexer.ContractIndexer,
-			nftIndexer indexer.NftIndexer,
+			zrc1Indexer indexer.Zrc1Indexer,
+			zrc6Indexer indexer.Zrc6Indexer,
 			txRepo repository.TransactionRepository,
 			cache *cache.Cache,
 		) (indexer.Indexer, error) {
-			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, contractIndexer, nftIndexer, txRepo, cache), nil
+			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, contractIndexer, zrc1Indexer, zrc6Indexer, txRepo, cache), nil
 		},
 	},
 	{
@@ -82,19 +85,32 @@ var Definitions = []dingo.Def{
 			elastic elastic_cache.Index,
 			factory factory.ContractFactory,
 			txRepo repository.TransactionRepository,
+			contractRepo repository.ContractRepository,
+			nftRepo repository.NftRepository,
 		) (indexer.ContractIndexer, error) {
-			return indexer.NewContractIndexer(elastic, factory, txRepo), nil
+			return indexer.NewContractIndexer(elastic, factory, txRepo, contractRepo, nftRepo), nil
 		},
 	},
 	{
-		Name: "nft.indexer",
+		Name: "zrc1.indexer",
 		Build: func(
 			elastic elastic_cache.Index,
 			contractRepo repository.ContractRepository,
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
-		) (indexer.NftIndexer, error) {
-			return indexer.NewNftIndexer(elastic, contractRepo, nftRepo, txRepo), nil
+		) (indexer.Zrc1Indexer, error) {
+			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo), nil
+		},
+	},
+	{
+		Name: "zrc6.indexer",
+		Build: func(
+			elastic elastic_cache.Index,
+			contractRepo repository.ContractRepository,
+			nftRepo repository.NftRepository,
+			txRepo repository.TransactionRepository,
+		) (indexer.Zrc6Indexer, error) {
+			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo), nil
 		},
 	},
 	{

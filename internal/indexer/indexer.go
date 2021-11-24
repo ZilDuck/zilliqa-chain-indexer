@@ -22,7 +22,8 @@ type indexer struct {
 	elastic         elastic_cache.Index
 	txIndexer       TransactionIndexer
 	contractIndexer ContractIndexer
-	nftIndexer      NftIndexer
+	zrc1Indexer     Zrc1Indexer
+	zrc6Indexer     Zrc6Indexer
 	txRepo          repository.TransactionRepository
 	cache           *cache.Cache
 }
@@ -32,7 +33,8 @@ func NewIndexer(
 	elastic elastic_cache.Index,
 	txIndexer TransactionIndexer,
 	contractIndexer ContractIndexer,
-	nftIndexer NftIndexer,
+	zrc1Indexer Zrc1Indexer,
+	zrc6Indexer Zrc6Indexer,
 	txRepo repository.TransactionRepository,
 	cache *cache.Cache,
 ) Indexer {
@@ -41,7 +43,8 @@ func NewIndexer(
 		elastic,
 		txIndexer,
 		contractIndexer,
-		nftIndexer,
+		zrc1Indexer,
+		zrc6Indexer,
 		txRepo,
 		cache,
 	}
@@ -90,9 +93,15 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 			return err
 		}
 
-		err = i.nftIndexer.Index(txs)
+		err = i.zrc1Indexer.IndexTxs(txs)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index NFTs")
+			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index ZRC1s")
+			return err
+		}
+
+		err = i.zrc6Indexer.IndexTxs(txs)
+		if err != nil {
+			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index ZRC6s")
 			return err
 		}
 	}

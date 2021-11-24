@@ -106,6 +106,32 @@ func (tx Transaction) HasTransition(transition TRANSITION) bool {
 	return false
 }
 
+func (tx Transaction) GetZrc1Transitions() []Transition {
+	var transitions []Transition
+	for _, t := range tx.Receipt.Transitions {
+		for _, zrc1Transition := range Zrc1Transitions {
+			if t.Msg.Tag == string(zrc1Transition) {
+				transitions = append(transitions, t)
+			}
+		}
+	}
+
+	return transitions
+}
+
+func (tx Transaction) GetZrc6Transitions() []Transition {
+	var transitions []Transition
+	for _, t := range tx.Receipt.Transitions {
+		for _, zrc6Transition := range Zrc6Transitions {
+			if t.Msg.Tag == string(zrc6Transition) {
+				transitions = append(transitions, t)
+			}
+		}
+	}
+
+	return transitions
+}
+
 func (tx Transaction) IsMint() bool {
 	return tx.HasEventLog("MintSuccess") || tx.HasTransition("Mint")
 }
