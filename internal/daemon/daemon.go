@@ -179,10 +179,11 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 						}
 					}
 				}
+				d.elastic.BatchPersist()
 				txPage++
 			}
-			d.elastic.BatchPersist()
 		}
+		d.elastic.Persist()
 
 		contractPage++
 	}

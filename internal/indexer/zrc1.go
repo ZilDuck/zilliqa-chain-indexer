@@ -46,6 +46,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 				return err
 			}
 		}
+		i.elastic.BatchPersist()
 	}
 
 	return nil
@@ -96,6 +97,7 @@ func (i zrc1Indexer) IndexContract(c entity.Contract) error {
 				return err
 			}
 		}
+		i.elastic.BatchPersist()
 		page++
 	}
 
