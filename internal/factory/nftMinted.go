@@ -1,7 +1,6 @@
 package factory
 
 import (
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"strconv"
 	"strings"
@@ -31,7 +30,7 @@ func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 			Name:     name.Value.Primitive.(string),
 			Symbol:   symbol.Value.Primitive.(string),
 			TokenId:  tokenId,
-			TokenUri: fmt.Sprintf("%s%d", c.BaseUri, tokenId),
+			TokenUri: c.BaseUri,
 			Owner:    strings.ToLower(to),
 		}
 		nfts = append(nfts, nft)

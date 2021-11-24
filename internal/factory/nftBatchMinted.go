@@ -2,7 +2,6 @@ package factory
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"go.uber.org/zap"
 	"strings"
@@ -42,7 +41,7 @@ func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract, nextToken
 					Name:     name.Value.Primitive.(string),
 					Symbol:   symbol.Value.Primitive.(string),
 					TokenId:  nextTokenId,
-					TokenUri: fmt.Sprintf("%s%d", strings.TrimSpace(tokenUri.Value.Primitive.(string)), nextTokenId),
+					TokenUri: strings.TrimSpace(tokenUri.Value.Primitive.(string)),
 					Owner:    strings.ToLower(recipient),
 				}
 
