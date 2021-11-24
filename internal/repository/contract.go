@@ -16,9 +16,8 @@ var (
 type ContractRepository interface {
 	GetAllNftContracts(size, page int) ([]entity.Contract, int64, error)
 	GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error)
-	GetContractByAddress(contractAddr string) (entity.Contract, error)
-	GetContractByAddressBech32(contractAddr string) (entity.Contract, error)
-	GetContractByMinterFallbackToAddress(contractAddr string) (entity.Contract, error)
+	GetContractByAddress(contractAddr string) (*entity.Contract, error)
+	GetContractByAddressBech32(contractAddr string) (*entity.Contract, error)
 }
 
 type contractRepository struct {
@@ -72,7 +71,7 @@ func (r contractRepository) GetAllZrc1Contracts(size, page int) ([]entity.Contra
 	return r.findMany(results, err)
 }
 
-func (r contractRepository) GetContractByAddress(contractAddr string) (entity.Contract, error) {
+func (r contractRepository) GetContractByAddress(contractAddr string) (*entity.Contract, error) {
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("address.keyword", contractAddr)))
@@ -80,7 +79,7 @@ func (r contractRepository) GetContractByAddress(contractAddr string) (entity.Co
 	return r.findOne(results, err)
 }
 
-func (r contractRepository) GetContractByAddressBech32(contractAddr string) (entity.Contract, error) {
+func (r contractRepository) GetContractByAddressBech32(contractAddr string) (*entity.Contract, error) {
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("addressBech32.keyword", contractAddr)))
@@ -88,37 +87,20 @@ func (r contractRepository) GetContractByAddressBech32(contractAddr string) (ent
 	return r.findOne(results, err)
 }
 
-func (r contractRepository) GetContractByMinterFallbackToAddress(contractAddr string) (entity.Contract, error) {
-	zap.S().Debugf("GetContractByMinterFallbackToAddress: %s", contractAddr)
-
-	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.ContractIndex.Get()).
-		Query(elastic.NewTermQuery("minters.keyword", contractAddr)))
-
-	contract, err := r.findOne(results, err)
+func (r contractRepository) findOne(results *elastic.SearchResult, err error) (*entity.Contract, error) {
 	if err != nil {
-		if err == ErrContractNotFound {
-			contract, err = r.GetContractByAddress(contractAddr)
-		}
-	}
-
-	return contract, err
-}
-
-func (r contractRepository) findOne(results *elastic.SearchResult, err error) (entity.Contract, error) {
-	if err != nil {
-		return entity.Contract{}, err
+		return nil, err
 	}
 
 	if len(results.Hits.Hits) == 0 {
-		return entity.Contract{}, ErrContractNotFound
+		return nil, ErrContractNotFound
 	}
 
 	var contract entity.Contract
 	hit := results.Hits.Hits[0]
 	err = json.Unmarshal(hit.Source, &contract)
 
-	return contract, err
+	return &contract, nil
 }
 
 func (r contractRepository) findMany(results *elastic.SearchResult, err error) ([]entity.Contract, int64, error) {

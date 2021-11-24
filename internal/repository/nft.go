@@ -14,7 +14,7 @@ var (
 )
 
 type NftRepository interface {
-	GetNft(contract string, tokenId uint64) (entity.NFT, error)
+	GetNft(contract string, tokenId uint64) (*entity.NFT, error)
 	GetNfts(contract string, size, page int) ([]entity.NFT, int64, error)
 	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
 
@@ -29,10 +29,11 @@ func NewNftRepository(elastic elastic_cache.Index) NftRepository {
 	return nftRepository{elastic}
 }
 
-func (r nftRepository) GetNft(contract string, tokenId uint64) (entity.NFT, error) {
+func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.NFT, error) {
 	pendingRequest := r.elastic.GetRequest(entity.CreateNftSlug(tokenId, contract))
 	if pendingRequest != nil {
-		return pendingRequest.Entity.(entity.NFT), nil
+		pendingNft := pendingRequest.Entity.(entity.NFT)
+		return &pendingNft, nil
 	}
 
 	query := elastic.NewBoolQuery().Must(
@@ -98,20 +99,20 @@ func (r nftRepository) DeleteAll() error {
 	return err
 }
 
-func (r nftRepository) findOne(results *elastic.SearchResult, err error) (entity.NFT, error) {
+func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.NFT, error) {
 	if err != nil {
-		return entity.NFT{}, err
+		return nil, err
 	}
 
 	if len(results.Hits.Hits) == 0 {
-		return entity.NFT{}, ErrNftNotFound
+		return nil, ErrNftNotFound
 	}
 
 	var nft entity.NFT
 	hit := results.Hits.Hits[0]
 	err = json.Unmarshal(hit.Source, &nft)
 
-	return nft, err
+	return &nft, err
 }
 
 func (r nftRepository) findMany(results *elastic.SearchResult, err error) ([]entity.NFT, int64, error) {
