@@ -139,9 +139,14 @@ func (d *Daemon) bulkIndexContracts(bestBlockNum uint64) {
 
 func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 	zap.L().Info("Bulk index NFTs")
-	size := 100
+	bulkIndexNftsFrom := config.Get().BulkIndexNftsFrom
+	if bulkIndexNftsFrom == -1 {
+		bulkIndexNftsFrom = int(bestBlockNum)
+	}
 
+	size := 100
 	contractPage := 1
+
 	for {
 		contracts, _, err := d.contractRepo.GetAllNftContracts(size, contractPage)
 		if err != nil {
@@ -154,7 +159,7 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 		for _, c := range contracts {
 			txPage := 1
 			for {
-				txs, _, err := d.txRepo.GetContractExecutionsByContractFrom(c, bestBlockNum, size, txPage)
+				txs, _, err := d.txRepo.GetContractExecutionsByContractFrom(c, uint64(bulkIndexNftsFrom), size, txPage)
 				if err != nil {
 					zap.L().With(zap.Error(err)).Error("Failed to get txs when bulk indexing nfts")
 				}
