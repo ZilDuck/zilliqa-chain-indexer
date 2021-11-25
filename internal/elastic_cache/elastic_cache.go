@@ -40,8 +40,9 @@ type Index interface {
 }
 
 type index struct {
-	client *elastic.Client
-	cache  *cache.Cache
+	client  *elastic.Client
+	cache   *cache.Cache
+	refresh string
 }
 
 type Request struct {
@@ -85,7 +86,7 @@ func New() (Index, error) {
 		zap.L().With(zap.Error(err)).Fatal("ElasticCache: Failed to create client")
 	}
 
-	return index{client, cache.New(5*time.Minute, 10*time.Minute)}, err
+	return index{client, cache.New(5*time.Minute, 10*time.Minute), config.Get().ElasticSearch.Refresh}, err
 }
 
 func newClient() (*elastic.Client, error) {
@@ -325,7 +326,7 @@ func (i index) persist(bulk *elastic.BulkService) {
 	actions := bulk.NumberOfActions()
 	zap.S().Debugf("ElasticCache: Persisting %d actions", actions)
 
-	response, err := bulk.Refresh("wait_for").Do(context.Background())
+	response, err := bulk.Refresh(i.refresh).Do(context.Background())
 	if err != nil {
 		if err.Error() == "elastic: Error 429 (Too Many Requests)" {
 			zap.L().With(zap.Error(err)).Warn("ElasticCache: 429 (Too Many Requests)")

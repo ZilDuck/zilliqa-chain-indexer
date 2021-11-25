@@ -57,6 +57,7 @@ type ElasticSearchConfig struct {
 	Password         string
 	MappingDir       string
 	BulkPersistCount int
+	Refresh          string
 }
 
 func Init() {
@@ -126,6 +127,7 @@ func Get() *Config {
 			Password:         getString("ELASTIC_SEARCH_PASSWORD", ""),
 			MappingDir:       getString("ELASTIC_SEARCH_MAPPING_DIR", "/data/mappings"),
 			BulkPersistCount: getInt("ELASTIC_SEARCH_BULK_PERSIST_COUNT", 300),
+			Refresh:          getString("ELASTIC_SEARCH_REFRESH", "false"),
 		},
 	}
 }
