@@ -8,6 +8,7 @@ import (
 type TRANSITION string
 
 const (
+	ZRC1MintCallBack            TRANSITION = "MintCallBack"
 	ZRC1RegenerateDuck          TRANSITION = "regenerateDuck"
 	ZRC1RecipientAcceptTransfer TRANSITION = "RecipientAcceptTransfer"
 	ZRC1BurnCallBack            TRANSITION = "BurnCallBack"
