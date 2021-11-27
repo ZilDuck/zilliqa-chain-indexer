@@ -2,6 +2,7 @@ package factory
 
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"go.uber.org/zap"
 	"strconv"
 	"strings"
 )
@@ -42,28 +43,31 @@ func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 
 func CreateZrc1FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	if c.Name == "Unicutes" {
-		return createUincuteFromMintTx(tx, c)
+		return createUnicuteFromMintTx(tx, c)
 	}
 
 	nfts := make([]entity.NFT, 0)
 
-	for _, mintSuccess := range tx.GetEventLogs("MintSuccess") {
+	for _, mintSuccess := range tx.GetTransition(entity.ZRC1MintCallBack) {
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
-		tokenId, err := GetTokenId(mintSuccess.Params)
+		tokenId, err := GetTokenId(mintSuccess.Msg.Params)
 		if err != nil {
-			return nil, err
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenId when minting zrc1")
+			continue
 		}
 
-		tokenUri, err := getTokenUri(mintSuccess.Params, tx)
+		tokenUri, err := getTokenUri(mintSuccess.Msg.Params, tx)
 		if err != nil {
-			return nil, err
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc1")
+			continue
 		}
 
-		recipient, err := getRecipient(mintSuccess.Params)
+		recipient, err := getRecipient(mintSuccess.Msg.Params)
 		if err != nil {
-			return nil, err
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get recipient when minting zrc1")
+			continue
 		}
 
 		nft := entity.NFT{
@@ -84,7 +88,7 @@ func CreateZrc1FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 	return nfts, nil
 }
 
-func createUincuteFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
+func createUnicuteFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
 	for _, mintSuccess := range tx.GetEventLogs("UnicuteInsertDrandValues") {
@@ -93,17 +97,20 @@ func createUincuteFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity
 
 		tokenId, err := GetTokenId(mintSuccess.Params)
 		if err != nil {
-			return nil, err
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenId when minting unicute")
+			continue
 		}
 
 		tokenUri, err := getTokenUri(tx.Data.Params, tx)
 		if err != nil {
-			return nil, err
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting unicute")
+			continue
 		}
 
 		recipient, err := getPrimitiveParam(mintSuccess.Params, "token_owner")
 		if err != nil {
-			return nil, err
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get token_owner when minting unicute")
+			continue
 		}
 
 		nft := entity.NFT{
