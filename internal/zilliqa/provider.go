@@ -26,7 +26,6 @@ import (
 	"github.com/ybbus/jsonrpc"
 	"go.uber.org/zap"
 	"io/ioutil"
-	"log"
 	"net/http"
 )
 
@@ -569,7 +568,6 @@ func (p *Provider) GetTransaction(transaction_hash string) (*core.Transaction, e
 
 	var transaction core.Transaction
 	jsonString, err2 := json.Marshal(result.Result)
-	log.Println(string(jsonString))
 	if err2 != nil {
 		return nil, err2
 	}
