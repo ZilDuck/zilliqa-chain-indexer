@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
@@ -17,8 +16,6 @@ type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (*entity.NFT, error)
 	GetNfts(contract string, size, page int) ([]entity.NFT, int64, error)
 	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
-
-	DeleteAll() error
 }
 
 type nftRepository struct {
@@ -88,15 +85,6 @@ func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uin
 	}
 
 	return nft.TokenId, nil
-}
-
-func (r nftRepository) DeleteAll() error {
-	_, err := r.elastic.GetClient().
-		DeleteByQuery(elastic_cache.NftIndex.Get()).
-		Query(elastic.NewMatchAllQuery()).
-		Do(context.Background())
-
-	return err
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.NFT, error) {
