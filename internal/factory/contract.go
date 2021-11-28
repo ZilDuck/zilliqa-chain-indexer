@@ -10,7 +10,7 @@ import (
 )
 
 type ContractFactory interface {
-	CreateContractFromTx(tx entity.Transaction) (entity.Contract, error)
+	CreateContractFromTx(tx entity.Transaction) entity.Contract
 }
 
 type contractFactory struct {
@@ -21,14 +21,13 @@ func NewContractFactory(zilliqa zilliqa.Service) ContractFactory {
 	return contractFactory{zilliqa}
 }
 
-func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Contract, error) {
+func (f contractFactory) CreateContractFromTx(tx entity.Transaction) entity.Contract {
 	contractName := f.getContractName(tx.Code)
 
 	contractValues := make([]core.ContractValue, 0)
 	if contractName != "Resolver" {
 		var err error
-		contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:])
-		if err != nil {
+		if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
 			zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Fatal("GetSmartContractInit")
 		}
 	}
@@ -54,7 +53,7 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (entity.Con
 		}
 	}
 
-	return c, nil
+	return c
 }
 
 func (f contractFactory) getContractName(code string) string {

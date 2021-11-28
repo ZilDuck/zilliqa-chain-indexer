@@ -204,12 +204,13 @@ func (d *Daemon) subscribe() {
 			targetHeight, err := strconv.ParseUint(latestCoreTxBlock.Header.BlockNum, 0, 64)
 			if err != nil {
 				zap.L().With(zap.Error(err)).Fatal("Failed to parse latest block num")
-			} else {
-				err = d.indexer.Index(IndexOption.SingleIndex, targetHeight)
 			}
-			if err != nil {
-				d.elastic.Persist()
+
+			if err = d.indexer.Index(IndexOption.SingleIndex, targetHeight); err != nil {
+				zap.L().With(zap.Error(err)).Fatal("Failed to index from subscriber")
 			}
+
+			d.elastic.Persist()
 		}
 
 		time.Sleep(5 * time.Second)

@@ -39,11 +39,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) ([]entity.Contract, err
 		}
 
 		if tx.IsContractCreation {
-			c, err := i.factory.CreateContractFromTx(tx)
-			if err != nil {
-				zap.L().With(zap.Error(err)).Error("failed to create contract")
-				return nil, err
-			}
+			c := i.factory.CreateContractFromTx(tx)
 
 			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
 			contracts = append(contracts, c)
@@ -71,18 +67,8 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 		}
 
 		for _, tx := range txs {
-			c, err := i.factory.CreateContractFromTx(tx)
-			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create contract txs")
-				break
-			}
+			c := i.factory.CreateContractFromTx(tx)
 
-			zap.L().With(
-				zap.Uint64("blockNum", tx.BlockNum),
-				zap.String("contractAddr", c.Address),
-				zap.Bool("zrc1", c.ZRC1),
-				zap.Bool("zrc6", c.ZRC6),
-			).Info(c.Name)
 			if !c.ZRC1 && !c.ZRC6 {
 				continue
 			}
