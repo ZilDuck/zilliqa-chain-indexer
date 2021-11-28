@@ -42,11 +42,15 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		if c, err := i.contractRepo.GetContractByAddress(transitions[0].Addr); err != nil {
-			if err := i.IndexTx(tx, *c); err != nil {
-				return err
-			}
+		c, err := i.contractRepo.GetContractByAddress(transitions[0].Addr)
+		if err != nil {
+			continue
 		}
+
+		if err := i.IndexTx(tx, *c); err != nil {
+			return err
+		}
+
 		i.elastic.BatchPersist()
 	}
 
