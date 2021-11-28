@@ -208,7 +208,7 @@ func (d *Daemon) subscribe() {
 			}
 
 			if err = d.indexer.Index(IndexOption.SingleIndex, targetHeight); err != nil {
-				if !errors.Is(err, indexer.ErrTxDoesNotExist) {
+				if !errors.Is(err, indexer.ErrBlockNotReady) {
 					zap.L().With(zap.Error(err)).Fatal("Failed to index from subscriber")
 				}
 			}
