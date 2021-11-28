@@ -9,7 +9,7 @@ import (
 )
 
 type ContractIndexer interface {
-	Index(txs []entity.Transaction) ([]entity.Contract, error)
+	Index(txs []entity.Transaction) error
 	BulkIndex(fromBlockNum uint64) error
 }
 
@@ -31,8 +31,7 @@ func NewContractIndexer(
 	return contractIndexer{elastic, factory, txRepo, contractRepo, nftRepo}
 }
 
-func (i contractIndexer) Index(txs []entity.Transaction) ([]entity.Contract, error) {
-	contracts := make([]entity.Contract, 0)
+func (i contractIndexer) Index(txs []entity.Transaction) error {
 	for _, tx := range txs {
 		if tx.Receipt.Success == false {
 			continue
@@ -40,15 +39,11 @@ func (i contractIndexer) Index(txs []entity.Transaction) ([]entity.Contract, err
 
 		if tx.IsContractCreation {
 			c := i.factory.CreateContractFromTx(tx)
-
 			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
-			contracts = append(contracts, c)
 		}
 	}
 
-	zap.L().With(zap.Int("count", len(contracts))).Info("Index contracts")
-
-	return contracts, nil
+	return nil
 }
 
 func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
