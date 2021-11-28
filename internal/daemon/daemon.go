@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
@@ -207,7 +208,9 @@ func (d *Daemon) subscribe() {
 			}
 
 			if err = d.indexer.Index(IndexOption.SingleIndex, targetHeight); err != nil {
-				zap.L().With(zap.Error(err)).Fatal("Failed to index from subscriber")
+				if !errors.Is(err, indexer.ErrTxDoesNotExist) {
+					zap.L().With(zap.Error(err)).Fatal("Failed to index from subscriber")
+				}
 			}
 
 			d.elastic.Persist()

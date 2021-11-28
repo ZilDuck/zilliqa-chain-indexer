@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer/IndexOption"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -27,6 +28,10 @@ type indexer struct {
 	txRepo          repository.TransactionRepository
 	cache           *cache.Cache
 }
+
+var (
+	ErrTxDoesNotExist = errors.New("tx block does not exist")
+)
 
 func NewIndexer(
 	bulkIndexSize uint64,
@@ -82,6 +87,10 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 	txs, err := i.txIndexer.Index(height, size)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Warn("Failed to index transactions")
+		if err.Error()[:6] == "-32602" {
+			return ErrTxDoesNotExist
+		}
+
 		return err
 	}
 	i.SetLastBlockNumIndexed(height + size - 1)
