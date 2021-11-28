@@ -15,9 +15,7 @@ var (
 
 type ContractRepository interface {
 	GetAllNftContracts(size, page int) ([]entity.Contract, int64, error)
-	GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error)
 	GetContractByAddress(contractAddr string) (*entity.Contract, error)
-	GetContractByAddressBech32(contractAddr string) (*entity.Contract, error)
 }
 
 type contractRepository struct {
@@ -52,39 +50,17 @@ func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contrac
 	return r.findMany(results, err)
 }
 
-func (r contractRepository) GetAllZrc1Contracts(size, page int) ([]entity.Contract, int64, error) {
-	from := size*page - size
-
-	zap.L().With(
-		zap.Int("size", size),
-		zap.Int("page", page),
-		zap.Int("from", from),
-	).Info("GetAllZrc1Contracts")
-
-	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.ContractIndex.Get()).
-		Query(elastic.NewTermQuery("zrc1", true)).
-		Sort("blockNum", true).
-		Size(size).
-		From(from))
-
-	return r.findMany(results, err)
-}
-
 func (r contractRepository) GetContractByAddress(contractAddr string) (*entity.Contract, error) {
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_cache.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("address.keyword", contractAddr)))
 
-	return r.findOne(results, err)
-}
+	c, err := r.findOne(results, err)
+	if err != nil && errors.Is(err, ErrContractNotFound) {
+		zap.S().Warnf("%s: %s", err.Error(), contractAddr)
+	}
 
-func (r contractRepository) GetContractByAddressBech32(contractAddr string) (*entity.Contract, error) {
-	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.ContractIndex.Get()).
-		Query(elastic.NewTermQuery("addressBech32.keyword", contractAddr)))
-
-	return r.findOne(results, err)
+	return c, err
 }
 
 func (r contractRepository) findOne(results *elastic.SearchResult, err error) (*entity.Contract, error) {
