@@ -43,7 +43,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 
 		c, err := i.contractRepo.GetContractByAddress(transitions[0].Addr)
 		if err != nil {
-			return err
+			continue
 		}
 
 		if err := i.IndexTx(tx, *c); err != nil {
