@@ -86,7 +86,7 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 
 	txs, err := i.txIndexer.Index(height, size)
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Warn("Failed to index transactions")
+		zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Debug("Failed to index transactions")
 		if err.Error()[:7] == "-32602:" || err.Error()[:4] == "-20:" {
 			return ErrBlockNotReady
 		}
