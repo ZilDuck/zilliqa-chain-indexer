@@ -22,7 +22,7 @@ const (
 )
 
 var (
-	Zrc1Transitions = []TRANSITION{ZRC1RegenerateDuck, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
+	Zrc1Transitions = []TRANSITION{ZRC1MintCallBack, ZRC1RegenerateDuck, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
 	Zrc6Transitions = []TRANSITION{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
 )
 
