@@ -12,10 +12,9 @@ import (
 
 type Indexer interface {
 	Index(option IndexOption.IndexOption, target uint64) error
-	RewindToHeight(blockNum uint64) error
+
 	SetLastBlockNumIndexed(blockNum uint64)
 	GetLastBlockNumIndexed() (uint64, error)
-	ClearLastBlockNumIndexed()
 }
 
 type indexer struct {
@@ -96,20 +95,17 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 	i.SetLastBlockNumIndexed(height + size - 1)
 
 	if option == IndexOption.SingleIndex {
-		_, err = i.contractIndexer.Index(txs)
-		if err != nil {
+		if err := i.contractIndexer.Index(txs); err != nil {
 			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index Contacts")
 			return err
 		}
 
-		err = i.zrc1Indexer.IndexTxs(txs)
-		if err != nil {
+		if err := i.zrc1Indexer.IndexTxs(txs); err != nil {
 			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index ZRC1s")
 			return err
 		}
 
-		err = i.zrc6Indexer.IndexTxs(txs)
-		if err != nil {
+		if err := i.zrc6Indexer.IndexTxs(txs); err != nil {
 			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index ZRC6s")
 			return err
 		}
@@ -132,27 +128,6 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 	}
 
 	return i.index(height, target, option)
-}
-
-func (i indexer) RewindToHeight(blockNum uint64) error {
-	zap.L().With(zap.Uint64("blockNum", blockNum)).Info("Rewinding to blockNum")
-
-	i.elastic.ClearRequests()
-
-	zap.L().With(zap.Uint64("blockNum", blockNum)).Info("Rewinding transaction index")
-
-	if err := i.elastic.DeleteBlockNumGT(blockNum, elastic_cache.TransactionIndex.Get()); err != nil {
-		return err
-	}
-
-	zap.L().With(zap.Uint64("blockNum", blockNum)).Info("Rewound to height")
-	i.elastic.Persist()
-
-	return nil
-}
-
-func (i indexer) ClearLastBlockNumIndexed() {
-	i.cache.Delete("lastBlockNumIndexed")
 }
 
 func (i indexer) SetLastBlockNumIndexed(blockNum uint64) {
