@@ -60,28 +60,28 @@ func CreateTransactionSlug(hash string) string {
 	return slug.Make(fmt.Sprintf("tx-%s", hash))
 }
 
-func (tx Transaction) GetEventLogs(eventName string) []EventLog {
+func (tx Transaction) GetEventLogs(eventName Event) []EventLog {
 	eventLogs := make([]EventLog, 0)
 	for _, event := range tx.Receipt.EventLogs {
-		if event.EventName == eventName {
+		if event.EventName == string(eventName) {
 			eventLogs = append(eventLogs, event)
 		}
 	}
 	return eventLogs
 }
 
-func (tx Transaction) GetEventLogForAddr(addr, eventName string) (EventLog, error) {
+func (tx Transaction) GetEventLogForAddr(addr string, eventName Event) (EventLog, error) {
 	for _, event := range tx.Receipt.EventLogs {
-		if event.Address == addr && event.EventName == eventName {
+		if event.Address == addr && event.EventName == string(eventName) {
 			return event, nil
 		}
 	}
 	return EventLog{}, errors.New(fmt.Sprintf("Event %s for address %s does not exist", eventName, addr))
 }
 
-func (tx Transaction) HasEventLog(eventName string) bool {
+func (tx Transaction) HasEventLog(eventName Event) bool {
 	for _, event := range tx.Receipt.EventLogs {
-		if event.EventName == eventName {
+		if event.EventName == string(eventName) {
 			return true
 		}
 	}

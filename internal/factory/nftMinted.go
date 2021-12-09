@@ -10,16 +10,16 @@ import (
 func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
-	for _, transition := range tx.GetTransition(entity.ZRC6MintCallback) {
+	for _, event := range tx.GetEventLogs(entity.ZRC1MintEvent) {
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
-		tokenId, err := GetTokenId(transition.Msg.Params)
+		tokenId, err := GetTokenId(event.Params)
 		if err != nil {
 			return nil, err
 		}
 
-		to, err := getPrimitiveParam(transition.Msg.Params, "to")
+		to, err := getPrimitiveParam(event.Params, "to")
 		if err != nil {
 			return nil, err
 		}
@@ -48,23 +48,23 @@ func CreateZrc1FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 
 	nfts := make([]entity.NFT, 0)
 
-	for _, mintSuccess := range tx.GetTransition(entity.ZRC1MintCallBack) {
+	for _, event := range tx.GetEventLogs(entity.ZRC1MintEvent) {
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
-		tokenId, err := GetTokenId(mintSuccess.Msg.Params)
+		tokenId, err := GetTokenId(event.Params)
 		if err != nil {
 			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenId when minting zrc1")
 			continue
 		}
 
-		tokenUri, err := getTokenUri(mintSuccess.Msg.Params, tx)
+		tokenUri, err := getTokenUri(event.Params, tx)
 		if err != nil {
 			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc1")
 			continue
 		}
 
-		recipient, err := getRecipient(mintSuccess.Msg.Params)
+		recipient, err := getRecipient(event.Params)
 		if err != nil {
 			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get recipient when minting zrc1")
 			continue

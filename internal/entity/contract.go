@@ -5,11 +5,24 @@ import (
 	"github.com/gosimple/slug"
 )
 
+type Event string
+
+const (
+	ZRC1MintEvent     Event = "MintSuccess"
+	ZRC1TransferEvent Event = "TransferSuccess"
+	ZRC1BurnEvent     Event = "BurnSuccessEvent"
+
+	ZRC6MintEvent         Event = "MintEvent"
+	ZRC6BatchMintEvent    Event = "BatchMint"
+	ZRC6SetBaseURIEvent   Event = "SetBaseURI"
+	ZRC6TransferFromEvent Event = "TransferFrom"
+	ZRC6BurnEvent         Event = "Burn"
+)
+
 type TRANSITION string
 
 const (
 	ZRC1MintCallBack            TRANSITION = "MintCallBack"
-	ZRC1RegenerateDuck          TRANSITION = "regenerateDuck"
 	ZRC1RecipientAcceptTransfer TRANSITION = "RecipientAcceptTransfer"
 	ZRC1BurnCallBack            TRANSITION = "BurnCallBack"
 
@@ -22,7 +35,7 @@ const (
 )
 
 var (
-	Zrc1Transitions = []TRANSITION{ZRC1MintCallBack, ZRC1RegenerateDuck, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
+	Zrc1Transitions = []TRANSITION{ZRC1MintCallBack, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
 	Zrc6Transitions = []TRANSITION{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
 )
 
@@ -53,7 +66,7 @@ func CreateContractSlug(contract string) string {
 }
 
 func (c Contract) HasTransition(t TRANSITION) bool {
-	for idx, _ := range c.Transitions {
+	for idx := range c.Transitions {
 		if len(c.Transitions[idx]) > len(t) && c.Transitions[idx][:len(t)] == string(t) {
 			return true
 		}
