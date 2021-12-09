@@ -4,25 +4,37 @@ import (
 	"encoding/json"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 )
 
-func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract, nextTokenId uint64) ([]entity.NFT, error) {
+func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
 	if !c.ZRC6 {
 		return nfts, nil
 	}
 
-	if tx.HasTransition(entity.ZRC6BatchMintCallback) {
-		if tx.Data.Tag == "BatchMint" {
-			toListParam, err := tx.Data.Params.GetParam("to_list")
+	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
+		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
+			toListParam, err := event.Params.GetParam("to_list")
 			if err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to get toList")
 			}
+
 			var toList []string
 			if err := json.Unmarshal([]byte(toListParam.Value.Primitive.(string)), &toList); err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to unmarshall toList")
+			}
+
+			startId, err := event.Params.GetParam("start_id")
+			if err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to get start_id")
+			}
+
+			nextTokenId, err := strconv.ParseUint(startId.Value.Primitive.(string), 10, 64)
+			if err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to convert start_id to uint64")
 			}
 
 			for _, recipient := range toList {

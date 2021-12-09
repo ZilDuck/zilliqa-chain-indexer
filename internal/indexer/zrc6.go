@@ -113,7 +113,7 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 }
 
 func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
-	if !tx.HasTransition(entity.ZRC6MintCallback) {
+	if !tx.HasEventLog(entity.ZRC6MintEvent) {
 		return nil
 	}
 
@@ -139,21 +139,11 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
-	if !tx.HasTransition(entity.ZRC6BatchMintCallback) {
+	if !tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		return nil
 	}
 
-	bestTokenId, exists := i.latestTokenId[c.Address]
-	if !exists {
-		zap.L().With(zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Warn("Getting best token id from index")
-		var err error
-		bestTokenId, err = i.nftRepo.GetBestTokenId(c.Address, tx.BlockNum)
-		if err != nil {
-			return err
-		}
-	}
-
-	nfts, err := factory.CreateZrc6FromBatchMint(tx, c, bestTokenId+1)
+	nfts, err := factory.CreateZrc6FromBatchMint(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc6 from batch minting tx")
 		return err
@@ -175,13 +165,12 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error {
-	for _, t := range tx.GetTransition(entity.ZRC6SetBaseURICallback) {
-		baseUri, err := t.Msg.Params.GetParam("base_uri")
+	for _, event := range tx.GetEventLogs(entity.ZRC6SetBaseURIEvent) {
+		baseUri, err := event.Params.GetParam("base_uri")
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to get zrc6:base_uri from BaseUriCallback")
+			zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to get zrc6:base_uri from ZRC6SetBaseURIEvent")
 			return err
 		}
-
 		c.BaseUri = baseUri.Value.Primitive.(string)
 
 		i.elastic.AddUpdateRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractSetBaseUri)
@@ -190,7 +179,7 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 		size := 100
 		page := 1
 		for {
-			nfts, _, err := i.nftRepo.GetNfts(t.Addr, size, page)
+			nfts, _, err := i.nftRepo.GetNfts(c.Address, size, page)
 			if err != nil {
 				return err
 			}
@@ -212,18 +201,18 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 }
 
 func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
-	for _, transition := range tx.GetTransition(entity.ZRC6RecipientAcceptTransferFrom) {
-		if transition.Addr != c.Address {
+	for _, event := range tx.GetEventLogs(entity.ZRC6TransferFromEvent) {
+		tokenId, err := factory.GetTokenId(event.Params)
+		if err != nil {
+			zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address)).
+				Warn("Failed to get token id for zrc6:transfer")
 			continue
 		}
 
-		tokenId, err := factory.GetTokenId(transition.Msg.Params)
+		to, err := event.Params.GetParam("to")
 		if err != nil {
-			zap.L().With(
-				zap.Error(err),
-				zap.String("contractAddr", c.Address),
-			).Warn("Failed to get token id for zrc6:transfer")
-			continue
+			zap.L().With(zap.Error(err)).Error("Failed to get zrc6:new_owner")
+			return err
 		}
 
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
@@ -235,12 +224,6 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 				zap.Uint64("tokenId", tokenId),
 			).Error("Failed to find nft in index")
 			continue
-		}
-
-		to, err := transition.Msg.Params.GetParam("to")
-		if err != nil {
-			zap.L().With(zap.Error(err)).Error("Failed to get zrc6:new_owner")
-			return err
 		}
 
 		nft.Owner = to.Value.Primitive.(string)
@@ -258,17 +241,11 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 }
 
 func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
-	for _, transition := range tx.GetTransition(entity.ZRC6BurnCallback) {
-		if transition.Addr != c.Address {
-			continue
-		}
-
-		tokenId, err := factory.GetTokenId(transition.Msg.Params)
+	for _, event := range tx.GetEventLogs(entity.ZRC6BurnEvent) {
+		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
-			zap.L().With(
-				zap.Error(err),
-				zap.String("contractAddr", c.Address),
-			).Warn("Failed to get token id for zrc6:transfer")
+			zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address)).
+				Warn("Failed to get token id for zrc6:transfer")
 			continue
 		}
 

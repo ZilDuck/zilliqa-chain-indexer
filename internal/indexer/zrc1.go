@@ -64,9 +64,6 @@ func (i zrc1Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 	if err := i.mint(tx, c); err != nil {
 		return err
 	}
-	if err := i.duckRegeneration(tx, c); err != nil {
-		return err
-	}
 	if err := i.transferFrom(tx, c); err != nil {
 		return err
 	}
@@ -129,49 +126,13 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	return err
 }
 
-func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) error {
-	if !tx.HasTransition(entity.ZRC1RegenerateDuck) {
-		return nil
-	}
-
-	for _, transition := range tx.GetTransition(entity.ZRC1RegenerateDuck) {
-		if !transition.Msg.Params.HasParam("token_id", "Uint256") {
-			continue
-		}
-		tokenId, _ := factory.GetTokenId(transition.Msg.Params)
-
-		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
-		if err != nil {
-			zap.L().With(zap.Uint64("tokenId", tokenId)).Error("Failed to get zrc1 from the index on duck regeneration")
-			return err
-		}
-
-		newDuckMetaData, err := transition.Msg.Params.GetParam("new_duck_metadata")
-		if err != nil {
-			zap.L().Error("Failed to get zrc1:new_duck_metadata on duck regeneration")
-			return err
-		}
-
-		nft.TokenUri = newDuckMetaData.Value.Primitive.(string)
-		zap.L().With(
-			zap.Uint64("blockNum", tx.BlockNum),
-			zap.String("symbol", nft.Symbol),
-			zap.Uint64("tokenId", nft.TokenId),
-		).Info("Regenerate ZRC1 Duck")
-
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc1DuckRegeneration)
-	}
-
-	return nil
-}
-
 func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
-	if !tx.HasTransition(entity.ZRC1RecipientAcceptTransfer) {
+	if !tx.HasEventLog(entity.ZRC1TransferEvent) {
 		return nil
 	}
 
-	for _, transition := range tx.GetTransition(entity.ZRC1RecipientAcceptTransfer) {
-		tokenId, err := factory.GetTokenId(transition.Msg.Params)
+	for _, event := range tx.GetEventLogs(entity.ZRC1TransferEvent) {
+		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for zrc1:transfer")
 			continue
@@ -182,9 +143,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			zap.L().With(zap.Error(err), zap.String("contract", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
 		}
 
-		previousOwner := nft.Owner
-
-		newOwner, err := transition.Msg.Params.GetParam("recipient")
+		newOwner, err := event.Params.GetParam("recipient")
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get zrc1:recipient for transfer")
 			return err
@@ -196,7 +155,6 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			zap.Uint64("blockNum", tx.BlockNum),
 			zap.String("symbol", nft.Symbol),
 			zap.Uint64("tokenId", nft.TokenId),
-			zap.String("from", previousOwner),
 			zap.String("to", nft.Owner),
 		).Info("Transfer ZRC1")
 
@@ -207,12 +165,12 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 }
 
 func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
-	if !tx.HasTransition(entity.ZRC1BurnCallBack) {
+	if !tx.HasEventLog(entity.ZRC1BurnEvent) {
 		return nil
 	}
 
-	for _, transition := range tx.GetTransition(entity.ZRC1BurnCallBack) {
-		tokenId, err := factory.GetTokenId(transition.Msg.Params)
+	for _, event := range tx.GetEventLogs(entity.ZRC1BurnEvent) {
+		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for zrc1:transfer")
 			continue
@@ -222,7 +180,6 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("contract", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
 		}
-
 		nft.BurnedAt = tx.BlockNum
 
 		zap.L().With(
