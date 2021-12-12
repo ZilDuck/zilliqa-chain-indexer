@@ -12,20 +12,6 @@ const (
 	ZRC1TransferEvent Event = "TransferSuccess"
 	ZRC1BurnEvent     Event = "BurnSuccessEvent"
 
-	ZRC6MintEvent         Event = "MintEvent"
-	ZRC6BatchMintEvent    Event = "BatchMint"
-	ZRC6SetBaseURIEvent   Event = "SetBaseURI"
-	ZRC6TransferFromEvent Event = "TransferFrom"
-	ZRC6BurnEvent         Event = "Burn"
-)
-
-type Event string
-
-const (
-	ZRC1MintEvent     Event = "MintSuccess"
-	ZRC1TransferEvent Event = "TransferSuccess"
-	ZRC1BurnEvent     Event = "BurnSuccessEvent"
-
 	ZRC6MintEvent         Event = "Mint"
 	ZRC6BatchMintEvent    Event = "BatchMint"
 	ZRC6SetBaseURIEvent   Event = "SetBaseURI"
