@@ -10,7 +10,7 @@ import (
 func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
-	for _, event := range tx.GetEventLogs(entity.ZRC1MintEvent) {
+	for _, event := range tx.GetEventLogs(entity.ZRC6MintEvent) {
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
