@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+type toTokenUri struct {
+	ArgTypes    interface{} `json:"argtypes,omitempty"`
+	Arguments   interface{} `json:"arguments,omitempty"`
+	Constructor string      `json:"constructor,omitempty"`
+}
+
 func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
@@ -17,14 +23,15 @@ func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity
 
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
-			toListParam, err := event.Params.GetParam("to_list")
+
+			var toTokenUris []toTokenUri
+			toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
 			if err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to get toList")
+				zap.L().With(zap.Error(err)).Error("Failed to get to_token_uri_pair_list")
 			}
 
-			var toList []string
-			if err := json.Unmarshal([]byte(toListParam.Value.Primitive.(string)), &toList); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to unmarshall toList")
+			if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
 			}
 
 			startId, err := event.Params.GetParam("start_id")
@@ -37,14 +44,23 @@ func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity
 				zap.L().With(zap.Error(err)).Error("Failed to convert start_id to uint64")
 			}
 
-			for _, recipient := range toList {
-				tokenUri, err := c.Data.Params.GetParam("initial_base_uri")
-				if err != nil {
-					return nil, err
-				}
+			name, _ := c.Data.Params.GetParam("name")
+			symbol, _ := c.Data.Params.GetParam("symbol")
+			initialBaseUri, err := c.Data.Params.GetParam("initial_base_uri")
+			if err != nil {
+				return nil, err
+			}
 
-				name, _ := c.Data.Params.GetParam("name")
-				symbol, _ := c.Data.Params.GetParam("symbol")
+			for _, i := range toTokenUris {
+				arguments := i.Arguments.([]interface{})
+				if len(arguments) != 2 {
+					zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
+				}
+				recipient := arguments[0].(string)
+				tokenUri := arguments[1].(string)
+				if tokenUri == "" {
+					tokenUri = initialBaseUri.Value.Primitive.(string)
+				}
 
 				nft := entity.NFT{
 					Contract: c.Address,
@@ -53,7 +69,7 @@ func CreateZrc6FromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity
 					Name:     name.Value.Primitive.(string),
 					Symbol:   symbol.Value.Primitive.(string),
 					TokenId:  nextTokenId,
-					TokenUri: strings.TrimSpace(tokenUri.Value.Primitive.(string)),
+					TokenUri: strings.TrimSpace(tokenUri),
 					Owner:    strings.ToLower(recipient),
 					Zrc6:     true,
 				}
