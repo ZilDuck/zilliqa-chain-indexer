@@ -10,7 +10,7 @@ import (
 func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NFT, error) {
 	nfts := make([]entity.NFT, 0)
 
-	for _, event := range tx.GetEventLogs(entity.ZRC1MintEvent) {
+	for _, event := range tx.GetEventLogs(entity.ZRC6MintEvent) {
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
@@ -24,6 +24,15 @@ func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 			return nil, err
 		}
 
+		tokenUri, err := getTokenUri(event.Params, tx)
+		if err != nil {
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc1")
+			continue
+		}
+		if tokenUri == "" {
+			tokenUri = c.BaseUri
+		}
+
 		nft := entity.NFT{
 			Contract: c.Address,
 			TxID:     tx.ID,
@@ -31,7 +40,7 @@ func CreateZrc6FromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.NF
 			Name:     name.Value.Primitive.(string),
 			Symbol:   symbol.Value.Primitive.(string),
 			TokenId:  tokenId,
-			TokenUri: c.BaseUri,
+			TokenUri: tokenUri,
 			Owner:    strings.ToLower(to),
 			Zrc6:     true,
 		}
