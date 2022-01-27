@@ -6,8 +6,10 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
+	"github.com/hashicorp/go-retryablehttp"
 	"github.com/patrickmn/go-cache"
 	"github.com/sarulabs/dingo/v4"
 	"go.uber.org/zap"
@@ -98,8 +100,9 @@ var Definitions = []dingo.Def{
 			contractRepo repository.ContractRepository,
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
+			factory factory.Zrc1Factory,
 		) (indexer.Zrc1Indexer, error) {
-			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo), nil
+			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
 		},
 	},
 	{
@@ -109,8 +112,9 @@ var Definitions = []dingo.Def{
 			contractRepo repository.ContractRepository,
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
+			factory factory.Zrc6Factory,
 		) (indexer.Zrc6Indexer, error) {
-			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo), nil
+			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
 		},
 	},
 	{
@@ -141,6 +145,27 @@ var Definitions = []dingo.Def{
 		Name: "contract.factory",
 		Build: func(zilliqa zilliqa.Service) (factory.ContractFactory, error) {
 			return factory.NewContractFactory(zilliqa), nil
+		},
+	},
+	{
+		Name: "zrc1.factory",
+		Build: func() (factory.Zrc1Factory, error) {
+			return factory.NewZrc1Factory(), nil
+		},
+	},
+	{
+		Name: "zrc6.factory",
+		Build: func(metadataService metadata.Service) (factory.Zrc6Factory, error) {
+			return factory.NewZrc6Factory(metadataService), nil
+		},
+	},
+	{
+		Name: "metadata.service",
+		Build: func() (metadata.Service, error) {
+			retryClient := retryablehttp.NewClient()
+			retryClient.RetryMax = 3
+
+			return metadata.NewMetadataService(retryClient), nil
 		},
 	},
 }

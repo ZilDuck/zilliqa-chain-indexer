@@ -9,9 +9,9 @@ import (
 )
 
 type Zrc6Indexer interface {
-	IndexTxs(tx []entity.Transaction) error
-	IndexTx(tx entity.Transaction, c entity.Contract) error
-	IndexContract(c entity.Contract) error
+	IndexTxs(tx []entity.Transaction, fetchImages bool) error
+	IndexTx(tx entity.Transaction, c entity.Contract, fetchImages bool) error
+	IndexContract(c entity.Contract, fetchImages bool) error
 }
 
 type zrc6Indexer struct {
@@ -19,6 +19,7 @@ type zrc6Indexer struct {
 	contractRepo  repository.ContractRepository
 	nftRepo       repository.NftRepository
 	txRepo        repository.TransactionRepository
+	factory       factory.Zrc6Factory
 	latestTokenId map[string]uint64
 }
 
@@ -27,11 +28,12 @@ func NewZrc6Indexer(
 	contractRepo repository.ContractRepository,
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
+	factory factory.Zrc6Factory,
 ) Zrc6Indexer {
-	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo, map[string]uint64{}}
+	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo,factory, map[string]uint64{}}
 }
 
-func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
+func (i zrc6Indexer) IndexTxs(txs []entity.Transaction, fetchImages bool) error {
 	for _, tx := range txs {
 		if !tx.IsContractExecution {
 			continue
@@ -47,7 +49,7 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		if err := i.IndexTx(tx, *c); err != nil {
+		if err := i.IndexTx(tx, *c, fetchImages); err != nil {
 			return err
 		}
 
@@ -57,15 +59,15 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 	return nil
 }
 
-func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
+func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
 	if !c.ZRC6 {
 		return nil
 	}
 
-	if err := i.mint(tx, c); err != nil {
+	if err := i.mint(tx, c, fetchImages); err != nil {
 		return err
 	}
-	if err := i.batchMint(tx, c); err != nil {
+	if err := i.batchMint(tx, c, fetchImages); err != nil {
 		return err
 	}
 	if err := i.setBaseUri(tx, c); err != nil {
@@ -84,7 +86,7 @@ func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 	return nil
 }
 
-func (i zrc6Indexer) IndexContract(c entity.Contract) error {
+func (i zrc6Indexer) IndexContract(c entity.Contract, fetchImages bool) error {
 	if !c.ZRC6 {
 		return nil
 	}
@@ -101,7 +103,7 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 		}
 
 		for _, tx := range txs {
-			if err := i.IndexTx(tx, c); err != nil {
+			if err := i.IndexTx(tx, c, fetchImages); err != nil {
 				return err
 			}
 		}
@@ -112,12 +114,12 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 	return nil
 }
 
-func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
+func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
 	if !tx.HasEventLog(entity.ZRC6MintEvent) {
 		return nil
 	}
 
-	nfts, err := factory.CreateZrc6FromMintTx(tx, c)
+	nfts, err := i.factory.CreateFromMintTx(tx, c, fetchImages)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc6 from minting tx")
 		return err
@@ -138,12 +140,12 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	return nil
 }
 
-func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
+func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
 	if !tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		return nil
 	}
 
-	nfts, err := factory.CreateZrc6FromBatchMint(tx, c)
+	nfts, err := i.factory.CreateFromBatchMint(tx, c, fetchImages)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc6 from batch minting tx")
 		return err
@@ -188,7 +190,7 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 			}
 
 			for _, nft := range nfts {
-				nft.TokenUri = c.BaseUri
+				nft.BaseUri = c.BaseUri
 				i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc6SetBaseUri)
 			}
 

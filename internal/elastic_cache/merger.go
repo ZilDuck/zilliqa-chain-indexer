@@ -20,29 +20,29 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 		return result
 
 	case index == NftIndex.Get():
-		result := cached.Entity.(entity.NFT)
+		result := cached.Entity.(entity.Nft)
 		if action == Zrc1Transfer {
-			result.Owner = e.(entity.NFT).Owner
+			result.Owner = e.(entity.Nft).Owner
 		}
 
 		if action == Zrc1DuckRegeneration {
-			result.TokenUri = e.(entity.NFT).TokenUri
+			result.TokenUri = e.(entity.Nft).TokenUri
 		}
 
 		if action == Zrc1Burn {
-			result.BurnedAt = e.(entity.NFT).BurnedAt
+			result.BurnedAt = e.(entity.Nft).BurnedAt
 		}
 
 		if action == Zrc6SetBaseUri {
-			result.TokenUri = e.(entity.NFT).TokenUri
+			result.TokenUri = e.(entity.Nft).TokenUri
 		}
 
 		if action == Zrc6Transfer {
-			result.Owner = e.(entity.NFT).Owner
+			result.Owner = e.(entity.Nft).Owner
 		}
 
 		if action == Zrc6Burn {
-			result.BurnedAt = e.(entity.NFT).BurnedAt
+			result.BurnedAt = e.(entity.Nft).BurnedAt
 		}
 
 		return result

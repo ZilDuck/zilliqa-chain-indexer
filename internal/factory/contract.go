@@ -157,6 +157,9 @@ func hasZrc6Immutables(c entity.Contract) bool {
 }
 
 func hasZrc6Mutables(c entity.Contract) bool {
+	if c.Address == "0xd2b54e791930dd7d06ea51f3c2a6cf2c00f165ea" {
+		return true
+	}
 	return c.MutableParams.HasParam("contract_owner", "ByStr20") &&
 		c.MutableParams.HasParam("base_uri", "String") &&
 		c.MutableParams.HasParam("minters", "Map ByStr20 Bool") &&
