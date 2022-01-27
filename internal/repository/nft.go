@@ -13,8 +13,8 @@ var (
 )
 
 type NftRepository interface {
-	GetNft(contract string, tokenId uint64) (*entity.NFT, error)
-	GetNfts(contract string, size, page int) ([]entity.NFT, int64, error)
+	GetNft(contract string, tokenId uint64) (*entity.Nft, error)
+	GetNfts(contract string, size, page int) ([]entity.Nft, int64, error)
 	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
 }
 
@@ -26,10 +26,10 @@ func NewNftRepository(elastic elastic_cache.Index) NftRepository {
 	return nftRepository{elastic}
 }
 
-func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.NFT, error) {
+func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.Nft, error) {
 	pendingRequest := r.elastic.GetRequest(entity.CreateNftSlug(tokenId, contract))
 	if pendingRequest != nil {
-		pendingNft := pendingRequest.Entity.(entity.NFT)
+		pendingNft := pendingRequest.Entity.(entity.Nft)
 		return &pendingNft, nil
 	}
 
@@ -46,7 +46,7 @@ func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.NFT, err
 	return r.findOne(result, err)
 }
 
-func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.NFT, int64, error) {
+func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.Nft, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("contract.keyword", contract),
 	)
@@ -57,9 +57,9 @@ func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.NFT, i
 		Search(elastic_cache.NftIndex.Get()).
 		Query(query).
 		Size(size).
+		Sort("tokenId", true).
 		From(from).
-		TrackTotalHits(true).
-		Size(100))
+		TrackTotalHits(true))
 
 	return r.findMany(result, err)
 }
@@ -87,7 +87,7 @@ func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uin
 	return nft.TokenId, nil
 }
 
-func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.NFT, error) {
+func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.Nft, error) {
 	if err != nil {
 		return nil, err
 	}
@@ -96,22 +96,22 @@ func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entit
 		return nil, ErrNftNotFound
 	}
 
-	var nft entity.NFT
+	var nft entity.Nft
 	hit := results.Hits.Hits[0]
 	err = json.Unmarshal(hit.Source, &nft)
 
 	return &nft, err
 }
 
-func (r nftRepository) findMany(results *elastic.SearchResult, err error) ([]entity.NFT, int64, error) {
-	nfts := make([]entity.NFT, 0)
+func (r nftRepository) findMany(results *elastic.SearchResult, err error) ([]entity.Nft, int64, error) {
+	nfts := make([]entity.Nft, 0)
 
 	if err != nil {
 		return nfts, 0, err
 	}
 
 	for _, hit := range results.Hits.Hits {
-		var nft entity.NFT
+		var nft entity.Nft
 		if err := json.Unmarshal(hit.Source, &nft); err == nil {
 			nfts = append(nfts, nft)
 		}

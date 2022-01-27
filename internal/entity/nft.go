@@ -5,21 +5,23 @@ import (
 	"github.com/gosimple/slug"
 )
 
-type NFT struct {
+type Nft struct {
 	Contract string `json:"contract"`
 	TxID     string `json:"txId"`
 	BlockNum uint64 `json:"blockNum"`
 	Name     string `json:"name"`
 	Symbol   string `json:"symbol"`
 	TokenId  uint64 `json:"tokenId"`
+	BaseUri  string `json:"baseUri"`
 	TokenUri string `json:"tokenUri"`
+	MediaUri string `json:"mediaUri"`
 	Owner    string `json:"owner"`
 	BurnedAt uint64 `json:"burnedAt"`
 	Zrc1     bool   `json:"zrc1"`
 	Zrc6     bool   `json:"zrc6"`
 }
 
-func (n NFT) Slug() string {
+func (n Nft) Slug() string {
 	return CreateNftSlug(n.TokenId, n.Contract)
 }
 
