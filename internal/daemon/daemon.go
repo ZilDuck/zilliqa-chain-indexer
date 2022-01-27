@@ -175,7 +175,7 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 						}
 					}
 					if c.ZRC6 {
-						if err := d.zrc6Indexer.IndexTx(tx, c); err != nil {
+						if err := d.zrc6Indexer.IndexTx(tx, c, false); err != nil {
 							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc6")
 						}
 					}

@@ -36,7 +36,7 @@ func main() {
 			if err := container.GetZrc1Indexer().IndexContract(c); err != nil {
 				zap.S().Errorf("Failed to index ZRC1 NFTs for contract %s", c.Address)
 			}
-			if err := container.GetZrc6Indexer().IndexContract(c); err != nil {
+			if err := container.GetZrc6Indexer().IndexContract(c, true); err != nil {
 				zap.S().Errorf("Failed to index ZRC6 NFTs for contract %s", c.Address)
 			}
 		}

@@ -19,6 +19,7 @@ type zrc1Indexer struct {
 	contractRepo repository.ContractRepository
 	nftRepo      repository.NftRepository
 	txRepo       repository.TransactionRepository
+	factory      factory.Zrc1Factory
 }
 
 func NewZrc1Indexer(
@@ -26,8 +27,9 @@ func NewZrc1Indexer(
 	contractRepo repository.ContractRepository,
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
+	factory factory.Zrc1Factory,
 ) Zrc1Indexer {
-	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo}
+	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo, factory}
 }
 
 func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -106,7 +108,7 @@ func (i zrc1Indexer) IndexContract(c entity.Contract) error {
 }
 
 func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
-	nfts, err := factory.CreateZrc1FromMintTx(tx, c)
+	nfts, err := i.factory.CreateFromMintTx(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc1 from minting tx")
 		return err
@@ -118,6 +120,7 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
 			zap.Uint64("blockNum", tx.BlockNum),
+			zap.String("txId", tx.ID),
 			zap.Uint64("tokenId", nfts[idx].TokenId),
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC1")

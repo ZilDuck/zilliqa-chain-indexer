@@ -8,6 +8,7 @@ require (
 	github.com/aws/aws-sdk-go v1.42.7
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/gosimple/slug v1.11.2
+	github.com/hashicorp/go-retryablehttp v0.7.0
 	github.com/joho/godotenv v1.4.0
 	github.com/mattn/go-colorable v0.1.11
 	github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d
