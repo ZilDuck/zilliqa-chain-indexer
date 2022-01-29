@@ -12,7 +12,7 @@ import (
 type Zrc6Factory interface {
 	CreateFromMintTx(tx entity.Transaction, c entity.Contract, fetchImage bool) ([]entity.Nft, error)
 	CreateFromBatchMint(tx entity.Transaction, c entity.Contract, fetchImages bool) ([]entity.Nft, error)
-	FetchImage(nft *entity.Nft)
+	FetchImage(nft *entity.Nft) error
 }
 
 type zrc6Factory struct {
@@ -21,12 +21,6 @@ type zrc6Factory struct {
 
 func NewZrc6Factory(metadata metadata.Service) Zrc6Factory {
 	return zrc6Factory{metadata}
-}
-
-type toTokenUri struct {
-	ArgTypes    interface{} `json:"argtypes,omitempty"`
-	Arguments   interface{} `json:"arguments,omitempty"`
-	Constructor string      `json:"constructor,omitempty"`
 }
 
 func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, fetchImage bool) ([]entity.Nft, error) {
@@ -48,11 +42,8 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, 
 
 		tokenUri, err := getNftTokenUri(event.Params, tx)
 		if err != nil {
-			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc1")
+			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc6")
 			continue
-		}
-		if tokenUri == "" {
-			tokenUri = c.BaseUri
 		}
 
 		nft := entity.Nft{
@@ -68,7 +59,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, 
 			Zrc6:     true,
 		}
 		if fetchImage {
-			f.FetchImage(&nft)
+			_ = f.FetchImage(&nft)
 		}
 
 		nfts = append(nfts, nft)
@@ -87,14 +78,15 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
 
-			var toTokenUris []toTokenUri
-			toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
+			var toTokenUris []string
+			toList, err := event.Params.GetParam("to_list")
 			if err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to get to_token_uri_pair_list")
+				zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address), zap.String("txID", tx.ID)).Warn("Failed to get to_token_uri_pair_list")
+				continue
 			}
 
-			if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
+			if err := json.Unmarshal([]byte(toList.Value.Primitive.(string)), &toTokenUris); err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_list")
 			}
 
 			startId, err := event.Params.GetParam("start_id")
@@ -109,22 +101,8 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 
 			name, _ := c.Data.Params.GetParam("name")
 			symbol, _ := c.Data.Params.GetParam("symbol")
-			initialBaseUri, err := c.Data.Params.GetParam("initial_base_uri")
-			if err != nil {
-				return nil, err
-			}
 
-			for _, i := range toTokenUris {
-				arguments := i.Arguments.([]interface{})
-				if len(arguments) != 2 {
-					zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
-				}
-				recipient := arguments[0].(string)
-				tokenUri := arguments[1].(string)
-				if tokenUri == "" {
-					tokenUri = initialBaseUri.Value.Primitive.(string)
-				}
-
+			for _, recipient := range toTokenUris {
 				nft := entity.Nft{
 					Contract: c.Address,
 					TxID:     tx.ID,
@@ -133,12 +111,11 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 					Symbol:   symbol.Value.Primitive.(string),
 					TokenId:  nextTokenId,
 					BaseUri:  strings.TrimSpace(c.BaseUri),
-					TokenUri: strings.TrimSpace(tokenUri),
 					Owner:    strings.ToLower(recipient),
 					Zrc6:     true,
 				}
 				if fetchImages {
-					f.FetchImage(&nft)
+					_ = f.FetchImage(&nft)
 				}
 
 				nfts = append(nfts, nft)
@@ -150,15 +127,23 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 	return nfts, nil
 }
 
-func (f zrc6Factory) FetchImage(nft *entity.Nft) {
+func (f zrc6Factory) FetchImage(nft *entity.Nft) error {
 	md, err := f.metadata.GetZrc6Metadata(*nft)
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("contractAddr", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Warn("Failed to get zrc6 metadata")
+		zap.L().With(
+			zap.Error(err),
+			zap.String("contractAddr", nft.Contract),
+			zap.Uint64("tokenId", nft.TokenId),
+			zap.String("metadataUri", nft.MetadataUri()),
+		).Warn("Failed to get zrc6 metadata")
+		return err
 	}
 
 	if mediaUri, ok := md["image"]; ok {
 		nft.MediaUri = mediaUri.(string)
 	}
+
+	return nil
 }
 
 func GetTokenId(params entity.Params) (uint64, error) {
