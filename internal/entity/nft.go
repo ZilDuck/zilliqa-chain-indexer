@@ -25,6 +25,13 @@ func (n Nft) Slug() string {
 	return CreateNftSlug(n.TokenId, n.Contract)
 }
 
+func (n Nft) MetadataUri() string {
+	if n.TokenUri != "" {
+		return n.TokenUri
+	}
+	return fmt.Sprintf("%s%d", n.BaseUri, n.TokenId)
+}
+
 func CreateNftSlug(tokenId uint64, contract string) string {
 	return slug.Make(fmt.Sprintf("nft-%d-%s", tokenId, contract))
 }

@@ -163,7 +163,7 @@ var Definitions = []dingo.Def{
 		Name: "metadata.service",
 		Build: func() (metadata.Service, error) {
 			retryClient := retryablehttp.NewClient()
-			retryClient.RetryMax = 3
+			retryClient.RetryMax = config.Get().MetadataRetries
 
 			return metadata.NewMetadataService(retryClient), nil
 		},

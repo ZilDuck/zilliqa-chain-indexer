@@ -36,6 +36,9 @@ jobs:
       - name: Build NFT Importer
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/nftImporter ./cmd/importNfts/main.go
 
+      - name: Build Update Contract Assets
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/updateContractAssets ./cmd/updateContractAssets/main.go
+
       - name: Deploy to EC2
         uses: easingthemes/ssh-deploy@v2.1.5
         env:

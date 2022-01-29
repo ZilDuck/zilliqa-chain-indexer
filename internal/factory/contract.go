@@ -173,7 +173,7 @@ func hasZrc6Mutables(c entity.Contract) bool {
 
 func hasZrc6Transitions(c entity.Contract) bool {
 	return hasTransition(c, "Pause()") &&
-		hasTransition(c, "Mint(to:ByStr20,token_uri:String)") &&
+		hasTransition(c, "Mint(to:ByStr20)") &&
 		hasTransition(c, "AddMinter(minter:ByStr20)") &&
 		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
 		hasTransition(c, "SetSpender(spender:ByStr20,token_id:Uint256)") &&
