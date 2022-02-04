@@ -81,7 +81,7 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			var toTokenUris []string
 			toList, err := event.Params.GetParam("to_list")
 			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address), zap.String("txID", tx.ID)).Warn("Failed to get to_token_uri_pair_list")
+				zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address), zap.String("txID", tx.ID)).Warn("Failed to get to_list")
 				continue
 			}
 

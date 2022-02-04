@@ -3,7 +3,6 @@ package factory
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
-	"github.com/Zilliqa/gozilliqa-sdk/core"
 	"go.uber.org/zap"
 	"regexp"
 	"strings"
@@ -24,7 +23,7 @@ func NewContractFactory(zilliqa zilliqa.Service) ContractFactory {
 func (f contractFactory) CreateContractFromTx(tx entity.Transaction) entity.Contract {
 	contractName := f.getContractName(tx.Code)
 
-	contractValues := make([]core.ContractValue, 0)
+	contractValues := make([]zilliqa.ContractValue, 0)
 	if contractName != "Resolver" {
 		var err error
 		if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
@@ -64,7 +63,7 @@ func (f contractFactory) getContractName(code string) string {
 	return ""
 }
 
-func (f contractFactory) getImmutableParams(coreParams []core.ContractValue) (params entity.Params) {
+func (f contractFactory) getImmutableParams(coreParams []zilliqa.ContractValue) (params entity.Params) {
 	if coreParams == nil {
 		return
 	}

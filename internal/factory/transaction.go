@@ -6,7 +6,6 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
-	"github.com/Zilliqa/gozilliqa-sdk/core"
 	"github.com/Zilliqa/gozilliqa-sdk/keytools"
 	"github.com/Zilliqa/gozilliqa-sdk/util"
 	"go.uber.org/zap"
@@ -16,7 +15,7 @@ import (
 )
 
 type TransactionFactory interface {
-	CreateTransaction(coreTx core.Transaction, blockNum string) entity.Transaction
+	CreateTransaction(coreTx zilliqa.Transaction, blockNum string) entity.Transaction
 }
 
 type transactionFactory struct {
@@ -27,7 +26,7 @@ func NewTransactionFactory(zilliqaService zilliqa.Service) TransactionFactory {
 	return transactionFactory{zilliqaService}
 }
 
-func (f transactionFactory) CreateTransaction(coreTx core.Transaction, blockNum string) entity.Transaction {
+func (f transactionFactory) CreateTransaction(coreTx zilliqa.Transaction, blockNum string) entity.Transaction {
 	zap.L().With(zap.String("id", coreTx.ID)).Debug("Create Transaction")
 
 	tx := entity.Transaction{
@@ -55,7 +54,7 @@ func (f transactionFactory) CreateTransaction(coreTx core.Transaction, blockNum 
 	return tx
 }
 
-func (f transactionFactory) createReceipt(coreReceipt core.TransactionReceipt) entity.TransactionReceipt {
+func (f transactionFactory) createReceipt(coreReceipt zilliqa.TransactionReceipt) entity.TransactionReceipt {
 	return entity.TransactionReceipt{
 		TransactionReceipt: coreReceipt,
 		Transitions:        f.createTransitions(coreReceipt.Transitions),
@@ -63,18 +62,18 @@ func (f transactionFactory) createReceipt(coreReceipt core.TransactionReceipt) e
 	}
 }
 
-func (f transactionFactory) createTransitions(coreTransitions []core.Transition) (transitions []entity.Transition) {
+func (f transactionFactory) createTransitions(coreTransitions []zilliqa.Transition) (transitions []entity.Transition) {
 	for _, transition := range coreTransitions {
 		transitions = append(transitions, entity.Transition{Transition: transition, Msg: f.createMessage(transition.Msg)})
 	}
 	return
 }
 
-func (f transactionFactory) createMessage(coreMessage core.TransactionMessage) entity.TransitionMessage {
+func (f transactionFactory) createMessage(coreMessage zilliqa.TransactionMessage) entity.TransitionMessage {
 	return entity.TransitionMessage{TransactionMessage: coreMessage, Params: f.createParams(coreMessage.Params)}
 }
 
-func (f transactionFactory) createParams(coreParams []core.ContractValue) (params []entity.Param) {
+func (f transactionFactory) createParams(coreParams []zilliqa.ContractValue) (params []entity.Param) {
 	for _, coreParam := range coreParams {
 		param := entity.Param{VName: coreParam.VName, Type: coreParam.Type}
 

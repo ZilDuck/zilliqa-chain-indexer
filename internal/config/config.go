@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/log"
 	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
@@ -45,7 +44,9 @@ type AwsConfig struct {
 }
 
 type ZilliqaConfig struct {
-	Url string
+	Url     string
+	Debug   bool
+	Timeout int
 }
 
 type ElasticSearchConfig struct {
@@ -62,12 +63,7 @@ type ElasticSearchConfig struct {
 }
 
 func Init() {
-	args := os.Args[1:]
-	if len(args) < 1 {
-		panic("specify the environment")
-	}
-
-	err := godotenv.Load(fmt.Sprintf("%s.env", args[0]))
+	err := godotenv.Load(".env")
 	if err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Unable to init config")
 	}
@@ -118,6 +114,8 @@ func Get() *Config {
 		},
 		Zilliqa: ZilliqaConfig{
 			Url: getString("ZILLIQA_URL", ""),
+			Timeout: getInt("ZILLIQA_TIMEOUT", 30),
+			Debug: getBool("ZILLIQA_DEBUG", false),
 		},
 		ElasticSearch: ElasticSearchConfig{
 			Aws:              getBool("ELASTIC_SEARCH_AWS", true),
