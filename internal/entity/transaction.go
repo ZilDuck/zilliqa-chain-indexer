@@ -3,12 +3,12 @@ package entity
 import (
 	"errors"
 	"fmt"
-	"github.com/Zilliqa/gozilliqa-sdk/core"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"github.com/gosimple/slug"
 )
 
 type Transaction struct {
-	core.Transaction
+	zilliqa.Transaction
 
 	BlockNum uint64 `json:"BlockNum"`
 
@@ -31,7 +31,7 @@ type Data struct {
 }
 
 type TransactionReceipt struct {
-	core.TransactionReceipt
+	zilliqa.TransactionReceipt
 	Transitions []Transition `json:"transitions"`
 	EventLogs   []EventLog   `json:"event_logs"`
 }
@@ -43,12 +43,12 @@ type EventLog struct {
 }
 
 type Transition struct {
-	core.Transition
+	zilliqa.Transition
 	Msg TransitionMessage `json:"msg"`
 }
 
 type TransitionMessage struct {
-	core.TransactionMessage
+	zilliqa.TransactionMessage
 	Params Params `json:"params"`
 }
 

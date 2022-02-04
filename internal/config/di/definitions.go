@@ -37,8 +37,16 @@ var Definitions = []dingo.Def{
 	{
 		Name: "zilliqa",
 		Build: func() (zilliqa.Service, error) {
-			p := zilliqa.NewProvider(config.Get().Zilliqa.Url)
-			return zilliqa.NewZilliqaService(p), nil
+			rpcClient, err := zilliqa.NewClient(
+				config.Get().Zilliqa.Url,
+				config.Get().Zilliqa.Timeout,
+				config.Get().Zilliqa.Debug,
+			)
+			if err != nil {
+				return nil, err
+			}
+
+			return zilliqa.NewZilliqaService(zilliqa.NewProvider(rpcClient)), nil
 		},
 	},
 	{
