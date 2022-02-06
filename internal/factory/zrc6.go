@@ -49,8 +49,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, 
 
 		tokenUri, err := getNftTokenUri(event.Params, tx)
 		if err != nil {
-			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc6")
-			continue
+			zap.L().With(zap.String("txID", tx.ID)).Warn("No tokenUri when minting zrc6")
 		}
 
 		nft := entity.Nft{
@@ -87,16 +86,19 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			var toTokenUris []toTokenUri
 			toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
 			if err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to get to_token_uri_pair_list")
+				zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
+				continue
 			}
 
 			if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
+				continue
 			}
 
 			startId, err := event.Params.GetParam("start_id")
 			if err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to get start_id")
+				continue
 			}
 
 			nextTokenId, err := strconv.ParseUint(startId.Value.Primitive.(string), 10, 64)
