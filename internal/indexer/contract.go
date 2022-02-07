@@ -38,8 +38,10 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 		}
 
 		if tx.IsContractCreation {
-			c := i.factory.CreateContractFromTx(tx)
-			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
+			c, err := i.factory.CreateContractFromTx(tx)
+			if err != nil {
+				i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
+			}
 		}
 	}
 
@@ -62,7 +64,10 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 		}
 
 		for _, tx := range txs {
-			c := i.factory.CreateContractFromTx(tx)
+			c, err := i.factory.CreateContractFromTx(tx)
+			if err != nil {
+				continue
+			}
 
 			if !c.ZRC1 && !c.ZRC6 {
 				continue

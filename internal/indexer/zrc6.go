@@ -60,6 +60,7 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction, fetchImages bool) error 
 }
 
 func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
+	zap.S().With(zap.String("contractAddr", c.Address)).Infof("Index ZRC6 From TX %s", tx.ID)
 	if !c.ZRC6 {
 		return nil
 	}

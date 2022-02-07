@@ -9,7 +9,7 @@ import (
 )
 
 type ContractFactory interface {
-	CreateContractFromTx(tx entity.Transaction) entity.Contract
+	CreateContractFromTx(tx entity.Transaction) (*entity.Contract, error)
 }
 
 type contractFactory struct {
@@ -20,18 +20,19 @@ func NewContractFactory(zilliqa zilliqa.Service) ContractFactory {
 	return contractFactory{zilliqa}
 }
 
-func (f contractFactory) CreateContractFromTx(tx entity.Transaction) entity.Contract {
+func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Contract, error) {
 	contractName := f.getContractName(tx.Code)
 
 	contractValues := make([]zilliqa.ContractValue, 0)
 	if contractName != "Resolver" {
 		var err error
 		if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
-			zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Fatal("GetSmartContractInit")
+			zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Error("GetSmartContractInit")
+			return nil, err
 		}
 	}
 
-	c := entity.Contract{
+	c := &entity.Contract{
 		Address:         tx.ContractAddress,
 		AddressBech32:   tx.ContractAddressBech32,
 		BlockNum:        tx.BlockNum,
@@ -43,16 +44,16 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) entity.Cont
 		Transitions:     f.getTransitions(tx.Code),
 	}
 
-	c.ZRC1 = IsZrc1(c)
+	c.ZRC1 = IsZrc1(*c)
 
-	c.ZRC6 = IsZrc6(c)
+	c.ZRC6 = IsZrc6(*c)
 	if c.ZRC6 {
 		if initialBaseUri, err := tx.Data.Params.GetParam("initial_base_uri"); err == nil {
 			c.BaseUri = initialBaseUri.Value.Primitive.(string)
 		}
 	}
 
-	return c
+	return c, nil
 }
 
 func (f contractFactory) getContractName(code string) string {

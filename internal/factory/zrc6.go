@@ -23,6 +23,13 @@ func NewZrc6Factory(metadata metadata.Service) Zrc6Factory {
 	return zrc6Factory{metadata}
 }
 
+type toTokenUri struct {
+	ArgTypes    interface{} `json:"argtypes,omitempty"`
+	Arguments   interface{} `json:"arguments,omitempty"`
+	Constructor string      `json:"constructor,omitempty"`
+}
+
+
 func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, fetchImage bool) ([]entity.Nft, error) {
 	nfts := make([]entity.Nft, 0)
 
@@ -42,8 +49,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, 
 
 		tokenUri, err := getNftTokenUri(event.Params, tx)
 		if err != nil {
-			zap.L().With(zap.String("txID", tx.ID)).Warn("Failed to get tokenUri when minting zrc6")
-			continue
+			zap.L().With(zap.String("txID", tx.ID)).Warn("No tokenUri when minting zrc6")
 		}
 
 		nft := entity.Nft{
@@ -77,21 +83,22 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
-
-			var toTokenUris []string
-			toList, err := event.Params.GetParam("to_list")
+			var toTokenUris []toTokenUri
+			toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
 			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address), zap.String("txID", tx.ID)).Warn("Failed to get to_list")
+				zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
 				continue
 			}
 
-			if err := json.Unmarshal([]byte(toList.Value.Primitive.(string)), &toTokenUris); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_list")
+			if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
+				continue
 			}
 
 			startId, err := event.Params.GetParam("start_id")
 			if err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to get start_id")
+				continue
 			}
 
 			nextTokenId, err := strconv.ParseUint(startId.Value.Primitive.(string), 10, 64)
@@ -102,7 +109,12 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			name, _ := c.Data.Params.GetParam("name")
 			symbol, _ := c.Data.Params.GetParam("symbol")
 
-			for _, recipient := range toTokenUris {
+			for _, i := range toTokenUris {
+				arguments := i.Arguments.([]interface{})
+				if len(arguments) != 2 {
+					zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
+				}
+
 				nft := entity.Nft{
 					Contract: c.Address,
 					TxID:     tx.ID,
@@ -110,10 +122,12 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 					Name:     name.Value.Primitive.(string),
 					Symbol:   symbol.Value.Primitive.(string),
 					TokenId:  nextTokenId,
-					BaseUri:  strings.TrimSpace(c.BaseUri),
-					Owner:    strings.ToLower(recipient),
+					TokenUri: arguments[1].(string),
+					BaseUri:  c.BaseUri,
+					Owner:    strings.ToLower(arguments[0].(string)),
 					Zrc6:     true,
 				}
+
 				if fetchImages {
 					_ = f.FetchImage(&nft)
 				}
