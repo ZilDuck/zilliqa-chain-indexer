@@ -182,6 +182,7 @@ func (c *rpcClient) callBatch(requests rpcRequests) (rr rpcResponses, err error)
 		return
 	}
 
+	zap.L().With(zap.String("request", requests[0].Method), zap.Int("count", len(requests))).Info("Zilliqa: RPC Batch Request")
 	if c.debug {
 		zap.L().With(zap.String("request", payloadBuffer.String())).Debug("Zilliqa: RPC Request")
 	}
