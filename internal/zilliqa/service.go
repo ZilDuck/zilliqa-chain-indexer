@@ -91,6 +91,10 @@ func (s service) GetTxnBodiesForTxBlocks(from, count uint64) (txs map[string][]T
 
 	blockNums := make([]string, 0)
 	for x := from; x < from+count; x++ {
+		if x == 1664279 {
+			// @todo 1664279 returns a  -20:Failed to get Microblock on mainnet. No fucking idea why
+			continue
+		}
 		blockNums = append(blockNums, fmt.Sprintf("%d", x))
 	}
 

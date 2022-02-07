@@ -84,8 +84,7 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 	}
 
 	txs, err := i.txIndexer.Index(height, size)
-	// 1664279 returns a  -20:Failed to get Microblock on mainnet. No fucking idea why
-	if err != nil && height != 1664279 {
+	if err != nil {
 		zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Debug("Failed to index transactions")
 		if err.Error()[:7] == "-32602:" || err.Error()[:4] == "-20:" {
 			zap.L().With(zap.Error(err)).Error("Failed to index txs")
