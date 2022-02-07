@@ -86,9 +86,7 @@ func NewClient(url string, timeout int, debug bool) (*rpcClient, error) {
 	}
 
 	retryClient := retryablehttp.NewClient()
-	retryClient.RequestLogHook = func(logger retryablehttp.Logger, request *http.Request, i int) {
-
-	}
+	retryClient.Logger = nil
 	retryClient.RetryMax = 3
 
 	return &rpcClient{
@@ -148,6 +146,7 @@ func (c *rpcClient) call(method string, params interface{}) (rr *rpcResponse, er
 
 	resp, err := c.doTimeoutRequest(time.NewTimer(time.Duration(c.timeout)*time.Second), req)
 	if err != nil {
+		zap.L().With(zap.Error(err)).Warn("Zilliqa: RPC Failure")
 		return
 	}
 	defer resp.Body.Close()
