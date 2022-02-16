@@ -2,7 +2,7 @@ package indexer
 
 import (
 	"fmt"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -17,14 +17,14 @@ type TransactionIndexer interface {
 
 type transactionIndexer struct {
 	zilliqa   zilliqa.Service
-	elastic   elastic_cache.Index
+	elastic   elastic_search.Index
 	txFactory factory.TransactionFactory
 	txRepo    repository.TransactionRepository
 }
 
 func NewTransactionIndexer(
 	zilliqa zilliqa.Service,
-	elastic elastic_cache.Index,
+	elastic elastic_search.Index,
 	factory factory.TransactionFactory,
 	txRepo repository.TransactionRepository,
 ) TransactionIndexer {
@@ -75,9 +75,11 @@ func (i transactionIndexer) CreateTransactions(height uint64, size uint64) ([]en
 
 	for idx, _ := range txs {
 		if contractAddr, ok := contractAddrs[txs[idx].ID]; ok {
-			txs[idx].ContractAddress = fmt.Sprintf("0x%s", contractAddr)
+			if contractAddr != "" {
+				txs[idx].ContractAddress = fmt.Sprintf("0x%s", contractAddr)
+			}
 		}
-		i.elastic.AddIndexRequest(elastic_cache.TransactionIndex.Get(), txs[idx], elastic_cache.TransactionCreate)
+		i.elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), txs[idx], elastic_search.TransactionCreate)
 	}
 
 	zap.L().With(zap.Int("count", len(txs)), zap.Uint64("height", height)).Info("Index txs")

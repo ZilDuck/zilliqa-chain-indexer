@@ -79,7 +79,7 @@ func (s service) GetTransactionsForTxBlock(blockNum uint64) ([]string, error) {
 
 func (s service) GetTxnBodiesForTxBlock(height uint64) ([]Transaction, error) {
 	txs, err := s.provider.GetTxnBodiesForTxBlock(fmt.Sprintf("%d", height))
-	if err != nil && err.Error() == "-1:TxBlock has no transactions" {
+	if err != nil {
 		return []Transaction{}, nil
 	}
 
@@ -102,14 +102,14 @@ func (s service) GetTxnBodiesForTxBlocks(from, count uint64) (txs map[string][]T
 		txs = map[string][]Transaction{}
 		for _, blockNum := range blockNums {
 			blockTxs, err := s.provider.GetTxnBodiesForTxBlock(blockNum)
-			if err != nil && err.Error() != "-1:TxBlock has no transactions" {
+			if err != nil {
 				return nil, err
 			}
 			txs[blockNum] = blockTxs
 		}
 	}
 
-	return
+	return txs, nil
 }
 
 func (s service) GetTransaction(hash string) (*Transaction, error) {

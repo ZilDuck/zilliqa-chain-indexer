@@ -21,7 +21,12 @@ func NewMetadataService(client *retryablehttp.Client) Service {
 }
 
 func (s service) GetZrc6Metadata(nft entity.Nft) (map[string]interface{}, error) {
-	resp, err := retryablehttp.Get(nft.MetadataUri())
+	metadataUri, err := nft.MetadataUri()
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := retryablehttp.Get(metadataUri)
 	if err != nil {
 		return nil, err
 	}

@@ -27,7 +27,7 @@ func main() {
 			panic(err)
 		}
 		if page == 1 {
-			zap.S().Infof("Found %d ZRC1 contracts", total)
+			zap.S().Infof("Found %d NFTs", total)
 		}
 		if len(contracts) == 0 {
 			break
@@ -36,7 +36,7 @@ func main() {
 			if err := container.GetZrc1Indexer().IndexContract(c); err != nil {
 				zap.S().Errorf("Failed to index ZRC1 NFTs for contract %s", c.Address)
 			}
-			if err := container.GetZrc6Indexer().IndexContract(c, true); err != nil {
+			if err := container.GetZrc6Indexer().IndexContract(c); err != nil {
 				zap.S().Errorf("Failed to index ZRC6 NFTs for contract %s", c.Address)
 			}
 		}

@@ -5,7 +5,7 @@ go 1.16
 require (
 	github.com/TheZeroSlave/zapsentry v1.8.1
 	github.com/Zilliqa/gozilliqa-sdk v1.2.0
-	github.com/aws/aws-sdk-go v1.42.7
+	github.com/aws/aws-sdk-go v1.42.51
 	github.com/getsentry/sentry-go v0.11.0
 	github.com/gosimple/slug v1.11.2
 	github.com/hashicorp/go-retryablehttp v0.7.0
@@ -16,6 +16,6 @@ require (
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/sarulabs/di/v2 v2.4.2
 	github.com/sarulabs/dingo/v4 v4.1.1
-	github.com/sha1sum/aws_signing_client v0.0.0-20200229211254-f7815c59d5c1
+	github.com/sha1sum/aws_signing_client v0.0.0-20200229211254-f7815c59d5c1 // indirect
 	go.uber.org/zap v1.19.1
 )

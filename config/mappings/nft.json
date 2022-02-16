@@ -1,7 +1,17 @@
 {
   "mappings": {
     "properties": {
+      "metadata": {
+        "type": "nested",
+        "properties": {
+          "attributes": {
+            "type": "nested",
+            "properties": {
 
+            }
+          }
+        }
+      }
     }
   },
   "settings":{

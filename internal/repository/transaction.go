@@ -3,7 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"errors"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"go.uber.org/zap"
@@ -26,16 +26,16 @@ type TransactionRepository interface {
 }
 
 type transactionRepository struct {
-	elastic elastic_cache.Index
+	elastic elastic_search.Index
 }
 
-func NewTransactionRepository(elastic elastic_cache.Index) TransactionRepository {
+func NewTransactionRepository(elastic elastic_search.Index) TransactionRepository {
 	return transactionRepository{elastic}
 }
 
 func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Size(1))
 
 	if err != nil {
@@ -49,7 +49,7 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 	}
 
 	result, err = search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Sort("BlockNum", false).
 		Size(1))
 	if err != nil {
@@ -68,7 +68,7 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 
 func (r transactionRepository) GetTx(txId string) (*entity.Transaction, error) {
 	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Query(elastic.NewTermQuery("ID", txId)))
 
 	return r.findOne(results, err)
@@ -90,7 +90,7 @@ func (r transactionRepository) GetContractCreationTxs(fromBlockNum uint64, size,
 	).Info("GetContractCreationTxs")
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
@@ -116,7 +116,7 @@ func (r transactionRepository) GetContractExecutionTxs(fromBlockNum uint64, size
 	).Info("GetContractExecutionTxs")
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		TrackTotalHits(true).
@@ -134,7 +134,7 @@ func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract
 	from := size*page - size
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		Size(size).
@@ -154,7 +154,7 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 	from := size*page - size
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.TransactionIndex.Get()).
+		Search(elastic_search.TransactionIndex.Get()).
 		Query(query).
 		Sort("BlockNum", true).
 		Size(size).

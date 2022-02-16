@@ -1,7 +1,7 @@
 package indexer
 
 import (
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -14,7 +14,7 @@ type ContractIndexer interface {
 }
 
 type contractIndexer struct {
-	elastic      elastic_cache.Index
+	elastic      elastic_search.Index
 	factory      factory.ContractFactory
 	txRepo       repository.TransactionRepository
 	contractRepo repository.ContractRepository
@@ -22,7 +22,7 @@ type contractIndexer struct {
 }
 
 func NewContractIndexer(
-	elastic elastic_cache.Index,
+	elastic elastic_search.Index,
 	factory factory.ContractFactory,
 	txRepo repository.TransactionRepository,
 	contractRepo repository.ContractRepository,
@@ -40,7 +40,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 		if tx.IsContractCreation {
 			c, err := i.factory.CreateContractFromTx(tx)
 			if err != nil {
-				i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
+				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 			}
 		}
 	}
@@ -69,10 +69,6 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 				continue
 			}
 
-			if !c.ZRC1 && !c.ZRC6 {
-				continue
-			}
-
 			zap.L().With(
 				zap.Uint64("blockNum", c.BlockNum),
 				zap.String("name", c.Name),
@@ -81,7 +77,7 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 				zap.Bool("zrc6", c.ZRC6),
 			).Info("Index contract")
 
-			i.elastic.AddIndexRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractCreate)
+			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 		}
 
 		i.elastic.BatchPersist()

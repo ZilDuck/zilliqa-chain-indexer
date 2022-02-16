@@ -10,9 +10,9 @@ import (
 )
 
 type Zrc6Factory interface {
-	CreateFromMintTx(tx entity.Transaction, c entity.Contract, fetchImage bool) ([]entity.Nft, error)
-	CreateFromBatchMint(tx entity.Transaction, c entity.Contract, fetchImages bool) ([]entity.Nft, error)
-	FetchImage(nft *entity.Nft) error
+	CreateFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error)
+	CreateFromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error)
+	FetchMetadata(nft *entity.Nft) error
 }
 
 type zrc6Factory struct {
@@ -30,7 +30,7 @@ type toTokenUri struct {
 }
 
 
-func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, fetchImage bool) ([]entity.Nft, error) {
+func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error) {
 	nfts := make([]entity.Nft, 0)
 
 	for _, event := range tx.GetEventLogs(entity.ZRC6MintEvent) {
@@ -64,9 +64,6 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, 
 			Owner:    strings.ToLower(to),
 			Zrc6:     true,
 		}
-		if fetchImage {
-			_ = f.FetchImage(&nft)
-		}
 
 		nfts = append(nfts, nft)
 	}
@@ -74,7 +71,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract, 
 	return nfts, nil
 }
 
-func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contract, fetchImages bool) ([]entity.Nft, error) {
+func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error) {
 	nfts := make([]entity.Nft, 0)
 
 	if !c.ZRC6 {
@@ -128,10 +125,6 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 					Zrc6:     true,
 				}
 
-				if fetchImages {
-					_ = f.FetchImage(&nft)
-				}
-
 				nfts = append(nfts, nft)
 				nextTokenId++
 			}
@@ -141,21 +134,22 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 	return nfts, nil
 }
 
-func (f zrc6Factory) FetchImage(nft *entity.Nft) error {
-	md, err := f.metadata.GetZrc6Metadata(*nft)
+func (f zrc6Factory) FetchMetadata(nft *entity.Nft) error {
+	data, err := f.metadata.GetZrc6Metadata(*nft)
 	if err != nil {
+		metadataUri, _ := nft.MetadataUri()
 		zap.L().With(
 			zap.Error(err),
 			zap.String("contractAddr", nft.Contract),
 			zap.Uint64("tokenId", nft.TokenId),
-			zap.String("metadataUri", nft.MetadataUri()),
+			zap.String("baseUrl", nft.BaseUri),
+			zap.String("tokenUri", nft.TokenUri),
+			zap.String("metadataUri", metadataUri),
 		).Warn("Failed to get zrc6 metadata")
 		return err
 	}
 
-	if mediaUri, ok := md["image"]; ok {
-		nft.MediaUri = mediaUri.(string)
-	}
+	nft.Metadata = data
 
 	return nil
 }

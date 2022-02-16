@@ -107,8 +107,8 @@ func Get() *Config {
 		MetadataRetries:        getInt("METADATA_RETRIES", 3),
 		SentryDsn:              getString("SENTRY_DSN", ""),
 		Aws: AwsConfig{
-			AccessKey: getString("AWS_ACCESS_KEY", ""),
-			SecretKey: getString("AWS_SECRET_KEY", ""),
+			AccessKey: getString("AWS_ACCESS_KEY_ID", ""),
+			SecretKey: getString("AWS_SECRET_KEY_ID", ""),
 			Token:     getString("AWS_TOKEN", ""),
 			Region:    getString("AWS_REGION", ""),
 		},

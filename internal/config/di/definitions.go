@@ -3,12 +3,17 @@ package di
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/daemon"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/patrickmn/go-cache"
 	"github.com/sarulabs/dingo/v4"
@@ -19,8 +24,8 @@ import (
 var Definitions = []dingo.Def{
 	{
 		Name: "elastic",
-		Build: func() (elastic_cache.Index, error) {
-			elastic, err := elastic_cache.New()
+		Build: func() (elastic_search.Index, error) {
+			elastic, err := elastic_search.New()
 			if err != nil {
 				zap.L().With(zap.Error(err)).Fatal("Failed to start ES")
 			}
@@ -50,9 +55,25 @@ var Definitions = []dingo.Def{
 		},
 	},
 	{
+		Name: "sqs",
+		Build: func() (*sqs.SQS, error) {
+			sess := session.Must(session.NewSession(&aws.Config{
+				Credentials: credentials.NewStaticCredentials(config.Get().Aws.AccessKey, config.Get().Aws.SecretKey, ""),
+			}))
+
+			return sqs.New(sess), nil
+		},
+	},
+	{
+		Name: "messenger",
+		Build: func(sqs *sqs.SQS) (messenger.MessageService, error) {
+			return messenger.NewMessenger(sqs), nil
+		},
+	},
+	{
 		Name: "daemon",
 		Build: func(
-			elastic elastic_cache.Index,
+			elastic elastic_search.Index,
 			indexer indexer.Indexer,
 			zilliqa zilliqa.Service,
 			txRepo repository.TransactionRepository,
@@ -67,7 +88,7 @@ var Definitions = []dingo.Def{
 	{
 		Name: "indexer",
 		Build: func(
-			elastic elastic_cache.Index,
+			elastic elastic_search.Index,
 			txIndexer indexer.TransactionIndexer,
 			contractIndexer indexer.ContractIndexer,
 			zrc1Indexer indexer.Zrc1Indexer,
@@ -82,7 +103,7 @@ var Definitions = []dingo.Def{
 		Name: "tx.indexer",
 		Build: func(
 			zilliqa zilliqa.Service,
-			elastic elastic_cache.Index,
+			elastic elastic_search.Index,
 			transactionFactory factory.TransactionFactory,
 			txRepo repository.TransactionRepository,
 		) (indexer.TransactionIndexer, error) {
@@ -92,7 +113,7 @@ var Definitions = []dingo.Def{
 	{
 		Name: "contract.indexer",
 		Build: func(
-			elastic elastic_cache.Index,
+			elastic elastic_search.Index,
 			factory factory.ContractFactory,
 			txRepo repository.TransactionRepository,
 			contractRepo repository.ContractRepository,
@@ -104,7 +125,7 @@ var Definitions = []dingo.Def{
 	{
 		Name: "zrc1.indexer",
 		Build: func(
-			elastic elastic_cache.Index,
+			elastic elastic_search.Index,
 			contractRepo repository.ContractRepository,
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
@@ -116,30 +137,31 @@ var Definitions = []dingo.Def{
 	{
 		Name: "zrc6.indexer",
 		Build: func(
-			elastic elastic_cache.Index,
+			elastic elastic_search.Index,
 			contractRepo repository.ContractRepository,
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc6Factory,
+			messageService messenger.MessageService,
 		) (indexer.Zrc6Indexer, error) {
-			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
+			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory, messageService), nil
 		},
 	},
 	{
 		Name: "tx.repo",
-		Build: func(elastic elastic_cache.Index) (repository.TransactionRepository, error) {
+		Build: func(elastic elastic_search.Index) (repository.TransactionRepository, error) {
 			return repository.NewTransactionRepository(elastic), nil
 		},
 	},
 	{
 		Name: "contract.repo",
-		Build: func(elastic elastic_cache.Index) (repository.ContractRepository, error) {
+		Build: func(elastic elastic_search.Index) (repository.ContractRepository, error) {
 			return repository.NewContractRepository(elastic), nil
 		},
 	},
 	{
 		Name: "nft.repo",
-		Build: func(elastic elastic_cache.Index) (repository.NftRepository, error) {
+		Build: func(elastic elastic_search.Index) (repository.NftRepository, error) {
 			return repository.NewNftRepository(elastic), nil
 		},
 	},
@@ -171,6 +193,7 @@ var Definitions = []dingo.Def{
 		Name: "metadata.service",
 		Build: func() (metadata.Service, error) {
 			retryClient := retryablehttp.NewClient()
+			retryClient.Logger = nil
 			retryClient.RetryMax = config.Get().MetadataRetries
 
 			return metadata.NewMetadataService(retryClient), nil
