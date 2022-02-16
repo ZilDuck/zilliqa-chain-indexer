@@ -47,6 +47,7 @@ jobs:
           REMOTE_USER: ${{ secrets.ZILKROAD_INDEXER_USER }}
           SOURCE: "./build/*"
           TARGET: "/app/indexer/testnet"
+
       - name: Restart indexer
         uses: appleboy/ssh-action@master
         with:
@@ -54,4 +55,4 @@ jobs:
           username: ${{ secrets.ZILKROAD_INDEXER_USER }}
           key: ${{ secrets.ZILKROAD_HETZNER_INDEXER }}
           port: 22
-          script: supervisorctl restart indexer-mainnet
+          script: "/app/indexer/mainnet/bin/restart mainnet"

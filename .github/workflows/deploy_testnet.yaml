@@ -27,6 +27,11 @@ jobs:
           mkdir -p ./build
           cp -r config ./build/config
 
+     - name: Copy Restarter
+       run: |
+         mkdir -p ./build/bin
+         cp bin/restart ./build/bin/restart
+
       - name: Build Indexerd
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/indexerd ./cmd/indexerd/main.go
 
@@ -43,9 +48,9 @@ jobs:
         uses: easingthemes/ssh-deploy@v2.1.5
         env:
           SSH_PRIVATE_KEY: ${{ secrets.ZILKROAD_HETZNER_INDEXER }}
+          REMOTE_HOST: ${{ secrets.ZILKROAD_INDEXER_HOST }}
+          REMOTE_USER: ${{ secrets.ZILKROAD_INDEXER_USER }}
           SOURCE: "./build/*"
-          REMOTE_HOST: "168.119.121.122"
-          REMOTE_USER: "root"
           TARGET: "/app/indexer/testnet"
 
       - name: Restart indexer
@@ -55,4 +60,4 @@ jobs:
           username: ${{ secrets.ZILKROAD_INDEXER_USER }}
           key: ${{ secrets.ZILKROAD_HETZNER_INDEXER }}
           port: 22
-          script: "supervisorctl restart indexer-mainnet"
+          script: "/app/indexer/testnet/bin/restart testnet"

@@ -132,16 +132,14 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		if !i.nftRepo.Exists(c.Address, nfts[idx].TokenId) {
-			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 
-			zap.L().With(
-				zap.String("contractAddr", c.Address),
-				zap.Uint64("blockNum", tx.BlockNum),
-				zap.Uint64("tokenId", nfts[idx].TokenId),
-				zap.String("owner", nfts[idx].Owner),
-			).Info("Mint ZRC6")
-		}
+		zap.L().With(
+			zap.String("contractAddr", c.Address),
+			zap.Uint64("blockNum", tx.BlockNum),
+			zap.Uint64("tokenId", nfts[idx].TokenId),
+			zap.String("owner", nfts[idx].Owner),
+		).Info("Mint ZRC6")
 
 		msgJson, _ := json.Marshal(messenger.RefreshMetadata{
 			Contract: c.Address,
@@ -167,16 +165,14 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		if !i.nftRepo.Exists(c.Address, nfts[idx].TokenId) {
-			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 
-			zap.L().With(
-				zap.String("contractAddr", c.Address),
-				zap.Uint64("blockNum", tx.BlockNum),
-				zap.Uint64("tokenId", nfts[idx].TokenId),
-				zap.String("owner", nfts[idx].Owner),
-			).Info("BatchMint ZRC6")
-		}
+		zap.L().With(
+			zap.String("contractAddr", c.Address),
+			zap.Uint64("blockNum", tx.BlockNum),
+			zap.Uint64("tokenId", nfts[idx].TokenId),
+			zap.String("owner", nfts[idx].Owner),
+		).Info("BatchMint ZRC6")
 
 		msgJson, _ := json.Marshal(messenger.RefreshMetadata{
 			Contract: c.Address,

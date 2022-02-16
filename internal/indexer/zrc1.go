@@ -115,17 +115,15 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		if !i.nftRepo.Exists(c.Address, nfts[idx].TokenId) {
-			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 
-			zap.L().With(
-				zap.String("contractAddr", c.Address),
-				zap.Uint64("blockNum", tx.BlockNum),
-				zap.String("txId", tx.ID),
-				zap.Uint64("tokenId", nfts[idx].TokenId),
-				zap.String("owner", nfts[idx].Owner),
-			).Info("Mint ZRC1")
-		}
+		zap.L().With(
+			zap.String("contractAddr", c.Address),
+			zap.Uint64("blockNum", tx.BlockNum),
+			zap.String("txId", tx.ID),
+			zap.Uint64("tokenId", nfts[idx].TokenId),
+			zap.String("owner", nfts[idx].Owner),
+		).Info("Mint ZRC1")
 	}
 
 	return err

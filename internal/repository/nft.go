@@ -34,7 +34,7 @@ func NewNftRepository(elastic elastic_search.Index) NftRepository {
 }
 
 func (r nftRepository) Exists(contract string, tokenId uint64) bool {
-	_, err := r.getNft(contract, tokenId, 1);
+	_, err := r.getNft(contract, tokenId, 1)
 	return err == nil
 }
 
