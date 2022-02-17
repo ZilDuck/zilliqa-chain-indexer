@@ -3,7 +3,7 @@ package repository
 import (
 	"encoding/json"
 	"errors"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
 	"go.uber.org/zap"
@@ -19,10 +19,10 @@ type ContractRepository interface {
 }
 
 type contractRepository struct {
-	elastic elastic_cache.Index
+	elastic elastic_search.Index
 }
 
-func NewContractRepository(elastic elastic_cache.Index) ContractRepository {
+func NewContractRepository(elastic elastic_search.Index) ContractRepository {
 	return contractRepository{elastic}
 }
 
@@ -41,7 +41,7 @@ func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contrac
 	).MinimumShouldMatch("1")
 
 	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.ContractIndex.Get()).
+		Search(elastic_search.ContractIndex.Get()).
 		Query(query).
 		Sort("blockNum", true).
 		Size(size).
@@ -52,7 +52,7 @@ func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contrac
 
 func (r contractRepository) GetContractByAddress(contractAddr string) (*entity.Contract, error) {
 	results, err := search(r.elastic.GetClient().
-		Search(elastic_cache.ContractIndex.Get()).
+		Search(elastic_search.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("address.keyword", contractAddr)))
 
 	c, err := r.findOne(results, err)

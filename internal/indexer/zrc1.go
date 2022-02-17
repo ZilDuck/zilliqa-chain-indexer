@@ -1,7 +1,7 @@
 package indexer
 
 import (
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -15,7 +15,7 @@ type Zrc1Indexer interface {
 }
 
 type zrc1Indexer struct {
-	elastic      elastic_cache.Index
+	elastic      elastic_search.Index
 	contractRepo repository.ContractRepository
 	nftRepo      repository.NftRepository
 	txRepo       repository.TransactionRepository
@@ -23,7 +23,7 @@ type zrc1Indexer struct {
 }
 
 func NewZrc1Indexer(
-	elastic elastic_cache.Index,
+	elastic elastic_search.Index,
 	contractRepo repository.ContractRepository,
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
@@ -115,7 +115,7 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nfts[idx], elastic_cache.Zrc1Mint)
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
@@ -161,7 +161,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			zap.String("to", nft.Owner),
 		).Info("Transfer ZRC1")
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc1Transfer)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
 	}
 
 	return nil
@@ -191,7 +191,7 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 			zap.Uint64("tokenId", nft.TokenId),
 		).Info("Burn ZRC1")
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc1Burn)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Burn)
 	}
 
 	return nil

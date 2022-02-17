@@ -1,39 +1,43 @@
 package indexer
 
 import (
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"encoding/json"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
 )
 
 type Zrc6Indexer interface {
-	IndexTxs(tx []entity.Transaction, fetchImages bool) error
-	IndexTx(tx entity.Transaction, c entity.Contract, fetchImages bool) error
-	IndexContract(c entity.Contract, fetchImages bool) error
+	IndexTxs(tx []entity.Transaction) error
+	IndexTx(tx entity.Transaction, c entity.Contract) error
+	IndexContract(c entity.Contract) error
+	RefreshMetadata(contractAddr string, tokenId uint64) error
 }
 
 type zrc6Indexer struct {
-	elastic       elastic_cache.Index
-	contractRepo  repository.ContractRepository
-	nftRepo       repository.NftRepository
-	txRepo        repository.TransactionRepository
-	factory       factory.Zrc6Factory
-	latestTokenId map[string]uint64
+	elastic        elastic_search.Index
+	contractRepo   repository.ContractRepository
+	nftRepo        repository.NftRepository
+	txRepo         repository.TransactionRepository
+	factory        factory.Zrc6Factory
+	messageService messenger.MessageService
 }
 
 func NewZrc6Indexer(
-	elastic elastic_cache.Index,
+	elastic elastic_search.Index,
 	contractRepo repository.ContractRepository,
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc6Factory,
+	messageService messenger.MessageService,
 ) Zrc6Indexer {
-	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo,factory, map[string]uint64{}}
+	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo,factory, messageService}
 }
 
-func (i zrc6Indexer) IndexTxs(txs []entity.Transaction, fetchImages bool) error {
+func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 	for _, tx := range txs {
 		if !tx.IsContractExecution {
 			continue
@@ -49,7 +53,7 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction, fetchImages bool) error 
 			continue
 		}
 
-		if err := i.IndexTx(tx, *c, fetchImages); err != nil {
+		if err := i.IndexTx(tx, *c); err != nil {
 			return err
 		}
 
@@ -59,16 +63,16 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction, fetchImages bool) error 
 	return nil
 }
 
-func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
+func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 	zap.S().With(zap.String("contractAddr", c.Address)).Infof("Index ZRC6 From TX %s", tx.ID)
 	if !c.ZRC6 {
 		return nil
 	}
 
-	if err := i.mint(tx, c, fetchImages); err != nil {
+	if err := i.mint(tx, c); err != nil {
 		return err
 	}
-	if err := i.batchMint(tx, c, fetchImages); err != nil {
+	if err := i.batchMint(tx, c); err != nil {
 		return err
 	}
 	if err := i.setBaseUri(tx, c); err != nil {
@@ -87,7 +91,7 @@ func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract, fetchImag
 	return nil
 }
 
-func (i zrc6Indexer) IndexContract(c entity.Contract, fetchImages bool) error {
+func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 	if !c.ZRC6 {
 		return nil
 	}
@@ -100,11 +104,12 @@ func (i zrc6Indexer) IndexContract(c entity.Contract, fetchImages bool) error {
 			return err
 		}
 		if len(txs) == 0 {
+			zap.L().Info("No more txs")
 			break
 		}
 
 		for _, tx := range txs {
-			if err := i.IndexTx(tx, c, fetchImages); err != nil {
+			if err := i.IndexTx(tx, c); err != nil {
 				return err
 			}
 		}
@@ -115,20 +120,19 @@ func (i zrc6Indexer) IndexContract(c entity.Contract, fetchImages bool) error {
 	return nil
 }
 
-func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
+func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	if !tx.HasEventLog(entity.ZRC6MintEvent) {
 		return nil
 	}
 
-	nfts, err := i.factory.CreateFromMintTx(tx, c, fetchImages)
+	nfts, err := i.factory.CreateFromMintTx(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc6 from minting tx")
 		return err
 	}
 
 	for idx := range nfts {
-		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nfts[idx], elastic_cache.Zrc6Mint)
-		i.latestTokenId[c.Address] = nfts[idx].TokenId
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
@@ -136,25 +140,32 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract, fetchImages 
 			zap.Uint64("tokenId", nfts[idx].TokenId),
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC6")
+
+		msgJson, _ := json.Marshal(messenger.RefreshMetadata{
+			Contract: c.Address,
+			TokenId: nfts[idx].TokenId,
+		})
+		if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
+			zap.L().Error("Failed to queue metadata refresh")
+		}
 	}
 
 	return nil
 }
 
-func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract, fetchImages bool) error {
+func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 	if !tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		return nil
 	}
 
-	nfts, err := i.factory.CreateFromBatchMint(tx, c, fetchImages)
+	nfts, err := i.factory.CreateFromBatchMint(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc6 from batch minting tx")
 		return err
 	}
 
 	for idx := range nfts {
-		i.elastic.AddIndexRequest(elastic_cache.NftIndex.Get(), nfts[idx], elastic_cache.Zrc6Mint)
-		i.latestTokenId[c.Address] = nfts[idx].TokenId
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
@@ -162,6 +173,14 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract, fetchIm
 			zap.Uint64("tokenId", nfts[idx].TokenId),
 			zap.String("owner", nfts[idx].Owner),
 		).Info("BatchMint ZRC6")
+
+		msgJson, _ := json.Marshal(messenger.RefreshMetadata{
+			Contract: c.Address,
+			TokenId: nfts[idx].TokenId,
+		})
+		if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
+			zap.L().Error("Failed to queue metadata refresh")
+		}
 	}
 
 	return nil
@@ -176,7 +195,7 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 		}
 		c.BaseUri = baseUri.Value.Primitive.(string)
 
-		i.elastic.AddUpdateRequest(elastic_cache.ContractIndex.Get(), c, elastic_cache.ContractSetBaseUri)
+		i.elastic.AddUpdateRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractSetBaseUri)
 		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("blockNum", tx.BlockNum), zap.String("baseUri", c.BaseUri)).Info("Update Contract base uri")
 
 		size := 100
@@ -192,7 +211,7 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 
 			for _, nft := range nfts {
 				nft.BaseUri = c.BaseUri
-				i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), nft, elastic_cache.Zrc6SetBaseUri)
+				i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6SetBaseUri)
 			}
 
 			i.elastic.BatchPersist()
@@ -231,7 +250,7 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 
 		nft.Owner = to.Value.Primitive.(string)
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc6Transfer)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Transfer)
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
 			zap.Uint64("blockNum", tx.BlockNum),
@@ -265,7 +284,7 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 
 		nft.BurnedAt = tx.BlockNum
 
-		i.elastic.AddUpdateRequest(elastic_cache.NftIndex.Get(), *nft, elastic_cache.Zrc6Burn)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Burn)
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
 			zap.Uint64("blockNum", tx.BlockNum),
@@ -280,6 +299,29 @@ func (i zrc6Indexer) batchBurn(tx entity.Transaction, c entity.Contract) error {
 	for range tx.GetTransition(entity.ZRC6BatchBurnCallback) {
 
 	}
+
+	return nil
+}
+
+func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error {
+	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Info("ZRC6 Refresh Metadata")
+	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
+	if err != nil {
+		return err
+	}
+
+
+	if err := i.factory.FetchMetadata(nft); err != nil {
+		nft.MetadataError = err.Error()
+		nft.HasMetadata = false
+		zap.L().With(zap.Error(err)).Error("Failed to fetch metadata")
+	} else {
+		nft.MetadataError = ""
+		nft.HasMetadata = true
+	}
+
+	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Metadata)
+	i.elastic.BatchPersist()
 
 	return nil
 }

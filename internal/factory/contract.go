@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"go.uber.org/zap"
@@ -23,11 +24,16 @@ func NewContractFactory(zilliqa zilliqa.Service) ContractFactory {
 func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Contract, error) {
 	contractName := f.getContractName(tx.Code)
 
+	if tx.ContractAddress == "" || tx.ContractAddress == "0x" {
+		zap.L().With(zap.String("txId", tx.ID)).Warn("ContractAddr Missing from Tx")
+		return nil, errors.New("missing contract addr")
+	}
+
 	contractValues := make([]zilliqa.ContractValue, 0)
 	if contractName != "Resolver" {
 		var err error
 		if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
-			zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Error("GetSmartContractInit")
+			zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", tx.ContractAddress)).Warn("GetSmartContractInit")
 			return nil, err
 		}
 	}
@@ -173,7 +179,7 @@ func hasZrc6Mutables(c entity.Contract) bool {
 
 func hasZrc6Transitions(c entity.Contract) bool {
 	return hasTransition(c, "Pause()") &&
-		hasTransition(c, "Mint(to:ByStr20)") &&
+		hasTransition(c, "Mint(to:ByStr20,token_uri:String)") &&
 		hasTransition(c, "AddMinter(minter:ByStr20)") &&
 		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
 		hasTransition(c, "SetSpender(spender:ByStr20,token_id:Uint256)") &&

@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+#set -e
+
+supervisorctl restart indexerd-$1
+supervisorctl restart metadata-$1

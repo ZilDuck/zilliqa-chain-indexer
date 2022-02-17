@@ -3,30 +3,46 @@ package repository
 import (
 	"encoding/json"
 	"errors"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/olivere/elastic/v7"
+	"go.uber.org/zap"
+	"time"
 )
 
 var (
 	ErrNftNotFound = errors.New("nft not found")
 )
 
+const (
+	MAX_RETRIES = 3
+)
+
 type NftRepository interface {
+	Exists(contract string, tokenId uint64) bool
 	GetNft(contract string, tokenId uint64) (*entity.Nft, error)
 	GetNfts(contract string, size, page int) ([]entity.Nft, int64, error)
 	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
 }
 
 type nftRepository struct {
-	elastic elastic_cache.Index
+	elastic elastic_search.Index
 }
 
-func NewNftRepository(elastic elastic_cache.Index) NftRepository {
+func NewNftRepository(elastic elastic_search.Index) NftRepository {
 	return nftRepository{elastic}
 }
 
+func (r nftRepository) Exists(contract string, tokenId uint64) bool {
+	_, err := r.getNft(contract, tokenId, 1)
+	return err == nil
+}
+
 func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.Nft, error) {
+	return r.getNft(contract, tokenId, 1)
+}
+
+func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*entity.Nft, error) {
 	pendingRequest := r.elastic.GetRequest(entity.CreateNftSlug(tokenId, contract))
 	if pendingRequest != nil {
 		pendingNft := pendingRequest.Entity.(entity.Nft)
@@ -39,11 +55,21 @@ func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.Nft, err
 	)
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.NftIndex.Get()).
+		Search(elastic_search.NftIndex.Get()).
 		Query(query).
 		Size(1))
 
-	return r.findOne(result, err)
+	nft, err := r.findOne(result, err)
+	if err != nil {
+		if attempt == MAX_RETRIES {
+			return nft, err
+		}
+		zap.S().Warnf("Failed to find NFT in repo. retry(%d)", attempt)
+		time.Sleep(1 * time.Second)
+		return r.getNft(contract, tokenId, attempt+1)
+	}
+
+	return nft, err
 }
 
 func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.Nft, int64, error) {
@@ -54,7 +80,7 @@ func (r nftRepository) GetNfts(contract string, size, page int) ([]entity.Nft, i
 	from := size*page - size
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.NftIndex.Get()).
+		Search(elastic_search.NftIndex.Get()).
 		Query(query).
 		Size(size).
 		Sort("tokenId", true).
@@ -71,7 +97,7 @@ func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uin
 	)
 
 	result, err := search(r.elastic.GetClient().
-		Search(elastic_cache.NftIndex.Get()).
+		Search(elastic_search.NftIndex.Get()).
 		Query(query).
 		Sort("tokenId", false).
 		Size(1))

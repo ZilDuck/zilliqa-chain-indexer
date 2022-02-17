@@ -2,7 +2,7 @@ package indexer
 
 import (
 	"errors"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer/IndexOption"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/patrickmn/go-cache"
@@ -19,7 +19,7 @@ type Indexer interface {
 
 type indexer struct {
 	bulkIndexSize   uint64
-	elastic         elastic_cache.Index
+	elastic         elastic_search.Index
 	txIndexer       TransactionIndexer
 	contractIndexer ContractIndexer
 	zrc1Indexer     Zrc1Indexer
@@ -34,7 +34,7 @@ var (
 
 func NewIndexer(
 	bulkIndexSize uint64,
-	elastic elastic_cache.Index,
+	elastic elastic_search.Index,
 	txIndexer TransactionIndexer,
 	contractIndexer ContractIndexer,
 	zrc1Indexer Zrc1Indexer,
@@ -106,7 +106,7 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 			return err
 		}
 
-		if err := i.zrc6Indexer.IndexTxs(txs, true); err != nil {
+		if err := i.zrc6Indexer.IndexTxs(txs); err != nil {
 			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index ZRC6s")
 			return err
 		}

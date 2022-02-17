@@ -40,7 +40,7 @@ func (f transactionFactory) CreateTransaction(coreTx zilliqa.Transaction, blockN
 		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0,
 	}
 
-	if tx.IsContractExecution {
+	if tx.IsContractExecution && coreTx.ToAddr != "" {
 		tx.ContractAddress = fmt.Sprintf("0x%s", coreTx.ToAddr)
 		tx.ContractAddressBech32 = GetBech32Address(tx.ContractAddress)
 	}

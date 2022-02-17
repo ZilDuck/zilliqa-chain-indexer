@@ -3,7 +3,7 @@ package daemon
 import (
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_cache"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer/IndexOption"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -14,7 +14,7 @@ import (
 )
 
 type Daemon struct {
-	elastic         elastic_cache.Index
+	elastic         elastic_search.Index
 	firstBlockNum   uint64
 	indexer         indexer.Indexer
 	zilliqa         zilliqa.Service
@@ -26,7 +26,7 @@ type Daemon struct {
 }
 
 func NewDaemon(
-	elastic elastic_cache.Index,
+	elastic elastic_search.Index,
 	firstBlockNum uint64,
 	indexer indexer.Indexer,
 	zilliqa zilliqa.Service,
@@ -139,7 +139,8 @@ func (d *Daemon) bulkIndexContracts(bestBlockNum uint64) {
 }
 
 func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
-	zap.L().Info("Bulk index NFTs")
+	zap.L().With(zap.Uint64("bestBlockNum", bestBlockNum)).Info("Bulk index NFTs")
+
 	bulkIndexNftsFrom := config.Get().BulkIndexNftsFrom
 	if bulkIndexNftsFrom == -1 {
 		bulkIndexNftsFrom = int(bestBlockNum)
@@ -175,7 +176,7 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 						}
 					}
 					if c.ZRC6 {
-						if err := d.zrc6Indexer.IndexTx(tx, c, false); err != nil {
+						if err := d.zrc6Indexer.IndexTx(tx, c); err != nil {
 							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc6")
 						}
 					}

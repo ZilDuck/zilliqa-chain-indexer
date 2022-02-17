@@ -459,8 +459,13 @@ func (p *Provider) GetTransactionsForTxBlock(blockNum string) ([][]string, error
 }
 
 func (p *Provider) GetTxnBodiesForTxBlock(blockNum string) ([]Transaction, error) {
+	var transactions []Transaction
+
 	response, err := p.call("GetTxnBodiesForTxBlock", blockNum)
 	if err != nil {
+		if err.Error() == "-1:TxBlock has no transactions" || err.Error() == "-20:Failed to get Microblock" || err.Error() == "-20:Txn Hash not Present" {
+			return transactions, nil
+		}
 		return nil, err
 	}
 
@@ -468,8 +473,6 @@ func (p *Provider) GetTxnBodiesForTxBlock(blockNum string) ([]Transaction, error
 	if err != nil {
 		return nil, err
 	}
-
-	var transactions []Transaction
 	if err := json.Unmarshal(jsonString, &transactions); err != nil {
 		return nil, err
 	}
@@ -697,7 +700,8 @@ func (p *Provider) GetContractAddressFromTransactionIDs(transactionIds []string)
 	contractAddresses := map[string]string{}
 	for idx, result := range results {
 		if result.Error == nil {
-			contractAddresses[transactionIds[idx]] = string(result.Result)
+			contractAddr := string(result.Result)
+			contractAddresses[transactionIds[idx]] = contractAddr[1:len(contractAddr)-1]
 		} else {
 			contractAddresses[transactionIds[idx]] = ""
 		}

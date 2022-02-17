@@ -1,4 +1,4 @@
-package elastic_cache
+package elastic_search
 
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"

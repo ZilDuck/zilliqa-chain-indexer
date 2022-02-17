@@ -1,15 +1,12 @@
-package elastic_cache
+package elastic_search
 
 import (
 	"context"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	v4 "github.com/aws/aws-sdk-go/aws/signer/v4"
 	"github.com/olivere/elastic/v7"
 	"github.com/patrickmn/go-cache"
-	"github.com/sha1sum/aws_signing_client"
 	"go.uber.org/zap"
 	"io/ioutil"
 	"path/filepath"
@@ -76,6 +73,7 @@ const (
 	Zrc6SetBaseUri RequestAction = "Zrc6SetBaseUri"
 	Zrc6Transfer   RequestAction = "Zrc6Transfer"
 	Zrc6Burn       RequestAction = "Zrc6Burn"
+	Zrc6Metadata   RequestAction = "Zrc6Metadata"
 )
 
 const saveAttempts int = 3
@@ -98,18 +96,6 @@ func newClient() (*elastic.Client, error) {
 
 	if config.Get().ElasticSearch.Debug {
 		opts = append(opts, elastic.SetTraceLog(ElasticLogger{}))
-	}
-
-	if config.Get().ElasticSearch.Aws {
-		creds := credentials.NewStaticCredentials(config.Get().Aws.AccessKey, config.Get().Aws.SecretKey, config.Get().Aws.Token)
-		awsClient, err := aws_signing_client.New(v4.NewSigner(creds), nil, "es", config.Get().Aws.Region)
-		if err != nil {
-			return nil, err
-		}
-
-		opts = append(opts, elastic.SetHttpClient(awsClient))
-		opts = append(opts, elastic.SetScheme("https"))
-		return elastic.NewClient(opts...)
 	}
 
 	if config.Get().ElasticSearch.Username != "" {
@@ -282,7 +268,7 @@ func (i index) save(index string, entity entity.Entity, attempt int) {
 }
 
 func (i index) BatchPersist() bool {
-	if len(i.GetRequests()) < 500 {
+	if len(i.GetRequests()) < 100 {
 		return false
 	}
 

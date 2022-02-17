@@ -27,6 +27,11 @@ jobs:
           mkdir -p ./build
           cp -r config ./build/config
 
+      - name: Copy Restarter
+        run: |
+          mkdir -p ./build/bin
+          cp bin/restart ./build/bin/restart
+
       - name: Build Indexerd
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/indexerd ./cmd/indexerd/main.go
 
@@ -37,13 +42,22 @@ jobs:
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/nftImporter ./cmd/importNfts/main.go
 
       - name: Build Update Contract Assets
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/updateContractAssets ./cmd/updateContractAssets/main.go
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/loadMetadata ./cmd/loadMetadata/main.go
 
-      - name: Deploy to EC2
+      - name: Deploy to Hetzner
         uses: easingthemes/ssh-deploy@v2.1.5
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.ZILKROAD_INDEXER_PEM }}
+          SSH_PRIVATE_KEY: ${{ secrets.ZILKROAD_HETZNER_INDEXER }}
+          REMOTE_HOST: ${{ secrets.ZILKROAD_INDEXER_HOST }}
+          REMOTE_USER: ${{ secrets.ZILKROAD_INDEXER_USER }}
           SOURCE: "./build/*"
-          REMOTE_HOST: "ec2-54-228-86-21.eu-west-1.compute.amazonaws.com"
-          REMOTE_USER: "ec2-user"
-          TARGET: "/app/testnet"
+          TARGET: "/app/indexer/testnet"
+
+      - name: Restart indexer
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.ZILKROAD_INDEXER_HOST }}
+          username: ${{ secrets.ZILKROAD_INDEXER_USER }}
+          key: ${{ secrets.ZILKROAD_HETZNER_INDEXER }}
+          port: 22
+          script: "/app/indexer/testnet/bin/restart testnet"
