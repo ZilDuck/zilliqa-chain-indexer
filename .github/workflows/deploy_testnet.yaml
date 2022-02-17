@@ -27,10 +27,10 @@ jobs:
           mkdir -p ./build
           cp -r config ./build/config
 
-     - name: Copy Restarter
-       run: |
-         mkdir -p ./build/bin
-         cp bin/restart ./build/bin/restart
+      - name: Copy Restarter
+        run: |
+          mkdir -p ./build/bin
+          cp bin/restart ./build/bin/restart
 
       - name: Build Indexerd
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/indexerd ./cmd/indexerd/main.go
