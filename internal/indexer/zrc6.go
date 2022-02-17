@@ -6,6 +6,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
 )
@@ -18,12 +19,13 @@ type Zrc6Indexer interface {
 }
 
 type zrc6Indexer struct {
-	elastic        elastic_search.Index
-	contractRepo   repository.ContractRepository
-	nftRepo        repository.NftRepository
-	txRepo         repository.TransactionRepository
-	factory        factory.Zrc6Factory
-	messageService messenger.MessageService
+	elastic         elastic_search.Index
+	contractRepo    repository.ContractRepository
+	nftRepo         repository.NftRepository
+	txRepo          repository.TransactionRepository
+	factory         factory.Zrc6Factory
+	messageService  messenger.MessageService
+	metadataService metadata.Service
 }
 
 func NewZrc6Indexer(
@@ -33,8 +35,9 @@ func NewZrc6Indexer(
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc6Factory,
 	messageService messenger.MessageService,
+	metadataService metadata.Service,
 ) Zrc6Indexer {
-	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo,factory, messageService}
+	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo,factory, messageService, metadataService}
 }
 
 func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -310,14 +313,20 @@ func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error 
 		return err
 	}
 
-
-	if err := i.factory.FetchMetadata(nft); err != nil {
-		nft.MetadataError = err.Error()
-		nft.HasMetadata = false
-		zap.L().With(zap.Error(err)).Error("Failed to fetch metadata")
+	data, err := i.metadataService.FetchZrc6Metadata(*nft)
+	if err != nil {
+		zap.L().With(
+			zap.Error(err),
+			zap.String("contractAddr", nft.Contract),
+			zap.Uint64("tokenId", nft.TokenId),
+			zap.String("baseUrl", nft.BaseUri),
+			zap.String("tokenUri", nft.TokenUri),
+			zap.String("metadataUri", nft.Metadata.Uri),
+		).Warn("Failed to get zrc6 metadata")
+		nft.Metadata.Error = err.Error()
 	} else {
-		nft.MetadataError = ""
-		nft.HasMetadata = true
+		nft.Metadata.Data = data
+		nft.Metadata.Error = ""
 	}
 
 	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Metadata)

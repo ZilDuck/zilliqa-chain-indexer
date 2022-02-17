@@ -143,8 +143,9 @@ var Definitions = []dingo.Def{
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc6Factory,
 			messageService messenger.MessageService,
+			metadataService metadata.Service,
 		) (indexer.Zrc6Indexer, error) {
-			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory, messageService), nil
+			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory, messageService, metadataService), nil
 		},
 	},
 	{
@@ -185,8 +186,8 @@ var Definitions = []dingo.Def{
 	},
 	{
 		Name: "zrc6.factory",
-		Build: func(metadataService metadata.Service) (factory.Zrc6Factory, error) {
-			return factory.NewZrc6Factory(metadataService), nil
+		Build: func() (factory.Zrc6Factory, error) {
+			return factory.NewZrc6Factory(), nil
 		},
 	},
 	{

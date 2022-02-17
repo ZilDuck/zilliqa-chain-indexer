@@ -9,7 +9,7 @@ import (
 )
 
 type Service interface {
-	GetZrc6Metadata(nft entity.Nft) (map[string]interface{}, error)
+	FetchZrc6Metadata(nft entity.Nft) (map[string]interface{}, error)
 }
 
 type service struct {
@@ -20,13 +20,18 @@ func NewMetadataService(client *retryablehttp.Client) Service {
 	return service{client}
 }
 
-func (s service) GetZrc6Metadata(nft entity.Nft) (map[string]interface{}, error) {
-	metadataUri, err := nft.MetadataUri()
+func (s service) FetchZrc6Metadata(nft entity.Nft) (map[string]interface{}, error) {
+	if nft.Metadata == nil {
+		return nil, errors.New("metadata uri not valid")
+	}
+
+	req, err := retryablehttp.NewRequest("GET", nft.Metadata.Uri, nil)
 	if err != nil {
 		return nil, err
 	}
+	req.Header.Add("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0")
 
-	resp, err := retryablehttp.Get(metadataUri)
+	resp, err := s.client.Do(req)
 	if err != nil {
 		return nil, err
 	}
