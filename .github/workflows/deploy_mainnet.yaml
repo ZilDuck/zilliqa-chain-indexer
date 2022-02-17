@@ -27,6 +27,11 @@ jobs:
           mkdir -p ./build
           cp -r config ./build/config
 
+      - name: Copy Restarter
+        run: |
+          mkdir -p ./build/bin
+          cp bin/restart ./build/bin/restart
+
       - name: Build Indexerd
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/indexerd ./cmd/indexerd/main.go
 
@@ -46,7 +51,7 @@ jobs:
           REMOTE_HOST: ${{ secrets.ZILKROAD_INDEXER_HOST }}
           REMOTE_USER: ${{ secrets.ZILKROAD_INDEXER_USER }}
           SOURCE: "./build/*"
-          TARGET: "/app/indexer/testnet"
+          TARGET: "/app/indexer/mainnet"
 
       - name: Restart indexer
         uses: appleboy/ssh-action@master

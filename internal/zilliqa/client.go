@@ -131,7 +131,7 @@ func (c *rpcClient) call(method string, params interface{}) (rr *rpcResponse, er
 		return
 	}
 
-	zap.L().With(zap.String("request", rpcR.Method), zap.String("params", fmt.Sprintf("%v", params))).Info("Zilliqa: RPC Request")
+	zap.L().With(zap.String("request", rpcR.Method), zap.String("params", fmt.Sprintf("%v", params))).Debug("Zilliqa: RPC Request")
 	if c.debug {
 		zap.L().With(zap.String("request", payloadBuffer.String())).Debug("Zilliqa: RPC Request")
 	}
@@ -181,7 +181,7 @@ func (c *rpcClient) callBatch(requests rpcRequests) (rr rpcResponses, err error)
 		return
 	}
 
-	zap.L().With(zap.String("request", requests[0].Method), zap.Int("count", len(requests))).Info("Zilliqa: RPC Batch Request")
+	zap.L().With(zap.String("request", requests[0].Method), zap.Int("count", len(requests))).Debug("Zilliqa: RPC Batch Request")
 	if c.debug {
 		zap.L().With(zap.String("request", payloadBuffer.String())).Debug("Zilliqa: RPC Request")
 	}
