@@ -322,7 +322,9 @@ func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error 
 			zap.String("baseUrl", nft.BaseUri),
 			zap.String("tokenUri", nft.TokenUri),
 		).Warn("Failed to get zrc6 metadata")
-		nft.Metadata.Error = err.Error()
+		if nft.Metadata != nil {
+			nft.Metadata.Error = err.Error()
+		}
 	} else {
 		nft.Metadata.Data = data
 		nft.Metadata.Error = ""
