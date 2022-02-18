@@ -197,7 +197,7 @@ var Definitions = []dingo.Def{
 			retryClient.Logger = nil
 			retryClient.RetryMax = config.Get().MetadataRetries
 
-			return metadata.NewMetadataService(retryClient), nil
+			return metadata.NewMetadataService(retryClient, config.Get().IpfsHosts), nil
 		},
 	},
 }

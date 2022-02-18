@@ -4,10 +4,15 @@
       "metadata": {
         "type": "nested",
         "properties": {
-          "attributes": {
+          "data": {
             "type": "nested",
             "properties": {
+              "attributes": {
+                "type": "nested",
+                "properties": {
 
+                }
+              }
             }
           }
         }

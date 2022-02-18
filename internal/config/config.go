@@ -28,6 +28,7 @@ type Config struct {
 	FirstBlockNum          uint64
 	Subscribe              bool
 	MetadataRetries        int
+	IpfsHosts              []string
 
 	SentryDsn string
 
@@ -60,6 +61,13 @@ type ElasticSearchConfig struct {
 	MappingDir       string
 	BulkPersistCount int
 	Refresh          string
+}
+
+var ipfsHosts = []string{
+	"https://gateway.pinata.cloud",
+	"https://cloudflare-ipfs.com",
+	"https://gateway.ipfs.io",
+	"https://ipfs.eth.aragon.network",
 }
 
 func Init() {
@@ -105,6 +113,7 @@ func Get() *Config {
 		FirstBlockNum:          getUint64("FIRST_BLOCK_NUM", 0),
 		Subscribe:              getBool("SUBSCRIBE", true),
 		MetadataRetries:        getInt("METADATA_RETRIES", 3),
+		IpfsHosts:              getSlice("IPFS_HOSTS", ipfsHosts, ","),
 		SentryDsn:              getString("SENTRY_DSN", ""),
 		Aws: AwsConfig{
 			AccessKey: getString("AWS_ACCESS_KEY_ID", ""),
