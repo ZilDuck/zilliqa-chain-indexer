@@ -15,6 +15,7 @@ type Zrc6Indexer interface {
 	IndexTxs(tx []entity.Transaction) error
 	IndexTx(tx entity.Transaction, c entity.Contract) error
 	IndexContract(c entity.Contract) error
+	TriggerMetadataRefresh(nft entity.Nft)
 	RefreshMetadata(contractAddr string, tokenId uint64) error
 }
 
@@ -144,15 +145,7 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC6")
 
-		if nfts[idx].Metadata != nil {
-			msgJson, _ := json.Marshal(messenger.RefreshMetadata{
-				Contract: c.Address,
-				TokenId: nfts[idx].TokenId,
-			})
-			if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
-				zap.L().Error("Failed to queue metadata refresh")
-			}
-		}
+		i.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return nil
@@ -179,15 +172,7 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 			zap.String("owner", nfts[idx].Owner),
 		).Info("BatchMint ZRC6")
 
-		if nfts[idx].Metadata != nil {
-			msgJson, _ := json.Marshal(messenger.RefreshMetadata{
-				Contract: c.Address,
-				TokenId:  nfts[idx].TokenId,
-			})
-			if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
-				zap.L().Error("Failed to queue metadata refresh")
-			}
-		}
+		i.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return nil
@@ -308,6 +293,17 @@ func (i zrc6Indexer) batchBurn(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	return nil
+}
+
+func (i zrc6Indexer) TriggerMetadataRefresh(nft entity.Nft) {
+	if nft.Metadata == nil {
+		return
+	}
+
+	msgJson, _ := json.Marshal(messenger.RefreshMetadata{Contract: nft.Contract, TokenId:  nft.TokenId})
+	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
+		zap.L().Error("Failed to queue metadata refresh")
+	}
 }
 
 func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error {
