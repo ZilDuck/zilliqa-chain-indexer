@@ -144,12 +144,14 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC6")
 
-		msgJson, _ := json.Marshal(messenger.RefreshMetadata{
-			Contract: c.Address,
-			TokenId: nfts[idx].TokenId,
-		})
-		if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
-			zap.L().Error("Failed to queue metadata refresh")
+		if nfts[idx].Metadata != nil {
+			msgJson, _ := json.Marshal(messenger.RefreshMetadata{
+				Contract: c.Address,
+				TokenId: nfts[idx].TokenId,
+			})
+			if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
+				zap.L().Error("Failed to queue metadata refresh")
+			}
 		}
 	}
 
@@ -177,12 +179,14 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 			zap.String("owner", nfts[idx].Owner),
 		).Info("BatchMint ZRC6")
 
-		msgJson, _ := json.Marshal(messenger.RefreshMetadata{
-			Contract: c.Address,
-			TokenId: nfts[idx].TokenId,
-		})
-		if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
-			zap.L().Error("Failed to queue metadata refresh")
+		if nfts[idx].Metadata != nil {
+			msgJson, _ := json.Marshal(messenger.RefreshMetadata{
+				Contract: c.Address,
+				TokenId:  nfts[idx].TokenId,
+			})
+			if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
+				zap.L().Error("Failed to queue metadata refresh")
+			}
 		}
 	}
 
