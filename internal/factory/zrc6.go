@@ -53,16 +53,17 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 		}
 
 		nft := entity.Nft{
-			Contract: c.Address,
-			TxID:     tx.ID,
-			BlockNum: tx.BlockNum,
-			Name:     name.Value.Primitive.(string),
-			Symbol:   symbol.Value.Primitive.(string),
-			TokenId:  tokenId,
-			BaseUri:  c.BaseUri,
-			TokenUri: tokenUri,
-			Owner:    strings.ToLower(to),
-			Zrc6:     true,
+			Contract:  c.Address,
+			TxID:      tx.ID,
+			BlockNum:  tx.BlockNum,
+			Name:      name.Value.Primitive.(string),
+			Symbol:    symbol.Value.Primitive.(string),
+			TokenId:   tokenId,
+			BaseUri:   c.BaseUri,
+			TokenUri:  tokenUri,
+			Owner:     strings.ToLower(to),
+			Zrc6:      true,
+			Validated: false,
 		}
 
 		md, err := getMetadata(nft)
@@ -118,16 +119,17 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 				}
 
 				nft := entity.Nft{
-					Contract: c.Address,
-					TxID:     tx.ID,
-					BlockNum: tx.BlockNum,
-					Name:     name.Value.Primitive.(string),
-					Symbol:   symbol.Value.Primitive.(string),
-					TokenId:  nextTokenId,
-					TokenUri: arguments[1].(string),
-					BaseUri:  c.BaseUri,
-					Owner:    strings.ToLower(arguments[0].(string)),
-					Zrc6:     true,
+					Contract:  c.Address,
+					TxID:      tx.ID,
+					BlockNum:  tx.BlockNum,
+					Name:      name.Value.Primitive.(string),
+					Symbol:    symbol.Value.Primitive.(string),
+					TokenId:   nextTokenId,
+					TokenUri:  arguments[1].(string),
+					BaseUri:   c.BaseUri,
+					Owner:     strings.ToLower(arguments[0].(string)),
+					Zrc6:      true,
+					Validated: false,
 				}
 
 				md, err := getMetadata(nft)

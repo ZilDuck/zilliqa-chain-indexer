@@ -49,15 +49,16 @@ func (f zrc1Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 		}
 
 		nft := entity.Nft{
-			Contract: c.Address,
-			TxID:     tx.ID,
-			BlockNum: tx.BlockNum,
-			Name:     name.Value.Primitive.(string),
-			Symbol:   symbol.Value.Primitive.(string),
-			TokenId:  tokenId,
-			TokenUri: tokenUri,
-			Owner:    strings.ToLower(recipient),
-			Zrc1:     true,
+			Contract:  c.Address,
+			TxID:      tx.ID,
+			BlockNum:  tx.BlockNum,
+			Name:      name.Value.Primitive.(string),
+			Symbol:    symbol.Value.Primitive.(string),
+			TokenId:   tokenId,
+			TokenUri:  tokenUri,
+			Owner:     strings.ToLower(recipient),
+			Zrc1:      true,
+			Validated: false,
 		}
 
 		nfts = append(nfts, nft)
@@ -92,15 +93,16 @@ func (f zrc1Factory) createUnicuteFromMintTx(tx entity.Transaction, c entity.Con
 		}
 
 		nft := entity.Nft{
-			Contract: c.Address,
-			TxID:     tx.ID,
-			BlockNum: tx.BlockNum,
-			Name:     name.Value.Primitive.(string),
-			Symbol:   symbol.Value.Primitive.(string),
-			TokenId:  tokenId,
-			TokenUri: tokenUri,
-			Owner:    recipient,
-			Zrc1:     true,
+			Contract:  c.Address,
+			TxID:      tx.ID,
+			BlockNum:  tx.BlockNum,
+			Name:      name.Value.Primitive.(string),
+			Symbol:    symbol.Value.Primitive.(string),
+			TokenId:   tokenId,
+			TokenUri:  tokenUri,
+			Owner:     recipient,
+			Zrc1:      true,
+			Validated: false,
 		}
 
 		nfts = append(nfts, nft)
