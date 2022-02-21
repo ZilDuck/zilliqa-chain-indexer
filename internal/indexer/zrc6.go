@@ -3,6 +3,7 @@ package indexer
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
@@ -361,16 +362,17 @@ func (i zrc6Indexer) RefreshAsset(contractAddr string, tokenId uint64) error {
 		return err
 	}
 	if nft.Zrc6 == true {
-		mediaUri, err := i.metadataService.FetchZrc6Image(*nft)
+		err := i.metadataService.FetchZrc6Image(*nft)
 		if err != nil {
 			if errors.Is(err, metadata.ErrorAssetAlreadyExists) {
-				return nil
+				//return nil
+			} else {
+				zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
+				return err
 			}
-			zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
-			return err
 		}
 
-		nft.MediaUri = mediaUri
+		nft.MediaUri = fmt.Sprintf("%s/%d", contractAddr, tokenId)
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Asset)
 		i.elastic.BatchPersist()
 	}

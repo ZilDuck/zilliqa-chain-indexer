@@ -7,6 +7,7 @@ require (
 	github.com/Zilliqa/gozilliqa-sdk v1.2.0
 	github.com/aws/aws-sdk-go v1.42.51
 	github.com/getsentry/sentry-go v0.11.0
+	github.com/gorilla/mux v1.8.0
 	github.com/gosimple/slug v1.11.2
 	github.com/hashicorp/go-retryablehttp v0.7.0
 	github.com/joho/godotenv v1.4.0

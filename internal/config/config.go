@@ -29,7 +29,9 @@ type Config struct {
 	Subscribe              bool
 	MetadataRetries        int
 	IpfsHosts              []string
-	AssetPath              string
+
+	AssetPath string
+	AssetPort string
 
 	SentryDsn string
 
@@ -116,6 +118,7 @@ func Get() *Config {
 		MetadataRetries:        getInt("METADATA_RETRIES", 3),
 		IpfsHosts:              getSlice("IPFS_HOSTS", ipfsHosts, ","),
 		AssetPath:              getString("ASSET_PATH", "./var/assets"),
+		AssetPort:              getString("ASSET_PORT", "8080"),
 		SentryDsn:              getString("SENTRY_DSN", ""),
 		Aws: AwsConfig{
 			AccessKey: getString("AWS_ACCESS_KEY_ID", ""),

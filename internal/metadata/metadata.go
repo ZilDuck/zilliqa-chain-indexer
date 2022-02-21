@@ -10,6 +10,7 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 	"io"
+	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
@@ -18,7 +19,8 @@ import (
 
 type Service interface {
 	FetchZrc6Metadata(nft entity.Nft) (map[string]interface{}, error)
-	FetchZrc6Image(nft entity.Nft) (string, error)
+	FetchZrc6Image(nft entity.Nft) error
+	GetZrc6Media(nft entity.Nft) ([]byte, string, error)
 }
 
 type service struct {
@@ -141,9 +143,9 @@ func (s service) hydrateMetadata(resp *http.Response) (Metadata, error) {
 	return md, nil
 }
 
-func (s service) FetchZrc6Image(nft entity.Nft) (string, error) {
+func (s service) FetchZrc6Image(nft entity.Nft) error {
 	if nft.Metadata == nil {
-		return "", errors.New("metadata uri not valid")
+		return errors.New("metadata uri not valid")
 	}
 
 	assetUri, err := nft.Metadata.GetAssetUri()
@@ -155,27 +157,51 @@ func (s service) FetchZrc6Image(nft entity.Nft) (string, error) {
 	assetPath := fmt.Sprintf("%s/%d", contractDir, nft.TokenId)
 
 	if _, err := os.Stat(assetPath); err == nil {
-		return "", ErrorAssetAlreadyExists
+		return ErrorAssetAlreadyExists
 	}
 
 	if helper.IsIpfs(assetUri) {
 		resp, err := s.fetchIpfs(helper.GetIpfs(assetUri)[7:])
 		if err != nil {
-			return "", err
+			return err
 		}
 		defer resp.Body.Close()
 
 		_ = os.MkdirAll(contractDir, os.ModePerm)
 		out, err := os.Create(assetPath)
 		if err != nil {
-			return "", err
+			return err
 		}
 		defer out.Close()
 
 		if _, err := io.Copy(out, resp.Body); err != nil {
-			return "", err
+			return err
 		}
 	}
 
-	return assetUri, nil
+	return nil
+}
+
+func (s service) GetZrc6Media(nft entity.Nft) ([]byte, string, error) {
+	if s.assetPath == "" || nft.MediaUri == "" {
+		return nil, "", errors.New("media not found")
+	}
+
+	buffer, err := ioutil.ReadFile("file.txt") // just pass the file name
+	if err != nil {
+		return nil, "", err
+	}
+
+	fileType, err := getFileContentType(buffer[:512])
+	if err != nil {
+		return nil, "", err
+	}
+
+	return buffer, fileType, nil
+}
+
+func getFileContentType(b []byte) (string, error) {
+	// Use the net/http package's handy DectectContentType function. Always returns a valid
+	// content-type by returning "application/octet-stream" if no others seemed to match.
+	return http.DetectContentType(b), nil
 }

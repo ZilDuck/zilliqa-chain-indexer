@@ -41,8 +41,14 @@ jobs:
       - name: Build NFT Importer
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/nftImporter ./cmd/importNfts/main.go
 
-      - name: Build Update Contract Assets
+      - name: Build Update Contract Metadata
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/loadMetadata ./cmd/loadMetadata/main.go
+
+      - name: Build Update Contract Assets
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/loadAssets ./cmd/loadAssets/main.go
+
+      - name: Serve NFT Assets
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/serveAsset ./cmd/serveAsset/main.go
 
       - name: Deploy to Hetzner
         uses: easingthemes/ssh-deploy@v2.1.5
