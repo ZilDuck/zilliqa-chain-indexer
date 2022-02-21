@@ -22,7 +22,10 @@ func main() {
 	r.HandleFunc("/{contractAddr}/{tokenId}", GetAsset).Methods("GET")
 
 	zap.L().Info("Serving assets on :"+config.Get().AssetPort)
-	http.ListenAndServe(":"+config.Get().AssetPort, r)
+	err := http.ListenAndServe(":"+config.Get().AssetPort, r)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetAsset(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +63,7 @@ func GetAsset(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(200)
 	w.Header().Add("Content-Type", contentType)
-	_, _ = fmt.Fprint(w, media)
+	_, _ = fmt.Fprint(w, string(media[:]))
 }
 
 func getContractAddr(r *http.Request) (string, error) {
