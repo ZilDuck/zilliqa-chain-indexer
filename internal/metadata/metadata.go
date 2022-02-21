@@ -187,7 +187,7 @@ func (s service) GetZrc6Media(nft entity.Nft) ([]byte, string, error) {
 		return nil, "", errors.New("media not found")
 	}
 
-	buffer, err := ioutil.ReadFile("file.txt") // just pass the file name
+	buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/%s",s.assetPath, nft.MediaUri))
 	if err != nil {
 		return nil, "", err
 	}
