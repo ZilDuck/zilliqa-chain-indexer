@@ -5,8 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"go.uber.org/zap"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -197,7 +197,7 @@ func getMetadata(nft entity.Nft) (*entity.Metadata, error) {
 		uri = fmt.Sprintf("%s%d", nft.BaseUri, nft.TokenId)
 	}
 
-	if ipfs := getIpfs(uri); ipfs != "" {
+	if ipfs := helper.GetIpfs(uri); ipfs != "" {
 		return &entity.Metadata{
 			Uri:   ipfs,
 			Ipfs:  true,
@@ -215,21 +215,5 @@ func getMetadata(nft entity.Nft) (*entity.Metadata, error) {
 	}, nil
 }
 
-func getIpfs(metadataUri string) string {
-	if len(metadataUri)<7 {
-		return ""
-	}
 
-	if metadataUri[:7] == "ipfs://" {
-		return metadataUri
-	}
-
-	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
-	parts := re.FindStringSubmatch(metadataUri)
-	if len(parts) == 2 {
-		return "ipfs://" + parts[1]
-	}
-
-	return ""
-}
 

@@ -15,6 +15,7 @@ func main() {
 	container, _ := dic.NewContainer()
 	messageService := container.GetMessenger()
 	zrc6Indexer := container.GetZrc6Indexer()
+	nftRepo := container.GetNftRepo()
 	elastic := container.GetElastic()
 
 	chnMessages := make(chan *sqs.Message, 10)
@@ -25,11 +26,16 @@ func main() {
 		if err := json.Unmarshal([]byte(*message.Body), &data); err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to read message")
 		}
-		if err := zrc6Indexer.RefreshMetadata(data.Contract, data.TokenId); err == nil {
-			if err := messageService.DeleteMessage(messenger.MetadataRefresh, message); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to delete message")
-			}
+
+		_ = zrc6Indexer.RefreshMetadata(data.Contract, data.TokenId)
+		if err := messageService.DeleteMessage(messenger.MetadataRefresh, message); err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to delete message")
 		}
 		elastic.Persist()
+
+		nft, err := nftRepo.GetNft(data.Contract, data.TokenId)
+		if err == nil {
+			zrc6Indexer.TriggerAssetRefresh(*nft)
+		}
 	}
 }

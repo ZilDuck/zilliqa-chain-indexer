@@ -25,13 +25,6 @@ type Nft struct {
 	Validated bool `json:"validated"`
 }
 
-type Metadata struct {
-	Uri   string      `json:"uri"`
-	Error string      `json:"error"`
-	Data  interface{} `json:"data"`
-	Ipfs  bool        `json:"ipfs"`
-}
-
 func (n Nft) Slug() string {
 	return CreateNftSlug(n.TokenId, n.Contract)
 }

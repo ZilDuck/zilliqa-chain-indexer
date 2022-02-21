@@ -74,6 +74,7 @@ const (
 	Zrc6Transfer   RequestAction = "Zrc6Transfer"
 	Zrc6Burn       RequestAction = "Zrc6Burn"
 	Zrc6Metadata   RequestAction = "Zrc6Metadata"
+	Zrc6Asset      RequestAction = "Zrc6Asset"
 )
 
 const saveAttempts int = 3

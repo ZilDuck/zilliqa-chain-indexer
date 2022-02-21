@@ -23,6 +23,7 @@ type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (*entity.Nft, error)
 	GetNfts(contract string, size, page int) ([]entity.Nft, int64, error)
 	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
+	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
 }
 
@@ -95,6 +96,24 @@ func (r nftRepository) GetIpfsMetadata(size, page int) ([]entity.Nft, int64, err
 	query := elastic.NewNestedQuery("metadata", elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("metadata.ipfs", true),
 	))
+
+	from := size*page - size
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.NftIndex.Get()).
+		Query(query).
+		Size(size).
+		Sort("tokenId", true).
+		From(from).
+		TrackTotalHits(true))
+
+	return r.findMany(result, err)
+}
+
+func (r nftRepository) GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("zrc6", true),
+	)
 
 	from := size*page - size
 

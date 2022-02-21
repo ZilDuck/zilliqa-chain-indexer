@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
@@ -15,8 +16,12 @@ type Zrc6Indexer interface {
 	IndexTxs(tx []entity.Transaction) error
 	IndexTx(tx entity.Transaction, c entity.Contract) error
 	IndexContract(c entity.Contract) error
+
 	TriggerMetadataRefresh(nft entity.Nft)
+	TriggerAssetRefresh(nft entity.Nft)
+
 	RefreshMetadata(contractAddr string, tokenId uint64) error
+	RefreshAsset(contractAddr string, tokenId uint64) error
 }
 
 type zrc6Indexer struct {
@@ -300,9 +305,20 @@ func (i zrc6Indexer) TriggerMetadataRefresh(nft entity.Nft) {
 		return
 	}
 
-	msgJson, _ := json.Marshal(messenger.RefreshMetadata{Contract: nft.Contract, TokenId:  nft.TokenId})
+	msgJson, _ := json.Marshal(messenger.RefreshMetadata{Contract: nft.Contract, TokenId: nft.TokenId})
 	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
 		zap.L().Error("Failed to queue metadata refresh")
+	}
+}
+
+func (i zrc6Indexer) TriggerAssetRefresh(nft entity.Nft) {
+	if nft.Metadata == nil {
+		return
+	}
+
+	msgJson, _ := json.Marshal(messenger.RefreshMetadata{Contract: nft.Contract, TokenId: nft.TokenId})
+	if err := i.messageService.SendMessage(messenger.AssetRefresh, msgJson); err != nil {
+		zap.L().Error("Failed to queue asset refresh")
 	}
 }
 
@@ -324,14 +340,40 @@ func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error 
 		).Warn("Failed to get zrc6 metadata")
 		if nft.Metadata != nil {
 			nft.Metadata.Error = err.Error()
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Metadata)
+			i.elastic.BatchPersist()
 		}
-	} else {
-		nft.Metadata.Data = data
-		nft.Metadata.Error = ""
+		return err
 	}
+
+	nft.Metadata.Data = data
+	nft.Metadata.Error = ""
 
 	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Metadata)
 	i.elastic.BatchPersist()
+
+	return nil
+}
+
+func (i zrc6Indexer) RefreshAsset(contractAddr string, tokenId uint64) error {
+	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
+	if err != nil {
+		return err
+	}
+	if nft.Zrc6 == true {
+		mediaUri, err := i.metadataService.FetchZrc6Image(*nft)
+		if err != nil {
+			if errors.Is(err, metadata.ErrorAssetAlreadyExists) {
+				return nil
+			}
+			zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
+			return err
+		}
+
+		nft.MediaUri = mediaUri
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Asset)
+		i.elastic.BatchPersist()
+	}
 
 	return nil
 }
