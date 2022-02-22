@@ -306,10 +306,11 @@ func (i zrc6Indexer) TriggerMetadataRefresh(nft entity.Nft) {
 		return
 	}
 
-	msgJson, _ := json.Marshal(messenger.RefreshMetadata{Contract: nft.Contract, TokenId: nft.TokenId})
+	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
 	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
 		zap.L().Error("Failed to queue metadata refresh")
 	}
+	zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger MetaData Refresh")
 }
 
 func (i zrc6Indexer) TriggerAssetRefresh(nft entity.Nft) {
@@ -317,10 +318,11 @@ func (i zrc6Indexer) TriggerAssetRefresh(nft entity.Nft) {
 		return
 	}
 
-	msgJson, _ := json.Marshal(messenger.RefreshMetadata{Contract: nft.Contract, TokenId: nft.TokenId})
+	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
 	if err := i.messageService.SendMessage(messenger.AssetRefresh, msgJson); err != nil {
 		zap.L().Error("Failed to queue asset refresh")
 	}
+	zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger Asset Refresh")
 }
 
 func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error {

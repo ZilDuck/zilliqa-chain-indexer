@@ -22,7 +22,7 @@ func main() {
 	go messageService.PollMessages(messenger.MetadataRefresh, chnMessages)
 
 	for message := range chnMessages {
-		var data messenger.RefreshMetadata
+		var data messenger.Nft
 		if err := json.Unmarshal([]byte(*message.Body), &data); err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to read message")
 		}

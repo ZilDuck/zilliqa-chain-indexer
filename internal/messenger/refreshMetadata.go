@@ -1,6 +1,6 @@
 package messenger
 
-type RefreshMetadata struct {
+type Nft struct {
 	Contract string `json:"contract"`
 	TokenId  uint64 `json:"tokenId"`
 }
