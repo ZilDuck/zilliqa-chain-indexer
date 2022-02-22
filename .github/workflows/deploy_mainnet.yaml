@@ -41,8 +41,8 @@ jobs:
       - name: Build NFT Importer
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/nftImporter ./cmd/importNfts/main.go
 
-      - name: Build Update Contract Metadata
-        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/loadMetadata ./cmd/loadMetadata/main.go
+      - name: Queue Subscriber
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/queueSubscriber ./cmd/queueSubscriber/main.go
 
       - name: Build Update Contract Assets
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/loadAssets ./cmd/loadAssets/main.go
