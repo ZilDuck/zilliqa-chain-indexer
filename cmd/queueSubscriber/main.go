@@ -5,9 +5,9 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/zap"
 )
@@ -16,6 +16,7 @@ var (
 	messageService messenger.MessageService
 	zrc6Indexer indexer.Zrc6Indexer
 	elastic elastic_search.Index
+	nftRepo repository.NftRepository
 )
 
 func main() {
@@ -25,6 +26,7 @@ func main() {
 	messageService = container.GetMessenger()
 	zrc6Indexer = container.GetZrc6Indexer()
 	elastic = container.GetElastic()
+	nftRepo = container.GetNftRepo()
 
 	go pollMetadataRefresh()
 	go pollAssetRefresh()
@@ -54,7 +56,10 @@ func pollMetadataRefresh() {
 		}
 		elastic.Persist()
 
-		zrc6Indexer.TriggerAssetRefresh(entity.Nft{Contract: data.Contract, TokenId: data.TokenId})
+		nft, err := nftRepo.GetNft(data.Contract, data.TokenId)
+		if err == nil {
+			zrc6Indexer.TriggerAssetRefresh(*nft)
+		}
 	}
 }
 
