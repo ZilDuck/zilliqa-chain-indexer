@@ -10,6 +10,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/zap"
+	"sync"
 )
 
 var (
@@ -18,6 +19,8 @@ var (
 	elastic elastic_search.Index
 	nftRepo repository.NftRepository
 )
+
+var wg sync.WaitGroup
 
 func main() {
 	config.Init()
@@ -28,13 +31,15 @@ func main() {
 	elastic = container.GetElastic()
 	nftRepo = container.GetNftRepo()
 
+	wg.Add(1)
 	go pollMetadataRefresh()
 	go pollAssetRefresh()
 
-	for {switch {}}
+	wg.Wait()
 }
 
 func pollMetadataRefresh() {
+	defer wg.Done()
 	zap.L().Info("Subscribing to metadata refresh")
 	messages := make(chan *sqs.Message, 10)
 	go messageService.PollMessages(messenger.MetadataRefresh, messages)
@@ -64,6 +69,7 @@ func pollMetadataRefresh() {
 }
 
 func pollAssetRefresh() {
+	defer wg.Done()
 	zap.L().Info("Subscribing to asset refresh")
 	messages := make(chan *sqs.Message, 10)
 	go messageService.PollMessages(messenger.AssetRefresh, messages)
