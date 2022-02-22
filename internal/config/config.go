@@ -29,6 +29,7 @@ type Config struct {
 	Subscribe              bool
 	MetadataRetries        int
 	IpfsHosts              []string
+	IpfsTimeout            int
 
 	AssetPath string
 	AssetPort string
@@ -117,6 +118,7 @@ func Get() *Config {
 		Subscribe:              getBool("SUBSCRIBE", true),
 		MetadataRetries:        getInt("METADATA_RETRIES", 3),
 		IpfsHosts:              getSlice("IPFS_HOSTS", ipfsHosts, ","),
+		IpfsTimeout:            getInt("IPFS_TIMEOUT", 10),
 		AssetPath:              getString("ASSET_PATH", "./var/assets"),
 		AssetPort:              getString("ASSET_PORT", "8080"),
 		SentryDsn:              getString("SENTRY_DSN", ""),

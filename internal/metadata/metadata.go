@@ -24,9 +24,10 @@ type Service interface {
 }
 
 type service struct {
-	client    *retryablehttp.Client
-	ipfsHosts []string
-	assetPath string
+	client      *retryablehttp.Client
+	ipfsHosts   []string
+	assetPath   string
+	ipfsTimeout int
 }
 
 type Metadata map[string]interface{}
@@ -37,8 +38,8 @@ var (
 	ErrorAssetAlreadyExists = errors.New("asset already exists")
 )
 
-func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, assetPath string) Service {
-	return service{client, ipfsHosts, assetPath}
+func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, assetPath string, ipfsTimeout int) Service {
+	return service{client, ipfsHosts, assetPath, ipfsTimeout}
 }
 
 func (s service) FetchZrc6Metadata(nft entity.Nft) (map[string]interface{}, error) {
@@ -97,7 +98,7 @@ func (s service) fetchIpfs(ipfsCode string) (*http.Response, error) {
 				continue
 			}
 			return resp, nil
-		case <-time.After(5 * time.Second):
+		case <-time.After(time.Duration(s.ipfsTimeout) * time.Second):
 			zap.S().Infof("Timedout waiting for IPFS...next")
 			continue
 		}
