@@ -11,7 +11,7 @@ import (
 type MessageService interface {
 	CreateQueue(queue Queue) (*string, error)
 	SendMessage(queue Queue, body []byte) error
-	PollMessages(queue Queue, chn chan <- *sqs.Message) error
+	PollMessages(queue Queue, chn chan <- *sqs.Message)
 	DeleteMessage(queue Queue, msg *sqs.Message) error
 }
 
@@ -69,10 +69,10 @@ func (m Messenger) SendMessage(queue Queue, body []byte) error {
 	return err
 }
 
-func (m Messenger) PollMessages(queue Queue, chn chan <- *sqs.Message) error {
+func (m Messenger) PollMessages(queue Queue, chn chan <- *sqs.Message) {
 	queueUrl, err := m.getQueueUrl(queue)
 	if err != nil {
-		return err
+		return
 	}
 
 	for {
@@ -84,7 +84,7 @@ func (m Messenger) PollMessages(queue Queue, chn chan <- *sqs.Message) error {
 
 		if err != nil {
 			zap.L().With(zap.Error(err)).Warn("Failed to fetch message")
-			return err
+			return
 		}
 
 		for _, message := range output.Messages {

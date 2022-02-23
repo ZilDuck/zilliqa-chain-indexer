@@ -38,13 +38,17 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		transitions := tx.GetZrc1Transitions()
-		if len(transitions) == 0 {
+		eventLogs := tx.GetZrc1EventLogs()
+		if len(eventLogs) == 0 {
 			continue
 		}
 
-		c, err := i.contractRepo.GetContractByAddress(transitions[0].Addr)
+		c, err := i.contractRepo.GetContractByAddress(eventLogs[0].Address)
 		if err != nil {
+			continue
+		}
+
+		if !c.ZRC1 {
 			continue
 		}
 

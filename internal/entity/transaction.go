@@ -60,6 +60,18 @@ func CreateTransactionSlug(hash string) string {
 	return slug.Make(fmt.Sprintf("tx-%s", hash))
 }
 
+func (tx Transaction) GetZrc1EventLogs() []EventLog {
+	eventLogs := make([]EventLog, 0)
+	for _, event := range tx.Receipt.EventLogs {
+		if event.EventName == string(ZRC1MintEvent) ||
+			event.EventName == string(ZRC1TransferEvent) ||
+			event.EventName == string(ZRC1BurnEvent) {
+			eventLogs = append(eventLogs, event)
+		}
+	}
+	return eventLogs
+}
+
 func (tx Transaction) GetEventLogs(eventName Event) []EventLog {
 	eventLogs := make([]EventLog, 0)
 	for _, event := range tx.Receipt.EventLogs {
@@ -130,13 +142,4 @@ func (tx Transaction) GetZrc6Transitions() []Transition {
 	}
 
 	return transitions
-}
-
-func (tx Transaction) IsMint() bool {
-	return tx.HasEventLog("MintSuccess") || tx.HasTransition("Mint")
-}
-
-func (tx Transaction) IsTransfer() bool {
-	return tx.HasTransition("TransferFrom") &&
-		tx.GetTransition("TransferFrom")[0].Msg.Params.HasParam("token_id", "Uint256")
 }

@@ -51,19 +51,22 @@ func pollMetadataRefresh() {
 		}
 		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh")
 
-		if err := metadataIndexer.RefreshMetadata(data.Contract, data.TokenId); err != nil {
-			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Metadata refresh failed")
+		refreshDataErr := metadataIndexer.RefreshMetadata(data.Contract, data.TokenId)
+		if refreshDataErr != nil {
+			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(refreshDataErr)).Error("Metadata refresh failed")
 		} else {
-			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Info("Metadata refresh success")
+			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh success")
 		}
 		if err := messageService.DeleteMessage(messenger.MetadataRefresh, message); err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to delete message")
 		}
 		elastic.Persist()
 
-		nft, err := nftRepo.GetNft(data.Contract, data.TokenId)
-		if err == nil {
-			metadataIndexer.TriggerAssetRefresh(*nft)
+		if refreshDataErr == nil {
+			nft, err := nftRepo.GetNft(data.Contract, data.TokenId)
+			if err == nil {
+				metadataIndexer.TriggerAssetRefresh(*nft)
+			}
 		}
 	}
 }
