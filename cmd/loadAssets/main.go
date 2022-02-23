@@ -3,6 +3,8 @@ package main
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"go.uber.org/zap"
 	"os"
 )
@@ -12,13 +14,13 @@ func main() {
 
 	container, _ := dic.NewContainer()
 	nftRepo := container.GetNftRepo()
-	zrc6Indexer := container.GetZrc6Indexer()
+	metadataIndexer := container.GetMetadataIndexer()
+	elastic := container.GetElastic()
 
 	contractAddr := os.Args[1]
-
 	onlyMissing := len(os.Args) == 3 && os.Args[2] == "true"
 
-	size := 10
+	size := 1000
 	page := 1
 
 	for {
@@ -28,17 +30,25 @@ func main() {
 			panic(err)
 		}
 
+		zap.S().Infof("Page: %d", page)
+
 		if len(nfts) == 0 {
 			break
 		}
 
 		for _, nft := range nfts {
-			if onlyMissing == true && nft.Metadata != nil && nft.MediaUri != "" {
+			if onlyMissing == true && (nft.Metadata.UriEmpty() || nft.MediaUri != "") {
+				if nft.Metadata.UriEmpty() {
+					nft.Metadata = factory.GetMetadata(nft)
+					elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftMetadata)
+					elastic.BatchPersist()
+				}
 				continue
 			}
-			zrc6Indexer.TriggerMetadataRefresh(nft)
+			metadataIndexer.TriggerMetadataRefresh(nft)
 		}
 
 		page++
 	}
+	elastic.Persist()
 }

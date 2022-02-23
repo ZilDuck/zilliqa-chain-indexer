@@ -2,10 +2,7 @@ package factory
 
 import (
 	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -66,10 +63,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			Validated: false,
 		}
 
-		md, err := getMetadata(nft)
-		if err == nil {
-			nft.Metadata = md
-		}
+		nft.Metadata = GetMetadata(nft)
 
 		nfts = append(nfts, nft)
 	}
@@ -132,10 +126,7 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 					Validated: false,
 				}
 
-				md, err := getMetadata(nft)
-				if err == nil {
-					nft.Metadata = md
-				}
+				nft.Metadata = GetMetadata(nft)
 
 				nfts = append(nfts, nft)
 				nextTokenId++
@@ -188,32 +179,5 @@ func getPrimitiveParam(params entity.Params, name string) (string, error) {
 
 	return param.Value.Primitive.(string), nil
 }
-
-func getMetadata(nft entity.Nft) (*entity.Metadata, error) {
-	var uri string
-	if nft.TokenUri != "" {
-		uri = nft.TokenUri
-	} else {
-		uri = fmt.Sprintf("%s%d", nft.BaseUri, nft.TokenId)
-	}
-
-	if ipfs := helper.GetIpfs(uri); ipfs != "" {
-		return &entity.Metadata{
-			Uri:   ipfs,
-			Ipfs:  true,
-		}, nil
-	}
-
-	if len(uri)<4 || uri[:4] != "http" {
-		zap.L().With(zap.String("uri", uri), zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Warn("invalid metadata uri")
-		return nil, errors.New("invalid metadata uri")
-	}
-
-	return &entity.Metadata{
-		Uri:   uri,
-		Ipfs:  false,
-	}, nil
-}
-
 
 

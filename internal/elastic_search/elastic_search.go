@@ -73,8 +73,9 @@ const (
 	Zrc6SetBaseUri RequestAction = "Zrc6SetBaseUri"
 	Zrc6Transfer   RequestAction = "Zrc6Transfer"
 	Zrc6Burn       RequestAction = "Zrc6Burn"
-	Zrc6Metadata   RequestAction = "Zrc6Metadata"
-	Zrc6Asset      RequestAction = "Zrc6Asset"
+
+	NftMetadata   RequestAction = "NftMetadata"
+	NftAsset      RequestAction = "NftAsset"
 )
 
 const saveAttempts int = 3
@@ -269,7 +270,7 @@ func (i index) save(index string, entity entity.Entity, attempt int) {
 }
 
 func (i index) BatchPersist() bool {
-	if len(i.GetRequests()) < 100 {
+	if len(i.GetRequests()) < 250 {
 		return false
 	}
 

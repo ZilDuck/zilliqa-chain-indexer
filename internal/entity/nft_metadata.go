@@ -5,10 +5,19 @@ import (
 )
 
 type Metadata struct {
-	Uri   string      `json:"uri"`
-	Error string      `json:"error"`
-	Data  interface{} `json:"data"`
-	Ipfs  bool        `json:"ipfs"`
+	Uri  string      `json:"uri"`
+	Data interface{} `json:"data"`
+	Ipfs bool        `json:"ipfs"`
+
+	Error     string `json:"error"`
+	Attempted int    `json:"attempted"`
+
+	AssetError     string `json:"assetError"`
+	AssetAttempted int    `json:"assetAttempted"`
+}
+
+func (m Metadata) UriEmpty() bool {
+	return m.Uri == ""
 }
 
 func (m Metadata) GetAssetUri() (string, error) {

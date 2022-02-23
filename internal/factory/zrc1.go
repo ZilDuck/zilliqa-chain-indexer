@@ -105,6 +105,8 @@ func (f zrc1Factory) createUnicuteFromMintTx(tx entity.Transaction, c entity.Con
 			Validated: false,
 		}
 
+		nft.Metadata = GetMetadata(nft)
+
 		nfts = append(nfts, nft)
 	}
 
