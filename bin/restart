@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 #set -e
 
-supervisorctl restart all
+supervisorctl restart $1:*
