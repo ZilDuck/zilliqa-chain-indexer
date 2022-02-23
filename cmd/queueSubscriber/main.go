@@ -15,7 +15,7 @@ import (
 
 var (
 	messageService messenger.MessageService
-	zrc6Indexer indexer.Zrc6Indexer
+	metadataIndexer indexer.MetadataIndexer
 	elastic elastic_search.Index
 	nftRepo repository.NftRepository
 )
@@ -27,7 +27,7 @@ func main() {
 
 	container, _ := dic.NewContainer()
 	messageService = container.GetMessenger()
-	zrc6Indexer = container.GetZrc6Indexer()
+	metadataIndexer = container.GetMetadataIndexer()
 	elastic = container.GetElastic()
 	nftRepo = container.GetNftRepo()
 
@@ -51,7 +51,7 @@ func pollMetadataRefresh() {
 		}
 		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh")
 
-		if err := zrc6Indexer.RefreshMetadata(data.Contract, data.TokenId); err != nil {
+		if err := metadataIndexer.RefreshMetadata(data.Contract, data.TokenId); err != nil {
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Metadata refresh failed")
 		} else {
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Info("Metadata refresh success")
@@ -63,7 +63,7 @@ func pollMetadataRefresh() {
 
 		nft, err := nftRepo.GetNft(data.Contract, data.TokenId)
 		if err == nil {
-			zrc6Indexer.TriggerAssetRefresh(*nft)
+			metadataIndexer.TriggerAssetRefresh(*nft)
 		}
 	}
 }
@@ -81,7 +81,7 @@ func pollAssetRefresh() {
 		}
 		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Asset refresh")
 
-		if err := zrc6Indexer.RefreshAsset(data.Contract, data.TokenId); err != nil {
+		if err := metadataIndexer.RefreshAsset(data.Contract, data.TokenId); err != nil {
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Asset refresh failed")
 		} else {
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Info("Asset refresh success")
