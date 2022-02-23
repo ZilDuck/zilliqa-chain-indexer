@@ -142,10 +142,20 @@ var Definitions = []dingo.Def{
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc6Factory,
+			metadataIndexer indexer.MetadataIndexer,
+		) (indexer.Zrc6Indexer, error) {
+			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer), nil
+		},
+	},
+	{
+		Name: "metadata.indexer",
+		Build: func(
+			elastic elastic_search.Index,
+			nftRepo repository.NftRepository,
 			messageService messenger.MessageService,
 			metadataService metadata.Service,
-		) (indexer.Zrc6Indexer, error) {
-			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory, messageService, metadataService), nil
+		) (indexer.MetadataIndexer, error) {
+			return indexer.NewMetadataIndexer(elastic, nftRepo, messageService, metadataService), nil
 		},
 	},
 	{

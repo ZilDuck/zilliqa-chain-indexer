@@ -1,14 +1,9 @@
 package indexer
 
 import (
-	"encoding/json"
-	"errors"
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
 )
@@ -17,12 +12,6 @@ type Zrc6Indexer interface {
 	IndexTxs(tx []entity.Transaction) error
 	IndexTx(tx entity.Transaction, c entity.Contract) error
 	IndexContract(c entity.Contract) error
-
-	TriggerMetadataRefresh(nft entity.Nft)
-	TriggerAssetRefresh(nft entity.Nft)
-
-	RefreshMetadata(contractAddr string, tokenId uint64) error
-	RefreshAsset(contractAddr string, tokenId uint64) error
 }
 
 type zrc6Indexer struct {
@@ -31,8 +20,7 @@ type zrc6Indexer struct {
 	nftRepo         repository.NftRepository
 	txRepo          repository.TransactionRepository
 	factory         factory.Zrc6Factory
-	messageService  messenger.MessageService
-	metadataService metadata.Service
+	metadataIndexer MetadataIndexer
 }
 
 func NewZrc6Indexer(
@@ -41,10 +29,9 @@ func NewZrc6Indexer(
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc6Factory,
-	messageService messenger.MessageService,
-	metadataService metadata.Service,
+	metadataIndexer MetadataIndexer,
 ) Zrc6Indexer {
-	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo,factory, messageService, metadataService}
+	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer}
 }
 
 func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -151,7 +138,7 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC6")
 
-		i.TriggerMetadataRefresh(nfts[idx])
+		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return nil
@@ -178,7 +165,7 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 			zap.String("owner", nfts[idx].Owner),
 		).Info("BatchMint ZRC6")
 
-		i.TriggerMetadataRefresh(nfts[idx])
+		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return nil
@@ -296,87 +283,6 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 func (i zrc6Indexer) batchBurn(tx entity.Transaction, c entity.Contract) error {
 	for range tx.GetTransition(entity.ZRC6BatchBurnCallback) {
 
-	}
-
-	return nil
-}
-
-func (i zrc6Indexer) TriggerMetadataRefresh(nft entity.Nft) {
-	if nft.Metadata == nil {
-		return
-	}
-
-	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
-	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
-		zap.L().Error("Failed to queue metadata refresh")
-	}
-	zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger MetaData Refresh")
-}
-
-func (i zrc6Indexer) TriggerAssetRefresh(nft entity.Nft) {
-	if nft.Metadata == nil {
-		return
-	}
-
-	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
-	if err := i.messageService.SendMessage(messenger.AssetRefresh, msgJson); err != nil {
-		zap.L().Error("Failed to queue asset refresh")
-	}
-	zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger Asset Refresh")
-}
-
-func (i zrc6Indexer) RefreshMetadata(contractAddr string, tokenId uint64) error {
-	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Info("ZRC6 Refresh Metadata")
-	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
-	if err != nil {
-		return err
-	}
-
-	data, err := i.metadataService.FetchZrc6Metadata(*nft)
-	if err != nil {
-		zap.L().With(
-			zap.Error(err),
-			zap.String("contractAddr", nft.Contract),
-			zap.Uint64("tokenId", nft.TokenId),
-			zap.String("baseUrl", nft.BaseUri),
-			zap.String("tokenUri", nft.TokenUri),
-		).Warn("Failed to get zrc6 metadata")
-		if nft.Metadata != nil {
-			nft.Metadata.Error = err.Error()
-			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Metadata)
-			i.elastic.BatchPersist()
-		}
-		return err
-	}
-
-	nft.Metadata.Data = data
-	nft.Metadata.Error = ""
-
-	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Metadata)
-	i.elastic.BatchPersist()
-
-	return nil
-}
-
-func (i zrc6Indexer) RefreshAsset(contractAddr string, tokenId uint64) error {
-	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
-	if err != nil {
-		return err
-	}
-	if nft.Zrc6 == true {
-		err := i.metadataService.FetchZrc6Image(*nft)
-		if err != nil {
-			if errors.Is(err, metadata.ErrorAssetAlreadyExists) {
-				//return nil
-			} else {
-				zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
-				return err
-			}
-		}
-
-		nft.MediaUri = fmt.Sprintf("%s/%d", contractAddr, tokenId)
-		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6Asset)
-		i.elastic.BatchPersist()
 	}
 
 	return nil

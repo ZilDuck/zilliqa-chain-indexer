@@ -20,7 +20,7 @@ type Nft struct {
 	Zrc1     bool   `json:"zrc1"`
 	Zrc6     bool   `json:"zrc6"`
 
-	Metadata *Metadata `json:"metadata"`
+	Metadata Metadata `json:"metadata"`
 
 	Validated bool `json:"validated"`
 }
