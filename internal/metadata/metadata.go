@@ -74,11 +74,12 @@ func (s service) FetchImage(nft entity.Nft) error {
 		zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Error(err.Error())
 	}
 
+	zap.S().Debugf("Create asset folder for contract %s (if not exists)", nft.Contract)
 	contractDir := fmt.Sprintf("%s/%s", s.assetPath, nft.Contract)
 	_ = os.MkdirAll(contractDir, os.ModePerm)
 
 	assetPath := fmt.Sprintf("%s/%d", contractDir, nft.TokenId)
-
+	zap.S().Debug("Using asset path: %s", assetPath)
 	if _, err := os.Stat(assetPath); err == nil {
 		return ErrorAssetAlreadyExists
 	}
@@ -100,8 +101,6 @@ func (s service) FetchImage(nft entity.Nft) error {
 			return respErr
 		}
 	}
-
-
 
 	defer resp.Body.Close()
 
