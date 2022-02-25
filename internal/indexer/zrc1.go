@@ -15,11 +15,12 @@ type Zrc1Indexer interface {
 }
 
 type zrc1Indexer struct {
-	elastic      elastic_search.Index
-	contractRepo repository.ContractRepository
-	nftRepo      repository.NftRepository
-	txRepo       repository.TransactionRepository
-	factory      factory.Zrc1Factory
+	elastic         elastic_search.Index
+	contractRepo    repository.ContractRepository
+	nftRepo         repository.NftRepository
+	txRepo          repository.TransactionRepository
+	factory         factory.Zrc1Factory
+	metadataIndexer MetadataIndexer
 }
 
 func NewZrc1Indexer(
@@ -28,8 +29,9 @@ func NewZrc1Indexer(
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc1Factory,
+	metadataIndexer MetadataIndexer,
 ) Zrc1Indexer {
-	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo, factory}
+	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer}
 }
 
 func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -128,6 +130,8 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 			zap.Uint64("tokenId", nfts[idx].TokenId),
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC1")
+
+		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return err

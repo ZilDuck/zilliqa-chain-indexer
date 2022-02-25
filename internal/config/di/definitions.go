@@ -130,8 +130,9 @@ var Definitions = []dingo.Def{
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc1Factory,
+			metadataIndexer indexer.MetadataIndexer,
 		) (indexer.Zrc1Indexer, error) {
-			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
+			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer), nil
 		},
 	},
 	{
