@@ -89,13 +89,19 @@ func (s service) FetchImage(nft entity.Nft) error {
 	if helper.IsIpfs(assetUri) {
 		ipfsUri := helper.GetIpfs(assetUri)
 		resp, respErr = s.fetchIpfs(*ipfsUri)
+		if respErr != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to fetch image from ipfs")
+			return respErr
+		}
 	} else {
 		resp, respErr = s.fetchHttp(assetUri)
+		if respErr != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to fetch image from http")
+			return respErr
+		}
 	}
 
-	if respErr != nil {
-		return respErr
-	}
+
 
 	defer resp.Body.Close()
 
