@@ -75,6 +75,8 @@ func (s service) FetchImage(nft entity.Nft) error {
 	}
 
 	contractDir := fmt.Sprintf("%s/%s", s.assetPath, nft.Contract)
+	_ = os.MkdirAll(contractDir, os.ModePerm)
+
 	assetPath := fmt.Sprintf("%s/%d", contractDir, nft.TokenId)
 
 	if _, err := os.Stat(assetPath); err == nil {
@@ -97,7 +99,6 @@ func (s service) FetchImage(nft entity.Nft) error {
 
 	defer resp.Body.Close()
 
-	_ = os.MkdirAll(contractDir, os.ModePerm)
 	out, err := os.Create(assetPath)
 	if err != nil {
 		return err
