@@ -29,6 +29,10 @@ func (m Metadata) GetAssetUri() (string, error) {
 		return image.(string), nil
 	}
 
+	if image := m.GetData("image"); image != nil {
+		return image.(string), nil
+	}
+
 	return "", errors.New("asset uri not found")
 }
 

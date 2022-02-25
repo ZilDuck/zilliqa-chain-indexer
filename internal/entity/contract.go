@@ -8,9 +8,10 @@ import (
 type Event string
 
 const (
-	ZRC1MintEvent     Event = "MintSuccess"
-	ZRC1TransferEvent Event = "TransferSuccess"
-	ZRC1BurnEvent     Event = "BurnSuccessEvent"
+	ZRC1MintEvent         Event = "MintSuccess"
+	ZRC1TransferEvent     Event = "TransferSuccess"
+	ZRC1TransferFromEvent Event = "TransferFromSuccess"
+	ZRC1BurnEvent         Event = "BurnSuccessEvent"
 
 	ZRC6MintEvent         Event = "Mint"
 	ZRC6BatchMintEvent    Event = "BatchMint"
@@ -43,7 +44,6 @@ type Contract struct {
 	//immutable
 	Name            string   `json:"name"`
 	Address         string   `json:"address"`
-	AddressBech32   string   `json:"addressBech32"`
 	BlockNum        uint64   `json:"blockNum"`
 	Code            string   `json:"code"`
 	Data            Data     `json:"data"`

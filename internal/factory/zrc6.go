@@ -140,7 +140,10 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 func GetTokenId(params entity.Params) (uint64, error) {
 	tokenId, err := params.GetParam("token_id")
 	if err != nil {
-		return 0, err
+		tokenId, err = params.GetParam("token")
+		if err != nil {
+			return 0, err
+		}
 	}
 	tokenIdInt, err := strconv.ParseUint(tokenId.Value.Primitive.(string), 0, 64)
 	if err != nil {

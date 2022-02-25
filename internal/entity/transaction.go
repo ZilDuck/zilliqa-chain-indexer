@@ -65,6 +65,7 @@ func (tx Transaction) GetZrc1EventLogs() []EventLog {
 	for _, event := range tx.Receipt.EventLogs {
 		if event.EventName == string(ZRC1MintEvent) ||
 			event.EventName == string(ZRC1TransferEvent) ||
+			event.EventName == string(ZRC1TransferFromEvent) ||
 			event.EventName == string(ZRC1BurnEvent) {
 			eventLogs = append(eventLogs, event)
 		}

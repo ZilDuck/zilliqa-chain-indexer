@@ -40,7 +40,6 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 
 	c := &entity.Contract{
 		Address:         tx.ContractAddress,
-		AddressBech32:   tx.ContractAddressBech32,
 		BlockNum:        tx.BlockNum,
 		Code:            tx.Code,
 		Data:            tx.Data,
@@ -104,15 +103,15 @@ func (f contractFactory) getTransitions(code string) (transitions []string) {
 }
 
 func IsZrc1(c entity.Contract) bool {
-	if c.AddressBech32 == "zil167flx79fykulp57ykmh9gnf3curcnyux6dcj5e" {
+	if c.Address == "0xd793f378a925b9f0d3c4b6ee544d31c707899386" {
 		// The Bear Market
 		return true
 	}
-	if c.AddressBech32 == "zil1qmmsv4w54fvpnec32cltywpk24zf7f8fftmfmp" {
+	if c.Address == "0x06f70655d4aa5819e711563eb2383655449f24e9" {
 		// NFD
 		return true
 	}
-	if c.AddressBech32 == "zil1afr40j968jqx8puvxhgtp6c9c77w3y4p49a0hw" {
+	if c.Address == "0xea4757c8ba3c8063878c35d0b0eb05c7bce892a1" {
 		// Unicutes
 		return true
 	}

@@ -103,8 +103,8 @@ func (i zrc1Indexer) IndexContract(c entity.Contract) error {
 
 		for _, tx := range txs {
 			if err := i.IndexTx(tx, c); err != nil {
-				return err
-			}
+					return err
+				}
 		}
 		i.elastic.BatchPersist()
 		page++
@@ -138,11 +138,16 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
-	if !tx.HasEventLog(entity.ZRC1TransferEvent) {
+	var eventName entity.Event
+	if tx.HasEventLog(entity.ZRC1TransferEvent) {
+		eventName = entity.ZRC1TransferEvent
+	} else if tx.HasEventLog(entity.ZRC1TransferFromEvent) {
+		eventName = entity.ZRC1TransferFromEvent
+	} else {
 		return nil
 	}
 
-	for _, event := range tx.GetEventLogs(entity.ZRC1TransferEvent) {
+	for _, event := range tx.GetEventLogs(eventName) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for zrc1:transfer")
@@ -183,7 +188,7 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 	for _, event := range tx.GetEventLogs(entity.ZRC1BurnEvent) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for zrc1:transfer")
+			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for zrc1:burn")
 			continue
 		}
 

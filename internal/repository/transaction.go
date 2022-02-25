@@ -21,6 +21,7 @@ type TransactionRepository interface {
 	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 
+	GetContractCreationForContract(contractAddr string) (*entity.Transaction, error)
 	GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionsByContractFrom(c entity.Contract, fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 }
@@ -126,6 +127,22 @@ func (r transactionRepository) GetContractExecutionTxs(fromBlockNum uint64, size
 	return r.findMany(result, err)
 }
 
+func (r transactionRepository) GetContractCreationForContract(contractAddr string) (*entity.Transaction, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("ContractCreation", true),
+		elastic.NewTermQuery("ContractAddress.keyword", contractAddr),
+	)
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.TransactionIndex.Get()).
+		Query(query).
+		Sort("BlockNum", true).
+		Size(1).
+		TrackTotalHits(true))
+
+	return r.findOne(result, err)
+}
+
 func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
@@ -139,8 +156,7 @@ func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract
 		Sort("BlockNum", true).
 		Size(size).
 		From(from).
-		TrackTotalHits(true).
-		Size(size))
+		TrackTotalHits(true))
 
 	return r.findMany(result, err)
 }
@@ -159,8 +175,7 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 		Sort("BlockNum", true).
 		Size(size).
 		From(from).
-		TrackTotalHits(true).
-		Size(size))
+		TrackTotalHits(true))
 
 	return r.findMany(result, err)
 }
