@@ -24,7 +24,7 @@ func main() {
 		}
 		importNftsForContract(*c)
 	} else {
-		//importAllNfts()
+		importAllNfts()
 	}
 
 	container.GetElastic().Persist()

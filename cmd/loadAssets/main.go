@@ -4,6 +4,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"go.uber.org/zap"
 	"os"
@@ -24,7 +25,14 @@ func main() {
 	page := 1
 
 	for {
-		nfts, _, err := nftRepo.GetNfts(contractAddr, size, page)
+		var nfts []entity.Nft
+		var err error
+		if contractAddr == "all" {
+			nfts, _, err = nftRepo.GetAllNfts(size, page)
+		} else {
+			nfts, _, err = nftRepo.GetNfts(contractAddr, size, page)
+		}
+
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contracts")
 			panic(err)

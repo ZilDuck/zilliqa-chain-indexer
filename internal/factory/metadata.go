@@ -10,13 +10,13 @@ import (
 func GetMetadata(nft entity.Nft) entity.Metadata {
 	uri := getMetadataUri(nft)
 
+	if ipfs := helper.GetIpfs(uri); ipfs != nil {
+		return entity.Metadata{Uri: *ipfs, Ipfs: true}
+	}
+
 	if !helper.IsUrl(uri) {
 		zap.L().With(zap.String("uri", uri), zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Warn("invalid metadata uri")
 		return entity.Metadata{Error: "invalid metadata uri"}
-	}
-
-	if ipfs := helper.GetIpfs(uri); ipfs != nil {
-		return entity.Metadata{Uri: *ipfs, Ipfs: true}
 	}
 
 	return entity.Metadata{Uri: uri, Ipfs: false}

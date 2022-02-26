@@ -23,6 +23,7 @@ type NftRepository interface {
 	GetNft(contract string, tokenId uint64) (*entity.Nft, error)
 	GetNfts(contract string, size, page int) ([]entity.Nft, int64, error)
 	GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error)
+	GetAllNfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc1Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
@@ -103,6 +104,19 @@ func (r nftRepository) GetIpfsMetadata(size, page int) ([]entity.Nft, int64, err
 	result, err := search(r.elastic.GetClient().
 		Search(elastic_search.NftIndex.Get()).
 		Query(query).
+		Size(size).
+		Sort("tokenId", true).
+		From(from).
+		TrackTotalHits(true))
+
+	return r.findMany(result, err)
+}
+
+func (r nftRepository) GetAllNfts(size, page int) ([]entity.Nft, int64, error) {
+	from := size*page - size
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.NftIndex.Get()).
 		Size(size).
 		Sort("tokenId", true).
 		From(from).
