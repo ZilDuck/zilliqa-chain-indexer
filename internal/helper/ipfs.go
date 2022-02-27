@@ -30,22 +30,16 @@ func IsIpfs(uri string) bool {
 }
 
 func GetIpfs(ipfsUri string) *string {
-	var uri *string
-	if !IsUrl(ipfsUri) {
-		// invalid uri
-		return nil
+	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
+	parts := re.FindStringSubmatch(ipfsUri)
+	if len(parts) == 2 {
+		ipfsUri = "ipfs://" + parts[1]
+		return &ipfsUri
 	}
 
 	if ipfsUri[:7] == "ipfs://" {
 		return &ipfsUri
 	}
 
-	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
-	parts := re.FindStringSubmatch(ipfsUri)
-	if len(parts) == 2 {
-		ipfsUri = "ipfs://" + parts[1]
-		uri = &ipfsUri
-	}
-
-	return uri
+	return nil
 }

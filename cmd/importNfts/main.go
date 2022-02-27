@@ -47,12 +47,7 @@ func importAllNfts() {
 			break
 		}
 		for _, c := range contracts {
-			if err := container.GetZrc1Indexer().IndexContract(c); err != nil {
-				zap.S().Errorf("Failed to index ZRC1 NFTs for contract %s", c.Address)
-			}
-			if err := container.GetZrc6Indexer().IndexContract(c); err != nil {
-				zap.S().Errorf("Failed to index ZRC6 NFTs for contract %s", c.Address)
-			}
+			importNftsForContract(c)
 		}
 		container.GetElastic().BatchPersist()
 		page++

@@ -121,8 +121,6 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
-
 		zap.L().With(
 			zap.String("contractAddr", c.Address),
 			zap.Uint64("blockNum", tx.BlockNum),
@@ -130,6 +128,9 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 			zap.Uint64("tokenId", nfts[idx].TokenId),
 			zap.String("owner", nfts[idx].Owner),
 		).Info("Mint ZRC1")
+
+		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc1Mint)
 
 		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}
@@ -159,6 +160,8 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			zap.L().With(zap.Error(err), zap.String("contract", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
 		}
 
+		prevOwner := nft.Owner
+
 		newOwner, err := event.Params.GetParam("recipient")
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get zrc1:recipient for transfer")
@@ -175,6 +178,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 		).Info("Transfer ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner), elastic_search.Zrc1Transfer)
 	}
 
 	return nil
@@ -205,6 +209,7 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 		).Info("Burn ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Burn)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft), elastic_search.Zrc1Burn)
 	}
 
 	return nil
