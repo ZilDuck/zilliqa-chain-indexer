@@ -45,6 +45,19 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 			result.BurnedAt = e.(entity.Nft).BurnedAt
 		}
 
+		if action == NftMetadata {
+			result.Metadata.Attempted = e.(entity.Nft).Metadata.Attempted
+			result.Metadata.Error = e.(entity.Nft).Metadata.Error
+			result.Metadata.Data = e.(entity.Nft).Metadata.Data
+		}
+
+
+		if action == NftAsset {
+			result.Metadata.AssetAttempted = e.(entity.Nft).Metadata.AssetAttempted
+			result.Metadata.AssetError = e.(entity.Nft).Metadata.AssetError
+			result.MediaUri = e.(entity.Nft).MediaUri
+		}
+
 		return result
 	}
 
