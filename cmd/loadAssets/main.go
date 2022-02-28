@@ -53,7 +53,9 @@ func main() {
 				}
 				continue
 			}
-			metadataIndexer.TriggerMetadataRefresh(nft)
+			if err = metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId); err == nil {
+				_ = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId)
+			}
 		}
 
 		page++
