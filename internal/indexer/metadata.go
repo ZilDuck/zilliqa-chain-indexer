@@ -107,7 +107,7 @@ func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64) error
 
 	err = i.metadataService.FetchImage(*nft)
 	if err != nil {
-		if !errors.Is(err, metadata.ErrorAssetAlreadyExists) {
+		if errors.Is(err, metadata.ErrorAssetAlreadyExists) {
 			zap.L().Warn("Asset already exists")
 		} else {
 			zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
