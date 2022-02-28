@@ -81,7 +81,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) er
 
 		nft.Metadata.Error = err.Error()
 		nft.Metadata.Attempted++
-		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftMetadata)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
 		i.elastic.BatchPersist()
 
 		return err
@@ -90,7 +90,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) er
 	nft.Metadata.Data = data
 	nft.Metadata.Error = ""
 
-	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftMetadata)
+	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
 	i.elastic.BatchPersist()
 
 	return nil
@@ -110,7 +110,7 @@ func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64) error
 
 		nft.Metadata.AssetError = err.Error()
 		nft.Metadata.AssetAttempted++
-		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftAsset)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftAsset)
 		i.elastic.BatchPersist()
 
 		return err
@@ -119,7 +119,7 @@ func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64) error
 	nft.MediaUri = fmt.Sprintf("%s/%d", contractAddr, tokenId)
 	nft.Metadata.AssetError = ""
 
-	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftAsset)
+	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftAsset)
 	i.elastic.BatchPersist()
 
 	return nil
