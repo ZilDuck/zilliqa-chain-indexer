@@ -101,19 +101,24 @@ func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64) error
 
 	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
 	if err != nil {
+		zap.L().Error("Failed to find NFT for asset refresh")
 		return err
 	}
 
 	err = i.metadataService.FetchImage(*nft)
-	if err != nil && !errors.Is(err, metadata.ErrorAssetAlreadyExists) {
-		zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
+	if err != nil {
+		if !errors.Is(err, metadata.ErrorAssetAlreadyExists) {
+			zap.L().Warn("Asset already exists")
+		} else {
+			zap.L().With(zap.Error(err)).Error("Failed to fetch zrc6 asset")
 
-		nft.Metadata.AssetError = err.Error()
-		nft.Metadata.AssetAttempted++
-		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftAsset)
-		i.elastic.BatchPersist()
+			nft.Metadata.AssetError = err.Error()
+			nft.Metadata.AssetAttempted++
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftAsset)
+			i.elastic.BatchPersist()
 
-		return err
+			return err
+		}
 	}
 
 	nft.MediaUri = fmt.Sprintf("%s/%d", contractAddr, tokenId)
