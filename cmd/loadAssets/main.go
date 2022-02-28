@@ -61,6 +61,7 @@ func main() {
 				zap.L().With(zap.Error(err)).Error("Failed to refresh asset")
 				continue
 			}
+			elastic.Persist()
 		}
 
 		page++
