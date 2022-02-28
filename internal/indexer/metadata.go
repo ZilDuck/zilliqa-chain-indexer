@@ -77,7 +77,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) er
 			zap.Uint64("tokenId", nft.TokenId),
 			zap.String("baseUrl", nft.BaseUri),
 			zap.String("tokenUri", nft.TokenUri),
-		).Warn("Failed to get zrc6 metadata")
+		).Warn("Failed to get NFT metadata")
 
 		nft.Metadata.Error = err.Error()
 		nft.Metadata.Attempted++

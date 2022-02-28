@@ -54,10 +54,10 @@ func GetAsset(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	media, contentType, err := container.GetMetadataService().GetZrc6Media(*nft)
+	media, contentType, err := container.GetMetadataService().GetNftMedia(*nft)
 	if err != nil {
-		zap.L().With(zap.Error(err)).Warn("Failed to get zrc6 media")
-		http.Error(w, "Failed to get zrc6 media", http.StatusNotFound)
+		zap.L().With(zap.Error(err)).Warn("Failed to get NFT media")
+		http.Error(w, "Failed to get NFT media", http.StatusNotFound)
 		return
 	}
 

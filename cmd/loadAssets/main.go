@@ -22,7 +22,7 @@ func main() {
 	onlyMissing := len(os.Args) >= 3 && os.Args[2] == "true"
 	force := len(os.Args) >= 4 && os.Args[3] == "true"
 
-	size := 1000
+	size := 100
 	page := 1
 
 	for {

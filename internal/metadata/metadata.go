@@ -21,7 +21,7 @@ type Service interface {
 	FetchMetadata(nft entity.Nft) (map[string]interface{}, error)
 	FetchImage(nft entity.Nft, force bool) error
 
-	GetZrc6Media(nft entity.Nft) ([]byte, string, error)
+	GetNftMedia(nft entity.Nft) ([]byte, string, error)
 }
 
 type service struct {
@@ -198,7 +198,7 @@ func (s service) hydrateMetadata(resp *http.Response) (Metadata, error) {
 	return md, nil
 }
 
-func (s service) GetZrc6Media(nft entity.Nft) ([]byte, string, error) {
+func (s service) GetNftMedia(nft entity.Nft) ([]byte, string, error) {
 	if s.assetPath == "" || nft.MediaUri == "" {
 		return nil, "", errors.New("media not found")
 	}

@@ -11,18 +11,18 @@ func IsUrl(uri string) bool {
 }
 
 func IsIpfs(uri string) bool {
+	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
+	parts := re.FindStringSubmatch(uri)
+	if len(parts) == 2 {
+		return true
+	}
+
 	if !IsUrl(uri) {
 		return false
 	}
 
 	u, _ := url.Parse(uri)
 	if u.Scheme == "ipfs" {
-		return true
-	}
-
-	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
-	parts := re.FindStringSubmatch(u.Path)
-	if len(parts) == 2 {
 		return true
 	}
 
