@@ -18,7 +18,7 @@ type MetadataIndexer interface {
 	TriggerAssetRefresh(nft entity.Nft)
 
 	RefreshMetadata(contractAddr string, tokenId uint64) error
-	RefreshAsset(contractAddr string, tokenId uint64) error
+	RefreshAsset(contractAddr string, tokenId uint64, force bool) error
 }
 
 type metadataIndexer struct {
@@ -96,7 +96,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) er
 	return nil
 }
 
-func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64) error {
+func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64, force bool) error {
 	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Info("NFT Refresh Asset")
 
 	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
@@ -105,7 +105,7 @@ func (i metadataIndexer) RefreshAsset(contractAddr string, tokenId uint64) error
 		return err
 	}
 
-	err = i.metadataService.FetchImage(*nft)
+	err = i.metadataService.FetchImage(*nft, force)
 	if err != nil {
 		if errors.Is(err, metadata.ErrorAssetAlreadyExists) {
 			zap.L().Warn("Asset already exists")

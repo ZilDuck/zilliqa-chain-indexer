@@ -19,7 +19,7 @@ import (
 
 type Service interface {
 	FetchMetadata(nft entity.Nft) (map[string]interface{}, error)
-	FetchImage(nft entity.Nft) error
+	FetchImage(nft entity.Nft, force bool) error
 
 	GetZrc6Media(nft entity.Nft) ([]byte, string, error)
 }
@@ -64,7 +64,7 @@ func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
 	return s.hydrateMetadata(resp)
 }
 
-func (s service) FetchImage(nft entity.Nft) error {
+func (s service) FetchImage(nft entity.Nft, force bool) error {
 	if nft.Metadata.UriEmpty() {
 		return errors.New("metadata uri not valid")
 	}
@@ -82,7 +82,7 @@ func (s service) FetchImage(nft entity.Nft) error {
 
 	assetPath := fmt.Sprintf("%s/%d", contractDir, nft.TokenId)
 	zap.S().Debugf("Using asset path: %s", assetPath)
-	if _, err := os.Stat(assetPath); err == nil {
+	if _, err := os.Stat(assetPath); err == nil && !force {
 		return ErrorAssetAlreadyExists
 	}
 
