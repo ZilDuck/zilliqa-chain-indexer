@@ -53,8 +53,13 @@ func main() {
 				}
 				continue
 			}
-			if err = metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId); err == nil {
-				_ = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId)
+			if err = metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId); err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to refresh metadata")
+				continue
+			}
+			if err = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId); err != nil {
+				zap.L().With(zap.Error(err)).Error("Failed to refresh asset")
+				continue
 			}
 		}
 
