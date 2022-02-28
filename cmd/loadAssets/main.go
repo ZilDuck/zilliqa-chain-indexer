@@ -19,7 +19,8 @@ func main() {
 	elastic := container.GetElastic()
 
 	contractAddr := os.Args[1]
-	onlyMissing := len(os.Args) == 3 && os.Args[2] == "true"
+	onlyMissing := len(os.Args) >= 3 && os.Args[2] == "true"
+	force := len(os.Args) >= 4 && os.Args[3] == "true"
 
 	size := 1000
 	page := 1
@@ -57,7 +58,7 @@ func main() {
 				zap.L().With(zap.Error(err)).Error("Failed to refresh metadata")
 				continue
 			}
-			if err = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId); err != nil {
+			if err = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId, force); err != nil {
 				zap.L().With(zap.Error(err)).Error("Failed to refresh asset")
 				continue
 			}

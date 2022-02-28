@@ -84,7 +84,7 @@ func pollAssetRefresh() {
 		}
 		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Asset refresh")
 
-		if err := metadataIndexer.RefreshAsset(data.Contract, data.TokenId); err != nil {
+		if err := metadataIndexer.RefreshAsset(data.Contract, data.TokenId, true); err != nil {
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Asset refresh failed")
 		} else {
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Info("Asset refresh success")
