@@ -113,8 +113,8 @@ func (s service) FetchImage(nft entity.Nft) error {
 	defer out.Close()
 
 	if _, err := io.Copy(out, resp.Body); err != nil {
-			return err
-		}
+		return err
+	}
 
 	return nil
 }

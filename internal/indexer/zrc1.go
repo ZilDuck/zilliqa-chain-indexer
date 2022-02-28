@@ -121,13 +121,11 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		zap.L().With(
-			zap.String("contractAddr", c.Address),
-			zap.Uint64("blockNum", tx.BlockNum),
-			zap.String("txId", tx.ID),
-			zap.Uint64("tokenId", nfts[idx].TokenId),
-			zap.String("owner", nfts[idx].Owner),
-		).Info("Mint ZRC1")
+		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); exists {
+			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Warn("NFT already exists")
+			continue
+		}
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
 
 		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc1Mint)
@@ -170,12 +168,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 
 		nft.Owner = newOwner.Value.Primitive.(string)
 
-		zap.L().With(
-			zap.Uint64("blockNum", tx.BlockNum),
-			zap.String("symbol", nft.Symbol),
-			zap.Uint64("tokenId", nft.TokenId),
-			zap.String("to", nft.Owner),
-		).Info("Transfer ZRC1")
+		zap.L().With(zap.String("contractAddr", nft.Symbol), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner), elastic_search.Zrc1Transfer)
@@ -202,11 +195,7 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 		}
 		nft.BurnedAt = tx.BlockNum
 
-		zap.L().With(
-			zap.String("contractAddr", c.Address),
-			zap.Uint64("blockNum", tx.BlockNum),
-			zap.Uint64("tokenId", nft.TokenId),
-		).Info("Burn ZRC1")
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Burn ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Burn)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft), elastic_search.Zrc1Burn)
