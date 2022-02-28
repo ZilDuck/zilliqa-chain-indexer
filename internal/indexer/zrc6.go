@@ -129,13 +129,10 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Warn("NFT already exists")
-			continue
+		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
+			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
+			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
-
-		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc6Mint)
 
 		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
@@ -156,13 +153,10 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Warn("NFT already exists")
-			continue
+		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
+			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
+			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
-
-		i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc6Mint)
 
 		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
