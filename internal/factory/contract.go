@@ -6,7 +6,6 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"go.uber.org/zap"
 	"regexp"
-	"strings"
 )
 
 type ContractFactory interface {
@@ -30,12 +29,10 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 	}
 
 	contractValues := make([]zilliqa.ContractValue, 0)
-	if contractName != "Resolver" {
-		var err error
-		if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
-			zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", tx.ContractAddress)).Warn("GetSmartContractInit")
-			return nil, err
-		}
+	var err error
+	if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
+		zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", tx.ContractAddress)).Warn("GetSmartContractInit")
+		return nil, err
 	}
 
 	c := &entity.Contract{
@@ -94,11 +91,27 @@ func (f contractFactory) getMutableParams(code string) (params entity.Params) {
 	return
 }
 
-func (f contractFactory) getTransitions(code string) (transitions []string) {
-	r := regexp.MustCompile("(?m)^transition ([a-zA-Z]*\\([a-zA-Z0-9_:, ]*\\))")
-	for _, transition := range r.FindAllStringSubmatch(code, -1) {
-		transitions = append(transitions, strings.ReplaceAll(transition[1], " ", ""))
+func (f contractFactory) getTransitions(code string) (transitions []entity.ContractTransition) {
+	tRegex := regexp.MustCompile("(?m)transition ([a-zA-Z]*)( \\(|\\()([a-zA-Z0-9_:, ]*)\\)")
+	for idx, transition := range tRegex.FindAllStringSubmatch(code, -1) {
+		if transition[3] == "" {
+			continue
+		}
+
+		cTransition := entity.ContractTransition{
+			Index:     idx,
+			Name:      transition[1],
+			Arguments: map[string]string{},
+		}
+
+		aRegex := regexp.MustCompile("([a-zA-Z]{1,})[ ]*:[ ]*([a-zA-Z0-9]*)")
+		for _, argMatch := range aRegex.FindAllStringSubmatch(transition[3], -1) {
+			cTransition.Arguments[argMatch[1]] = argMatch[2]
+		}
+
+		transitions = append(transitions, cTransition)
 	}
+
 	return
 }
 
@@ -115,7 +128,10 @@ func IsZrc1(c entity.Contract) bool {
 		// Unicutes
 		return true
 	}
+	return hasZrc1Immutables(c) && hasZrc1Mutables(c) && hasZrc1Transitions(c)
+}
 
+func IsZrc2(c entity.Contract) bool {
 	return hasZrc1Immutables(c) && hasZrc1Mutables(c) && hasZrc1Transitions(c)
 }
 
@@ -141,16 +157,27 @@ func hasZrc1Mutables(c entity.Contract) bool {
 }
 
 func hasZrc1Transitions(c entity.Contract) bool {
-	return hasTransition(c, "Mint(to:ByStr20,token_uri:String)") &&
-		hasTransition(c, "Transfer(to:ByStr20,token_id:Uint256)") &&
-		hasTransition(c, "Burn(token_id:Uint256)") &&
-		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)")
+	return hasTransition(c, CreateContractTransition("Mint", "to:ByStr20", "token_uri:String")) &&
+		hasTransition(c, CreateContractTransition("Transfer", "to:ByStr20", "token_id:Uint256")) &&
+		hasTransition(c, CreateContractTransition("Burn", "token_id:Uint256")) &&
+		hasTransition(c, CreateContractTransition("TransferFrom", "to:ByStr20", "token_id:Uint256"))
 }
 
-func hasTransition(c entity.Contract, t string) bool {
-	for _, transition := range c.Transitions {
-		if transition == t {
-			return true
+func hasTransition(c entity.Contract, transition entity.ContractTransition) bool {
+	for _, t := range c.Transitions {
+		if t.Name != transition.Name {
+			continue
+		}
+
+		if len(t.Arguments) != len(transition.Arguments) {
+			return false
+		}
+		for key := range t.Arguments {
+			if _, ok := transition.Arguments[key]; ok {
+				if t.Arguments[key] == transition.Arguments[key] {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -177,12 +204,12 @@ func hasZrc6Mutables(c entity.Contract) bool {
 }
 
 func hasZrc6Transitions(c entity.Contract) bool {
-	return hasTransition(c, "Pause()") &&
-		hasTransition(c, "Mint(to:ByStr20,token_uri:String)") &&
-		hasTransition(c, "AddMinter(minter:ByStr20)") &&
-		hasTransition(c, "RemoveMinter(minter:ByStr20)") &&
-		hasTransition(c, "SetSpender(spender:ByStr20,token_id:Uint256)") &&
-		hasTransition(c, "AddOperator(operator:ByStr20)") &&
-		hasTransition(c, "RemoveOperator(operator:ByStr20)") &&
-		hasTransition(c, "TransferFrom(to:ByStr20,token_id:Uint256)")
+	return hasTransition(c, CreateContractTransition("Pause")) &&
+		hasTransition(c, CreateContractTransition("Mint", "to:ByStr20", "token_uri:String")) &&
+		hasTransition(c, CreateContractTransition("AddMinter", "minter:ByStr20")) &&
+		hasTransition(c, CreateContractTransition("RemoveMinter", "minter:ByStr20")) &&
+		hasTransition(c, CreateContractTransition("SetSpender", "spender:ByStr20", "token_id:Uint256")) &&
+		hasTransition(c, CreateContractTransition("AddOperator", "operator:ByStr20")) &&
+		hasTransition(c, CreateContractTransition("RemoveOperator", "operator:ByStr20")) &&
+		hasTransition(c, CreateContractTransition("TransferFrom", "to:ByStr20", "token_id:Uint256"))
 }

@@ -101,18 +101,18 @@ func (tx Transaction) HasEventLog(eventName Event) bool {
 	return false
 }
 
-func (tx Transaction) GetTransition(transition TRANSITION) (transitions []Transition) {
+func (tx Transaction) GetTransition(transition string) (transitions []Transition) {
 	for _, t := range tx.Receipt.Transitions {
-		if t.Msg.Tag == string(transition) {
+		if t.Msg.Tag == transition {
 			transitions = append(transitions, t)
 		}
 	}
 	return transitions
 }
 
-func (tx Transaction) HasTransition(transition TRANSITION) bool {
+func (tx Transaction) HasTransition(transition string) bool {
 	for _, t := range tx.Receipt.Transitions {
-		if t.Msg.Tag == string(transition) {
+		if t.Msg.Tag == transition {
 			return true
 		}
 	}
@@ -122,8 +122,8 @@ func (tx Transaction) HasTransition(transition TRANSITION) bool {
 func (tx Transaction) GetZrc1Transitions() []Transition {
 	var transitions []Transition
 	for _, t := range tx.Receipt.Transitions {
-		for _, zrc1Transition := range Zrc1Transitions {
-			if t.Msg.Tag == string(zrc1Transition) {
+		for _, zrc1Callback := range Zrc1Callbacks {
+			if t.Msg.Tag == string(zrc1Callback) {
 				transitions = append(transitions, t)
 			}
 		}
@@ -135,8 +135,8 @@ func (tx Transaction) GetZrc1Transitions() []Transition {
 func (tx Transaction) GetZrc6Transitions() []Transition {
 	var transitions []Transition
 	for _, t := range tx.Receipt.Transitions {
-		for _, zrc6Transition := range Zrc6Transitions {
-			if t.Msg.Tag == string(zrc6Transition) {
+		for _, zrc6Callback := range Zrc6Callbacks {
+			if t.Msg.Tag == string(zrc6Callback) {
 				transitions = append(transitions, t)
 			}
 		}
