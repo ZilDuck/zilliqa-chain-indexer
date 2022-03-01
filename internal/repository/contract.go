@@ -14,6 +14,7 @@ var (
 )
 
 type ContractRepository interface {
+	GetAllContracts(size, page int) ([]entity.Contract, int64, error)
 	GetAllNftContracts(size, page int) ([]entity.Contract, int64, error)
 	GetContractByAddress(contractAddr string) (*entity.Contract, error)
 }
@@ -24,6 +25,24 @@ type contractRepository struct {
 
 func NewContractRepository(elastic elastic_search.Index) ContractRepository {
 	return contractRepository{elastic}
+}
+
+func (r contractRepository) GetAllContracts(size, page int) ([]entity.Contract, int64, error) {
+	from := size*page - size
+
+	zap.L().With(
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetAllContracts")
+
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_search.ContractIndex.Get()).
+		Sort("blockNum", false).
+		Size(size).
+		From(from))
+
+	return r.findMany(results, err)
 }
 
 func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contract, int64, error) {
