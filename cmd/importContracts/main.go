@@ -14,6 +14,8 @@ func main() {
 	config.Init()
 	container, _ = dic.NewContainer()
 
+	container.GetElastic().InstallMappings()
+
 	if len(os.Args) == 2 {
 		contractAddr := os.Args[1]
 		_, err := container.GetContractRepo().GetContractByAddress(contractAddr)
@@ -33,7 +35,7 @@ func main() {
 		return
 	}
 
-	if err := container.GetContractIndexer().BulkIndex(config.Get().FirstBlockNum); err != nil {
+	if err := container.GetContractIndexer().BulkIndex(2555894); err != nil {
 		zap.L().Fatal("Failed to bulk index contracts")
 	}
 }

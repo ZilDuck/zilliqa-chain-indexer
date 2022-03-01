@@ -271,9 +271,5 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc6Indexer) batchBurn(tx entity.Transaction, c entity.Contract) error {
-	for range tx.GetTransition(entity.ZRC6BatchBurnCallback) {
-
-	}
-
 	return nil
 }

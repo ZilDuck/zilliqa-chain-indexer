@@ -58,7 +58,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 
 func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	zap.L().With(zap.Uint64("from", fromBlockNum)).Info("Bulk index contracts")
-	size := 100
+	size := 50
 	page := 1
 
 	for {
@@ -88,7 +88,7 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 		}
 
-		i.elastic.BatchPersist()
+		i.elastic.Persist()
 
 		page++
 	}
