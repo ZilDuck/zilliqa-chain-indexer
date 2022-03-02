@@ -37,7 +37,7 @@ func GetIpfs(ipfsUri string) *string {
 		return &ipfsUri
 	}
 
-	if ipfsUri[:7] == "ipfs://" {
+	if len(ipfsUri) >=7 && ipfsUri[:7] == "ipfs://" {
 		return &ipfsUri
 	}
 
