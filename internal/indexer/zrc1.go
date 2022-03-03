@@ -50,7 +50,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		if !c.ZRC1 {
+		if !c.MatchesStandard(entity.ZRC1) {
 			continue
 		}
 
@@ -65,7 +65,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 }
 
 func (i zrc1Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
-	if !c.ZRC1 {
+	if !c.MatchesStandard(entity.ZRC1) {
 		return nil
 	}
 
@@ -83,7 +83,7 @@ func (i zrc1Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc1Indexer) IndexContract(c entity.Contract) error {
-	if !c.ZRC1 {
+	if !c.MatchesStandard(entity.ZRC1) {
 		return nil
 	}
 

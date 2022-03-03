@@ -35,6 +35,17 @@ const (
 	ZRC6BatchBurnCallback           Callback = "ZRC6_BatchBurnCallback"
 )
 
+
+type ZrcStandard string
+
+const (
+	ZRC1 ZrcStandard = "ZRC1"
+	ZRC2 ZrcStandard = "ZRC2"
+	ZRC3 ZrcStandard = "ZRC3"
+	ZRC4 ZrcStandard = "ZRC4"
+	ZRC6 ZrcStandard = "ZRC6"
+)
+
 var (
 	Zrc1Callbacks = []Callback{ZRC1MintCallBack, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
 	Zrc6Callbacks = []Callback{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
@@ -50,9 +61,7 @@ type Contract struct {
 	MutableParams   Params               `json:"mutableParams"`
 	ImmutableParams Params               `json:"immutableParams"`
 	Transitions     []ContractTransition `json:"transitions"`
-	ZRC1            bool                 `json:"zrc1"`
-	ZRC2            bool                 `json:"zrc2"`
-	ZRC6            bool                 `json:"zrc6"`
+	Standards       map[ZrcStandard]bool `json:"standards"`
 
 	//mutable
 	BaseUri string `json:"baseuri"`
@@ -64,6 +73,13 @@ func (c Contract) Slug() string {
 
 func CreateContractSlug(contract string) string {
 	return slug.Make(fmt.Sprintf("contract-%s", contract))
+}
+
+func (c Contract) MatchesStandard(standard ZrcStandard) bool {
+	if _, ok := c.Standards[standard]; ok {
+		return true
+	}
+	return false
 }
 
 type ContractTransition struct {

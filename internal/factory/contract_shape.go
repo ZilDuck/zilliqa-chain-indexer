@@ -59,6 +59,83 @@ func IsZrc1(c entity.Contract) bool {
 	return true
 }
 
+func IsZrc2(c entity.Contract) bool {
+	if !c.ImmutableParams.HasParam("contract_owner", "ByStr20") ||
+		!c.ImmutableParams.HasParam("name", "String") ||
+		!c.ImmutableParams.HasParam("symbol", "String") ||
+		!c.ImmutableParams.HasParam("decimals", "Uint32") ||
+		!c.ImmutableParams.HasParam("init_supply", "Uint128") {
+		return false
+	}
+
+	if !c.MutableParams.HasParam("total_supply", "Uint128") ||
+		!c.MutableParams.HasParam("balances", "Map ByStr20 Uint128") ||
+		!c.MutableParams.HasParam("allowances", "Map ByStr20 (Map ByStr20 Uint128)") {
+		return false
+	}
+
+	if !hasTransition(c, CreateContractTransition("IncreaseAllowance", "spender:ByStr20", "amount:Uint128")) ||
+	    !hasTransition(c, CreateContractTransition("DecreaseAllowance", "spender:ByStr20", "amount:Uint128")) ||
+		!hasTransition(c, CreateContractTransition("Transfer", "to:ByStr20", "amount:Uint128")) ||
+		!hasTransition(c, CreateContractTransition("TransferFrom", "from:ByStr20", "to:ByStr20", "amount:Uint128")) {
+		return false
+	}
+
+	return true
+}
+
+func IsZrc3(c entity.Contract) bool {
+	if !c.ImmutableParams.HasParam("contract_owner", "ByStr20") ||
+		!c.ImmutableParams.HasParam("name", "String") ||
+		!c.ImmutableParams.HasParam("symbol", "String") ||
+		!c.ImmutableParams.HasParam("decimals", "Uint32") ||
+		!c.ImmutableParams.HasParam("init_supply", "Uint128") {
+		return false
+	}
+
+	if !c.MutableParams.HasParam("total_supply", "Uint128") ||
+		!c.MutableParams.HasParam("balances", "Map ByStr20 Uint128") ||
+		!c.MutableParams.HasParam("allowances", "Map ByStr20 (Map ByStr20 Uint128)") ||
+		!c.MutableParams.HasParam("void_cheques", "Map ByStr ByStr20") {
+		return false
+	}
+
+	if !hasTransition(c, CreateContractTransition("IncreaseAllowance", "spender:ByStr20", "amount:Uint128")) ||
+	    !hasTransition(c, CreateContractTransition("DecreaseAllowance", "spender:ByStr20", "amount:Uint128")) ||
+		!hasTransition(c, CreateContractTransition("Transfer", "to:ByStr20", "amount:Uint128")) ||
+		!hasTransition(c, CreateContractTransition("TransferFrom", "from:ByStr20", "to:ByStr20", "amount:Uint128")) ||
+		!hasTransition(c, CreateContractTransition("ChequeSend", "pubkey:ByStr20", "to:ByStr20", "amount:Uint128", "fee:Uint128", "nonce:Uint218", "signature:ByStr64")) {
+		return false
+	}
+
+	return true
+}
+
+func IsZrc4(c entity.Contract) bool {
+	if !c.ImmutableParams.HasParam("owners_list", "List ByStr20") ||
+		!c.ImmutableParams.HasParam("required_signatures", "Uint32") {
+		return false
+	}
+
+	if !c.MutableParams.HasParam("owners", "Map ByStr20 Bool") ||
+		!c.MutableParams.HasParam("transactionCount", "Uint32") ||
+		!c.MutableParams.HasParam("signatures", "Map Uint32 (Map ByStr20 Bool)") ||
+		!c.MutableParams.HasParam("signature_counts", "Map Uint32 Uint32") ||
+		!c.MutableParams.HasParam("transactions", "Map Uint32 Transaction") {
+		return false
+	}
+
+	if !hasTransition(c, CreateContractTransition("SubmitTransaction", "recipient:ByStr20", "amount:Uint128", "tag:String)")) ||
+	    !hasTransition(c, CreateContractTransition("SignTransaction", "transactionId:Uint32")) ||
+		!hasTransition(c, CreateContractTransition("ExecuteTransaction", "transactionId:Uint32")) ||
+		!hasTransition(c, CreateContractTransition("RevokeSignature", "transactionId:Uint32")) ||
+		!hasTransition(c, CreateContractTransition("AddFunds")) {
+		return false
+	}
+
+	return true
+}
+
 func IsZrc6(c entity.Contract) bool {
 	if c.Address == "0xd2b54e791930dd7d06ea51f3c2a6cf2c00f165ea" {
 		// beanterra

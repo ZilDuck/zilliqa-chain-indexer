@@ -1,29 +1,5 @@
 {
   "mappings": {
-    "properties": {
-      "data": {
-        "type": "nested",
-        "properties": {
-          "params": {
-            "type": "nested",
-            "properties": {
-              "value": {
-                "type": "nested"
-              }
-            }
-          }
-        }
-      },
-      "mutableParams": {
-        "type": "nested"
-      },
-      "immutableParams": {
-        "type": "nested"
-      },
-      "transitions": {
-        "type": "nested"
-      }
-    }
   },
   "settings":{
     "index":{

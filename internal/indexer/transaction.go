@@ -37,6 +37,10 @@ func (i transactionIndexer) Index(height, size uint64) ([]entity.Transaction, er
 		return nil, err
 	}
 
+	for _, tx := range txs {
+		i.elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), tx, elastic_search.TransactionCreate)
+	}
+
 	return txs, nil
 }
 
@@ -79,7 +83,6 @@ func (i transactionIndexer) CreateTransactions(height uint64, size uint64) ([]en
 				txs[idx].ContractAddress = fmt.Sprintf("0x%s", contractAddr)
 			}
 		}
-		i.elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), txs[idx], elastic_search.TransactionCreate)
 	}
 
 	zap.L().With(zap.Int("count", len(txs)), zap.Uint64("height", height)).Info("Index txs")

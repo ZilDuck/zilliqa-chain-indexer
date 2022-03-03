@@ -44,8 +44,6 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 					zap.Uint64("blockNum", c.BlockNum),
 					zap.String("name", c.Name),
 					zap.String("address", c.Address),
-					zap.Bool("zrc1", c.ZRC1),
-					zap.Bool("zrc6", c.ZRC6),
 				).Info("Index contract")
 
 				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
@@ -81,8 +79,6 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 				zap.Uint64("blockNum", c.BlockNum),
 				zap.String("name", c.Name),
 				zap.String("address", c.Address),
-				zap.Bool("zrc1", c.ZRC1),
-				zap.Bool("zrc6", c.ZRC6),
 			).Info("Index contract")
 
 			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
