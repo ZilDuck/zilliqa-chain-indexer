@@ -62,7 +62,7 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 
 func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 	zap.S().With(zap.String("contractAddr", c.Address)).Infof("Index ZRC6 From TX %s", tx.ID)
-	if !c.ZRC6 {
+	if !c.MatchesStandard(entity.ZRC6) {
 		return nil
 	}
 
@@ -89,7 +89,7 @@ func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc6Indexer) IndexContract(c entity.Contract) error {
-	if !c.ZRC6 {
+	if !c.MatchesStandard(entity.ZRC6) {
 		return nil
 	}
 

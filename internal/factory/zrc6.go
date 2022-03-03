@@ -74,7 +74,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error) {
 	nfts := make([]entity.Nft, 0)
 
-	if !c.ZRC6 {
+	if !c.MatchesStandard(entity.ZRC6) {
 		return nfts, nil
 	}
 

@@ -35,6 +35,9 @@ jobs:
       - name: Build Indexerd
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/indexerd ./cmd/indexerd/main.go
 
+      - name: Build Block Importer
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/blockImporter ./cmd/importBlock/main.go
+
       - name: Build Contract Importer
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/contractImporter ./cmd/importContracts/main.go
 
@@ -49,6 +52,9 @@ jobs:
 
       - name: Serve NFT Assets
         run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/serveAsset ./cmd/serveAsset/main.go
+
+      - name: Missing TXs
+        run: GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o ./build/missingTxs ./cmd/missingTxs/main.go
 
       - name: Deploy to Hetzner
         uses: easingthemes/ssh-deploy@v2.1.5

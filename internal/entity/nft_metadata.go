@@ -21,6 +21,15 @@ func (m Metadata) UriEmpty() bool {
 }
 
 func (m Metadata) GetAssetUri() (string, error) {
+	if resources := m.GetData("resources"); resources != nil {
+		resourcesSlice := resources.([]map[string]interface{})
+		if len(resourcesSlice) >= 1 {
+			if uri, ok := resourcesSlice[0]["uri"]; ok {
+				return uri.(string), nil
+			}
+		}
+	}
+
 	if resource := m.GetData("resource"); resource != nil {
 		return resource.(string), nil
 	}

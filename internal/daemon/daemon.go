@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer/IndexOption"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -170,12 +171,12 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 				}
 
 				for _, tx := range txs {
-					if c.ZRC1 {
+					if !c.MatchesStandard(entity.ZRC1) {
 						if err := d.zrc1Indexer.IndexTx(tx, c); err != nil {
 							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc1")
 						}
 					}
-					if c.ZRC6 {
+					if !c.MatchesStandard(entity.ZRC6) {
 						if err := d.zrc6Indexer.IndexTx(tx, c); err != nil {
 							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc6")
 						}

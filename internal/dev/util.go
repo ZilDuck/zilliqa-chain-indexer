@@ -7,14 +7,14 @@ import (
 )
 
 func Dump(el interface{}) {
-	if config.Get().Debug {
+	if config.Get().Debug || config.Get().Env == "local" {
 		elJson, _ := json.MarshalIndent(el, "", "  ")
 		log.Println(string(elJson))
 	}
 }
 
 func DD(el interface{}) {
-	if config.Get().Debug {
+	if config.Get().Debug || config.Get().Env == "local" {
 		elJson, _ := json.MarshalIndent(el, "", "  ")
 		log.Println(string(elJson))
 	}
