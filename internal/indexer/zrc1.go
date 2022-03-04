@@ -153,6 +153,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
 			zap.L().With(zap.Error(err), zap.String("txId", tx.ID),  zap.String("contractAddr", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
+			continue
 		}
 
 		prevOwner := nft.Owner
