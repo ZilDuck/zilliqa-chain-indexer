@@ -144,3 +144,16 @@ func (tx Transaction) GetZrc6Transitions() []Transition {
 
 	return transitions
 }
+
+func (tx Transaction) GetEngagedContracts() (addrs []string) {
+	contractAddrs := map[string]interface{}{}
+	for _, trans := range tx.Receipt.Transitions {
+		contractAddrs[trans.Addr] = nil
+	}
+
+	for contractAddr := range contractAddrs {
+		addrs = append(addrs, contractAddr)
+	}
+
+	return
+}

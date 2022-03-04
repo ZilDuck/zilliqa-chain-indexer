@@ -18,6 +18,7 @@ type Contract struct {
 	Standards       map[ZrcStandard]bool `json:"standards"`
 
 	//mutable
+	State   string `json:"state"`
 	BaseUri string `json:"baseuri"`
 }
 

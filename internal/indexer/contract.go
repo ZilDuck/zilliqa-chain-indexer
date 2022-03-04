@@ -5,7 +5,10 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
+	"github.com/Zilliqa/gozilliqa-sdk/bech32"
 	"go.uber.org/zap"
+	"sync"
 )
 
 type ContractIndexer interface {
@@ -15,6 +18,7 @@ type ContractIndexer interface {
 
 type contractIndexer struct {
 	elastic      elastic_search.Index
+	zilliqa      zilliqa.Service
 	factory      factory.ContractFactory
 	txRepo       repository.TransactionRepository
 	contractRepo repository.ContractRepository
@@ -23,12 +27,13 @@ type contractIndexer struct {
 
 func NewContractIndexer(
 	elastic elastic_search.Index,
+	zilliqa zilliqa.Service,
 	factory factory.ContractFactory,
 	txRepo repository.TransactionRepository,
 	contractRepo repository.ContractRepository,
 	nftRepo repository.NftRepository,
 ) ContractIndexer {
-	return contractIndexer{elastic, factory, txRepo, contractRepo, nftRepo}
+	return contractIndexer{elastic, zilliqa, factory, txRepo, contractRepo, nftRepo}
 }
 
 func (i contractIndexer) Index(txs []entity.Transaction) error {
@@ -48,6 +53,18 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 
 				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 			}
+		}
+
+		if tx.IsContractExecution {
+			var wg sync.WaitGroup
+			for _, contractAddr := range tx.GetEngagedContracts() {
+				wg.Add(1)
+				go func(addr string) {
+					defer wg.Done()
+					_ = i.updateContractState(addr)
+				}(contractAddr)
+			}
+			wg.Wait()
 		}
 	}
 
@@ -90,6 +107,25 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	}
 
 	i.elastic.Persist()
+
+	return nil
+}
+
+func (i contractIndexer) updateContractState(contractAddr string) error {
+	bech32Addr, _ := bech32.ToBech32Address(contractAddr)
+
+	state, err := i.zilliqa.GetContractState(bech32Addr)
+	if err != nil {
+		return err
+	}
+
+	c, err := i.contractRepo.GetContractByAddress(contractAddr)
+	if err != nil {
+		return err
+	}
+
+	c.State = string(state)
+	i.elastic.AddUpdateRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractState)
 
 	return nil
 }

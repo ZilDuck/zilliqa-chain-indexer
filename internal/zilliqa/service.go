@@ -21,7 +21,7 @@ type Service interface {
 	GetSmartContractInit(contractAddress string) ([]ContractValue, error)
 	GetSmartContractInits(contractAddresses []string) ([][]ContractValue, error)
 	GetSmartContractCode(contractAddress string) (string, error)
-	GetContractState(contractAddress string) (map[string]interface{}, error)
+	GetContractState(contractAddress string) ([]byte, error)
 	GetContractSubState(contractAddress string, params ...interface{}) (string, error)
 }
 
@@ -136,7 +136,7 @@ func (s service) GetSmartContractCode(contractAddress string) (string, error) {
 	return s.provider.GetSmartContractCode(contractAddress)
 }
 
-func (s service) GetContractState(contractAddress string) (map[string]interface{}, error) {
+func (s service) GetContractState(contractAddress string) ([]byte, error) {
 	resp, err := s.provider.GetSmartContractState(contractAddress)
 	if err != nil {
 		return nil, err
@@ -146,7 +146,7 @@ func (s service) GetContractState(contractAddress string) (map[string]interface{
 		return nil, resp.Error
 	}
 
-	return interface{}(resp.Result).(map[string]interface{}), err
+	return resp.Result.MarshalJSON()
 }
 
 func (s service) GetContractSubState(contractAddress string, params ...interface{}) (string, error) {

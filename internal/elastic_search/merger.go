@@ -14,6 +14,8 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 		result := cached.Entity.(entity.Contract)
 		if action == ContractSetBaseUri {
 			result.BaseUri = e.(entity.Contract).BaseUri
+		} else if action == ContractState {
+			result.State = e.(entity.Contract).State
 		} else {
 			result = e.(entity.Contract)
 		}

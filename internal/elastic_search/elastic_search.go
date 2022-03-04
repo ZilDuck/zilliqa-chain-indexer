@@ -62,6 +62,7 @@ const (
 	TransactionCreate RequestAction = "TransactionCreate"
 
 	ContractCreate     RequestAction = "ContractCreate"
+	ContractState      RequestAction = "ContractState"
 	ContractSetBaseUri RequestAction = "ContractSetBaseUri"
 
 	Zrc1Mint             RequestAction = "Zrc1Mint"

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
+	"github.com/Zilliqa/gozilliqa-sdk/bech32"
 	"go.uber.org/zap"
 	"regexp"
 )
@@ -45,6 +46,13 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 		MutableParams:   f.getMutableParams(tx.Code),
 		Transitions:     f.getTransitions(tx.Code),
 		Standards:       map[entity.ZrcStandard]bool{},
+	}
+
+	bech32Address, _ := bech32.ToBech32Address(tx.ContractAddress)
+	state, err := f.zilliqa.GetContractState(bech32Address)
+	if err == nil {
+		zap.L().With(zap.String("contractAddr", tx.ContractAddress)).Info("Get Contract state")
+		c.State = string(state)
 	}
 
 	c.Standards["ZRC1"] = IsZrc1(*c)

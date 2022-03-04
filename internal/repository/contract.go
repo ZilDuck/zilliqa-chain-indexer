@@ -70,6 +70,12 @@ func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contrac
 }
 
 func (r contractRepository) GetContractByAddress(contractAddr string) (*entity.Contract, error) {
+	pendingRequest := r.elastic.GetRequest(entity.CreateContractSlug(contractAddr))
+	if pendingRequest != nil {
+		pendingContract := pendingRequest.Entity.(entity.Contract)
+		return &pendingContract, nil
+	}
+
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_search.ContractIndex.Get()).
 		Query(elastic.NewTermQuery("address.keyword", contractAddr)))
