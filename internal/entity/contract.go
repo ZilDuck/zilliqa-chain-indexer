@@ -5,6 +5,43 @@ import (
 	"github.com/gosimple/slug"
 )
 
+type Contract struct {
+	//immutable
+	Name            string               `json:"name"`
+	Address         string               `json:"address"`
+	BlockNum        uint64               `json:"blockNum"`
+	Code            string               `json:"code"`
+	Data            Data                 `json:"data"`
+	MutableParams   Params               `json:"mutableParams"`
+	ImmutableParams Params               `json:"immutableParams"`
+	Transitions     []ContractTransition `json:"transitions"`
+	Standards       map[ZrcStandard]bool `json:"standards"`
+
+	//mutable
+	BaseUri string `json:"baseuri"`
+}
+
+func (c Contract) Slug() string {
+	return CreateContractSlug(c.Address)
+}
+
+func CreateContractSlug(contract string) string {
+	return slug.Make(fmt.Sprintf("contract-%s", contract))
+}
+
+func (c Contract) MatchesStandard(standard ZrcStandard) bool {
+	if _, ok := c.Standards[standard]; ok {
+		return true
+	}
+	return false
+}
+
+type ContractTransition struct {
+	Index     int               `json:"index"`
+	Name      string            `json:"name"`
+	Arguments map[string]string `json:"arguments"`
+}
+
 type Event string
 
 const (
@@ -50,40 +87,3 @@ var (
 	Zrc1Callbacks = []Callback{ZRC1MintCallBack, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
 	Zrc6Callbacks = []Callback{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
 )
-
-type Contract struct {
-	//immutable
-	Name            string               `json:"name"`
-	Address         string               `json:"address"`
-	BlockNum        uint64               `json:"blockNum"`
-	Code            string               `json:"code"`
-	Data            Data                 `json:"data"`
-	MutableParams   Params               `json:"mutableParams"`
-	ImmutableParams Params               `json:"immutableParams"`
-	Transitions     []ContractTransition `json:"transitions"`
-	Standards       map[ZrcStandard]bool `json:"standards"`
-
-	//mutable
-	BaseUri string `json:"baseuri"`
-}
-
-func (c Contract) Slug() string {
-	return CreateContractSlug(c.Address)
-}
-
-func CreateContractSlug(contract string) string {
-	return slug.Make(fmt.Sprintf("contract-%s", contract))
-}
-
-func (c Contract) MatchesStandard(standard ZrcStandard) bool {
-	if _, ok := c.Standards[standard]; ok {
-		return true
-	}
-	return false
-}
-
-type ContractTransition struct {
-	Index     int               `json:"index"`
-	Name      string            `json:"name"`
-	Arguments map[string]string `json:"arguments"`
-}
