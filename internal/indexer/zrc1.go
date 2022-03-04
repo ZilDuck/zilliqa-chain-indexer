@@ -146,13 +146,13 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 	for _, event := range tx.GetEventLogs(eventName) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Warn("Failed to get token id for zrc1:transfer")
+			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Debug("Failed to get token id for zrc1:transfer")
 			continue
 		}
 
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("txId", tx.ID),  zap.String("contractAddr", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
+			zap.L().With(zap.Error(err), zap.String("txId", tx.ID),  zap.String("contractAddr", c.Address), zap.Uint64("tokenId", tokenId)).Debug("Failed to find nft in index")
 			continue
 		}
 
