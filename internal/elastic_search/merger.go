@@ -14,12 +14,13 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 		result := cached.Entity.(entity.Contract)
 		if action == ContractSetBaseUri {
 			result.BaseUri = e.(entity.Contract).BaseUri
-		} else if action == ContractState {
-			result.State = e.(entity.Contract).State
 		} else {
 			result = e.(entity.Contract)
 		}
 		return result
+
+	case index == ContractStateIndex.Get():
+		return e.(entity.ContractState)
 
 	case index == NftIndex.Get():
 		result := cached.Entity.(entity.Nft)
@@ -52,7 +53,6 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 			result.Metadata.Error = e.(entity.Nft).Metadata.Error
 			result.Metadata.Data = e.(entity.Nft).Metadata.Data
 		}
-
 
 		if action == NftAsset {
 			result.Metadata.AssetAttempted = e.(entity.Nft).Metadata.AssetAttempted
