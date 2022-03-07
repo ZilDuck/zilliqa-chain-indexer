@@ -173,6 +173,12 @@ var Definitions = []dingo.Def{
 		},
 	},
 	{
+		Name: "contractState.repo",
+		Build: func(elastic elastic_search.Index) (repository.ContractStateRepository, error) {
+			return repository.NewContractStateRepository(elastic), nil
+		},
+	},
+	{
 		Name: "nft.repo",
 		Build: func(elastic elastic_search.Index) (repository.NftRepository, error) {
 			return repository.NewNftRepository(elastic), nil

@@ -8,10 +8,11 @@ import (
 type Indices string
 
 var (
-	TransactionIndex Indices = "transaction"
-	ContractIndex    Indices = "contract"
-	NftIndex         Indices = "nft"
-	NftActionIndex   Indices = "nftaction"
+	TransactionIndex   Indices = "transaction"
+	ContractIndex      Indices = "contract"
+	ContractStateIndex Indices = "contractstate"
+	NftIndex           Indices = "nft"
+	NftActionIndex     Indices = "nftaction"
 )
 
 // Sets the network and returns the full string
