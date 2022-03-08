@@ -47,11 +47,11 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 		Standards:       map[entity.ZrcStandard]bool{},
 	}
 
-	c.Standards["ZRC1"] = IsZrc1(*c)
-	c.Standards["ZRC2"] = IsZrc2(*c)
-	c.Standards["ZRC3"] = IsZrc3(*c)
-	c.Standards["ZRC4"] = IsZrc4(*c)
-	c.Standards["ZRC6"] = IsZrc6(*c)
+	c.Standards[entity.ZRC1] = IsZrc1(*c)
+	c.Standards[entity.ZRC2] = IsZrc2(*c)
+	c.Standards[entity.ZRC3] = IsZrc3(*c)
+	c.Standards[entity.ZRC4] = IsZrc4(*c)
+	c.Standards[entity.ZRC6] = IsZrc6(*c)
 
 	if c.MatchesStandard(entity.ZRC6) {
 		if initialBaseUri, err := tx.Data.Params.GetParam("initial_base_uri"); err == nil {

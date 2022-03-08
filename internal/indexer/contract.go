@@ -15,7 +15,6 @@ import (
 type ContractIndexer interface {
 	Index(txs []entity.Transaction) error
 	BulkIndex(fromBlockNum uint64) error
-	IndexContractState(contractAddr string, blockNun uint64, create bool) error
 }
 
 type contractIndexer struct {
@@ -52,11 +51,11 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 					zap.String("name", c.Name),
 					zap.String("address", c.Address),
 				).Info("Index contract")
-
-				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 			}
 
-			_ = i.IndexContractState(c.Address, tx.BlockNum, true)
+			_ = i.indexContractState(c)
+
+			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 		}
 
 		if tx.IsContractExecution {
@@ -65,7 +64,11 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 				wg.Add(1)
 				go func(addr string) {
 					defer wg.Done()
-					_ = i.IndexContractState(addr, tx.BlockNum, false)
+					c, err := i.contractRepo.GetContractByAddress(addr)
+					if err != nil {
+						_ = i.indexContractState(c)
+						i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractState)
+					}
 				}(contractAddr)
 			}
 			wg.Wait()
@@ -102,9 +105,9 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 				zap.String("address", c.Address),
 			).Info("Index contract")
 
-			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), *c, elastic_search.ContractCreate)
+			_ = i.indexContractState(c)
 
-			_ = i.IndexContractState(c.Address, tx.BlockNum, true)
+			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), *c, elastic_search.ContractCreate)
 
 			i.elastic.BatchPersist()
 		}
@@ -119,40 +122,32 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	return nil
 }
 
-func (i contractIndexer) IndexContractState(contractAddr string, blockNum uint64, create bool) error {
-	bech32Addr, _ := bech32.ToBech32Address(contractAddr)
+func (i contractIndexer) indexContractState(c *entity.Contract) error {
+	bech32Addr, _ := bech32.ToBech32Address(c.Address)
 
 	state, err := i.zilliqa.GetContractState(bech32Addr)
 	if err != nil {
 		return err
 	}
 
-	cState := entity.ContractState{
-		Address:  contractAddr,
-		BlockNum: blockNum,
-		State:    make([]entity.ContractStateElement, 0),
-	}
+	cState := make([]entity.ContractStateElement, 0)
 
 	for k, v := range state {
 		switch v.(type) {
 		case map[string]interface{}:
 			vJson, _ := json.Marshal(v)
-			cState.State = append(cState.State, entity.ContractStateElement{Key: k, Value: string(vJson)})
+			cState = append(cState, entity.ContractStateElement{Key: k, Value: string(vJson)})
 		case []interface{}:
 			vJson, _ := json.Marshal(v)
-			cState.State = append(cState.State, entity.ContractStateElement{Key: k, Value: string(vJson)})
+			cState = append(cState, entity.ContractStateElement{Key: k, Value: string(vJson)})
 		default:
-			cState.State = append(cState.State, entity.ContractStateElement{Key: k, Value: v.(string)})
+			cState = append(cState, entity.ContractStateElement{Key: k, Value: v.(string)})
 		}
 	}
 
-	zap.L().With(zap.String("address", contractAddr)).Info("Index contract state")
+	c.State = cState
 
-	if create {
-		i.elastic.AddIndexRequest(elastic_search.ContractStateIndex.Get(), cState, elastic_search.ContractState)
-	} else {
-		i.elastic.AddUpdateRequest(elastic_search.ContractStateIndex.Get(), cState, elastic_search.ContractState)
-	}
+	zap.L().With(zap.String("address", c.Address)).Info("Index contract state")
 
 	return nil
 }

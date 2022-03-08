@@ -16,6 +16,9 @@
       },
       "transitions": {
         "type": "nested"
+      },
+      "state": {
+        "type": "nested"
       }
     }
   },

@@ -18,7 +18,13 @@ type Contract struct {
 	Standards       map[ZrcStandard]bool `json:"standards"`
 
 	//mutable
-	BaseUri string `json:"baseuri"`
+	State   []ContractStateElement `json:"state"`
+	BaseUri string                 `json:"baseuri"`
+}
+
+type ContractStateElement struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 func (c Contract) Slug() string {
