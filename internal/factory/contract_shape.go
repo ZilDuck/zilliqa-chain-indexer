@@ -8,11 +8,11 @@ import (
 func CreateContractTransition(name string, args ...string) entity.ContractTransition {
 	transition := entity.ContractTransition{
 		Name:      name,
-		Arguments: map[string]string{},
+		Arguments: make([]entity.ContractTransitionArgument, 0),
 	}
 	for _, arg := range args {
 		s := strings.Split(arg, ":")
-		transition.Arguments[s[0]] = s[1]
+		transition.Arguments = append(transition.Arguments, entity.ContractTransitionArgument{Key: s[0], Value: s[1]})
 	}
 
 	return transition
@@ -182,9 +182,9 @@ func hasTransition(c entity.Contract, transition entity.ContractTransition) bool
 			continue
 		}
 
-		for key := range transition.Arguments {
-			if _, ok := t.Arguments[key]; ok {
-				if t.Arguments[key] == transition.Arguments[key] {
+		for _, arg := range transition.Arguments {
+			for _, targ := range t.Arguments {
+				if arg.Key == targ.Key && arg.Value == targ.Value {
 					return true
 				}
 			}
