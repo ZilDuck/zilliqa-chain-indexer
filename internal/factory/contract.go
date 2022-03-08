@@ -107,12 +107,12 @@ func (f contractFactory) getTransitions(code string) (transitions []entity.Contr
 		cTransition := entity.ContractTransition{
 			Index:     idx,
 			Name:      transition[1],
-			Arguments: map[string]string{},
+			Arguments: make([]entity.ContractTransitionArgument, 0),
 		}
 
 		aRegex := regexp.MustCompile("([a-zA-Z_]+)[ ]*:[ ]*([a-zA-Z0-9]*)")
 		for _, argMatch := range aRegex.FindAllStringSubmatch(transition[3], -1) {
-			cTransition.Arguments[argMatch[1]] = argMatch[2]
+			cTransition.Arguments = append(cTransition.Arguments, entity.ContractTransitionArgument{Key: argMatch[1], Value: argMatch[2]})
 		}
 
 		transitions = append(transitions, cTransition)

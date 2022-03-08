@@ -37,9 +37,14 @@ func (c Contract) MatchesStandard(standard ZrcStandard) bool {
 }
 
 type ContractTransition struct {
-	Index     int               `json:"index"`
-	Name      string            `json:"name"`
-	Arguments map[string]string `json:"arguments"`
+	Index     int                          `json:"index"`
+	Name      string                       `json:"name"`
+	Arguments []ContractTransitionArgument `json:"arguments"`
+}
+
+type ContractTransitionArgument struct {
+	Key   string `json:"key"`
+	Value string `json:"value"`
 }
 
 type Event string

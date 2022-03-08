@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"encoding/json"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
@@ -14,7 +15,7 @@ import (
 type ContractIndexer interface {
 	Index(txs []entity.Transaction) error
 	BulkIndex(fromBlockNum uint64) error
-	IndexContractState(contractAddr string, create bool) error
+	IndexContractState(contractAddr string, blockNun uint64, create bool) error
 }
 
 type contractIndexer struct {
@@ -55,7 +56,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 			}
 
-			_ = i.IndexContractState(c.Address, true)
+			_ = i.IndexContractState(c.Address, tx.BlockNum, true)
 		}
 
 		if tx.IsContractExecution {
@@ -64,7 +65,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 				wg.Add(1)
 				go func(addr string) {
 					defer wg.Done()
-					_ = i.IndexContractState(addr, false)
+					_ = i.IndexContractState(addr, tx.BlockNum, false)
 				}(contractAddr)
 			}
 			wg.Wait()
@@ -103,7 +104,7 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 
 			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), *c, elastic_search.ContractCreate)
 
-			_ = i.IndexContractState(c.Address, true)
+			_ = i.IndexContractState(c.Address, tx.BlockNum, true)
 
 			i.elastic.BatchPersist()
 		}
@@ -118,7 +119,7 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	return nil
 }
 
-func (i contractIndexer) IndexContractState(contractAddr string, create bool) error {
+func (i contractIndexer) IndexContractState(contractAddr string, blockNum uint64, create bool) error {
 	bech32Addr, _ := bech32.ToBech32Address(contractAddr)
 
 	state, err := i.zilliqa.GetContractState(bech32Addr)
@@ -128,7 +129,21 @@ func (i contractIndexer) IndexContractState(contractAddr string, create bool) er
 
 	cState := entity.ContractState{
 		Address:  contractAddr,
-		State:    string(state),
+		BlockNum: blockNum,
+		State:    make([]entity.ContractStateElement, 0),
+	}
+
+	for k, v := range state {
+		switch v.(type) {
+		case map[string]interface{}:
+			vJson, _ := json.Marshal(v)
+			cState.State = append(cState.State, entity.ContractStateElement{Key: k, Value: string(vJson)})
+		case []interface{}:
+			vJson, _ := json.Marshal(v)
+			cState.State = append(cState.State, entity.ContractStateElement{Key: k, Value: string(vJson)})
+		default:
+			cState.State = append(cState.State, entity.ContractStateElement{Key: k, Value: v.(string)})
+		}
 	}
 
 	zap.L().With(zap.String("address", contractAddr)).Info("Index contract state")

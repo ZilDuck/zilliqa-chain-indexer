@@ -1,6 +1,8 @@
 package zilliqa
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"go.uber.org/zap"
 )
@@ -21,7 +23,7 @@ type Service interface {
 	GetSmartContractInit(contractAddress string) ([]ContractValue, error)
 	GetSmartContractInits(contractAddresses []string) ([][]ContractValue, error)
 	GetSmartContractCode(contractAddress string) (string, error)
-	GetContractState(contractAddress string) ([]byte, error)
+	GetContractState(contractAddress string) (map[string]interface{}, error)
 	GetContractSubState(contractAddress string, params ...interface{}) (string, error)
 }
 
@@ -136,7 +138,7 @@ func (s service) GetSmartContractCode(contractAddress string) (string, error) {
 	return s.provider.GetSmartContractCode(contractAddress)
 }
 
-func (s service) GetContractState(contractAddress string) ([]byte, error) {
+func (s service) GetContractState(contractAddress string) (map[string]interface{}, error) {
 	resp, err := s.provider.GetSmartContractState(contractAddress)
 	if err != nil {
 		return nil, err
@@ -146,7 +148,17 @@ func (s service) GetContractState(contractAddress string) ([]byte, error) {
 		return nil, resp.Error
 	}
 
-	return resp.Result.MarshalJSON()
+	respJson, err := json.Marshal(resp.Result)
+	if err != nil {
+		return nil, errors.New("failed to marshall contract state")
+	}
+
+	var respInt map[string]interface{}
+	if err := json.Unmarshal(respJson, &respInt); err != nil {
+		return nil, errors.New("failed to unmarshall contract state")
+	}
+
+	return respInt, err
 }
 
 func (s service) GetContractSubState(contractAddress string, params ...interface{}) (string, error) {

@@ -3,7 +3,7 @@
   },
   "settings":{
     "index":{
-      "mapping.total_fields.limit": 5000,
+      "mapping.total_fields.limit": 1000,
       "max_result_window":"50000000",
       "number_of_replicas": 0
     }
