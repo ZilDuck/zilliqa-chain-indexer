@@ -1,5 +1,10 @@
 {
   "mappings": {
+    "properties": {
+      "state": {
+        "type": "nested"
+      }
+    }
   },
   "settings":{
     "index":{
