@@ -1,6 +1,7 @@
 package entity
 
 import (
+	"encoding/json"
 	"errors"
 )
 
@@ -22,10 +23,20 @@ func (m Metadata) UriEmpty() bool {
 
 func (m Metadata) GetAssetUri() (string, error) {
 	if resources := m.GetData("resources"); resources != nil {
-		resourcesSlice := resources.([]map[string]interface{})
-		if len(resourcesSlice) >= 1 {
-			if uri, ok := resourcesSlice[0]["uri"]; ok {
-				return uri.(string), nil
+		resourcesJson, err := json.Marshal(resources)
+		if err != nil {
+			return "", err
+		}
+
+		var resourcesMap []map[string]string
+		err = json.Unmarshal(resourcesJson, &resourcesMap)
+		if err != nil {
+			return "", err
+		}
+
+		for _, resource := range resourcesMap {
+			if _, ok := resource["uri"]; ok {
+				return resource["uri"], nil
 			}
 		}
 	}
