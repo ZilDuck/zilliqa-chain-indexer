@@ -317,13 +317,17 @@ func (i index) persist(bulk *elastic.BulkService) {
 
 	response, err := bulk.Refresh(i.refresh).Do(context.Background())
 	if err != nil {
-		if err.Error() == "elastic: Error 429 (Too Many Requests)" {
-			zap.L().With(zap.Error(err)).Warn("ElasticCache: 429 (Too Many Requests)")
-			time.Sleep(5 * time.Second)
-			i.persist(bulk)
-			return
+		time.Sleep(1 * time.Second)
+		response, err = bulk.Refresh(i.refresh).Do(context.Background())
+		if err != nil {
+			if err.Error() == "elastic: Error 429 (Too Many Requests)" {
+				zap.L().With(zap.Error(err)).Warn("ElasticCache: 429 (Too Many Requests)")
+				time.Sleep(5 * time.Second)
+				i.persist(bulk)
+				return
+			}
+			zap.L().With(zap.Error(err)).Fatal("ElasticCache: Failed to persist requests")
 		}
-		zap.L().With(zap.Error(err)).Fatal("ElasticCache: Failed to persist requests")
 	}
 
 	if response.Errors == true {
