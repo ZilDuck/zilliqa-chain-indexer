@@ -56,15 +56,14 @@ func importAllNfts() {
 
 func importNftsForContract(contract entity.Contract) {
 	if contract.MatchesStandard(entity.ZRC1) {
-		zap.L().Info("Importing ZRC1 NFTs for " + contract.Address)
 		if err := container.GetZrc1Indexer().IndexContract(contract); err != nil {
 			zap.S().Errorf("Failed to index ZRC1 NFTs for contract %s", contract.Address)
 		}
 	}
 
-	//if contract.MatchesStandard(entity.ZRC6) {
-	//	if err := container.GetZrc6Indexer().IndexContract(contract); err != nil {
-	//		zap.S().Errorf("Failed to index ZRC6 NFTs for contract %s", contract.Address)
-	//	}
-	//}
+	if contract.MatchesStandard(entity.ZRC6) {
+		if err := container.GetZrc6Indexer().IndexContract(contract); err != nil {
+			zap.S().Errorf("Failed to index ZRC6 NFTs for contract %s", contract.Address)
+		}
+	}
 }
