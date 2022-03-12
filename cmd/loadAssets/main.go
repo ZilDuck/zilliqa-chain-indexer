@@ -8,6 +8,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"go.uber.org/zap"
 	"os"
+	"sync"
 )
 
 func main() {
@@ -22,7 +23,7 @@ func main() {
 	onlyMissing := len(os.Args) >= 3 && os.Args[2] == "true"
 	force := len(os.Args) >= 4 && os.Args[3] == "true"
 
-	size := 100
+	size := 10
 	page := 1
 
 	for {
@@ -45,25 +46,37 @@ func main() {
 			break
 		}
 
+		var wg sync.WaitGroup
 		for _, nft := range nfts {
-			if onlyMissing == true && (nft.Metadata.UriEmpty() || nft.MediaUri != "") {
-				if nft.Metadata.UriEmpty() {
-					nft.Metadata = factory.GetMetadata(nft)
-					elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftMetadata)
-					elastic.BatchPersist()
+			wg.Add(1)
+
+			go func(nft entity.Nft) {
+				defer wg.Done()
+				if onlyMissing == true && (nft.Metadata.UriEmpty() || nft.MediaUri != "") {
+					if nft.Metadata.UriEmpty() {
+						nft.Metadata = factory.GetMetadata(nft)
+						elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftMetadata)
+						elastic.BatchPersist()
+					}
+					return
 				}
-				continue
-			}
-			if err = metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to refresh metadata")
-				continue
-			}
-			if err = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId, force); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to refresh asset")
-				continue
-			}
-			elastic.Persist()
+				if onlyMissing == false || nft.MediaUri == "" {
+					if err = metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId); err != nil {
+						zap.L().With(zap.Error(err)).Error("Failed to refresh metadata")
+						return
+					}
+				}
+				if onlyMissing == false || nft.MediaUri == "" {
+					if err = metadataIndexer.RefreshAsset(nft.Contract, nft.TokenId, force); err != nil {
+						zap.L().With(zap.Error(err)).Error("Failed to refresh asset")
+						return
+					}
+				}
+				elastic.BatchPersist()
+			}(nft)
 		}
+		wg.Wait()
+		elastic.Persist()
 
 		page++
 	}
