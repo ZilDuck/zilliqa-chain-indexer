@@ -55,7 +55,7 @@ func (m Messenger) CreateQueue(queue Queue) (*string, error) {
 func (m Messenger) SendMessage(queue Queue, body []byte) error {
 	queueName := queue.Get()
 
-	zap.L().With(zap.String("queue", queueName), zap.String("body", string(body))).Info("Send Message")
+	zap.L().With(zap.String("queue", queueName), zap.String("body", string(body))).Debug("Send Message")
 	queueUrl, err := m.getQueueUrl(queue)
 	if err != nil {
 		return err

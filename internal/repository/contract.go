@@ -17,6 +17,7 @@ type ContractRepository interface {
 	GetAllContracts(size, page int) ([]entity.Contract, int64, error)
 	GetAllNftContracts(size, page int) ([]entity.Contract, int64, error)
 	GetContractByAddress(contractAddr string) (*entity.Contract, error)
+	GetBestBlockNum() (uint64, error)
 }
 
 type contractRepository struct {
@@ -55,8 +56,8 @@ func (r contractRepository) GetAllNftContracts(size, page int) ([]entity.Contrac
 	).Info("GetAllNftContracts")
 
 	query := elastic.NewBoolQuery().Should(
-		elastic.NewTermQuery("zrc1", true),
-		elastic.NewTermQuery("zrc6", true),
+		elastic.NewTermQuery("standards.ZRC1", true),
+		elastic.NewTermQuery("standards.ZRC6", true),
 	).MinimumShouldMatch("1")
 
 	results, err := search(r.elastic.GetClient().
@@ -86,6 +87,20 @@ func (r contractRepository) GetContractByAddress(contractAddr string) (*entity.C
 	}
 
 	return c, err
+}
+
+func (r contractRepository) GetBestBlockNum() (uint64, error) {
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_search.ContractIndex.Get()).
+		Size(1).
+		Sort("BlockNum", false))
+
+	c, err := r.findOne(results, err)
+	if err != nil {
+		return 0, err
+	}
+
+	return c.BlockNum, nil
 }
 
 func (r contractRepository) findOne(results *elastic.SearchResult, err error) (*entity.Contract, error) {

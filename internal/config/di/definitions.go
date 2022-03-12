@@ -77,12 +77,13 @@ var Definitions = []dingo.Def{
 			indexer indexer.Indexer,
 			zilliqa zilliqa.Service,
 			txRepo repository.TransactionRepository,
+			nftRepo repository.NftRepository,
 			contractRepo repository.ContractRepository,
 			contractIndexer indexer.ContractIndexer,
 			zrc1Indexer indexer.Zrc1Indexer,
 			zrc6Indexer indexer.Zrc6Indexer,
 		) (*daemon.Daemon, error) {
-			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer), nil
+			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, nftRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer), nil
 		},
 	},
 	{

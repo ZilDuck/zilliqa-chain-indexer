@@ -29,6 +29,7 @@ type NftRepository interface {
 	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
 	ResetMetadata(nft entity.Nft) error
+	GetBestBlockNum() (uint64, error)
 }
 
 type nftRepository struct {
@@ -199,6 +200,20 @@ func (r nftRepository) ResetMetadata(nft entity.Nft) error {
 		Do(context.Background())
 
 	return err
+}
+
+func (r nftRepository) GetBestBlockNum() (uint64, error) {
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_search.NftIndex.Get()).
+		Size(1).
+		Sort("blockNum", false))
+
+	nft, err := r.findOne(results, err)
+	if err != nil {
+		return 0, err
+	}
+
+	return nft.BlockNum, nil
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.Nft, error) {

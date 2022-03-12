@@ -61,10 +61,10 @@ func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
 }
 
 func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
-	zap.S().With(zap.String("contractAddr", c.Address)).Infof("Index ZRC6 From TX %s", tx.ID)
 	if !c.MatchesStandard(entity.ZRC6) {
 		return nil
 	}
+	zap.L().With(zap.String("contractAddr", c.Address), zap.String("txID", tx.ID)).Debug("Zrc6Indexer: Index ZRC6")
 
 	if err := i.mint(tx, c); err != nil {
 		return err
@@ -101,7 +101,6 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 			return err
 		}
 		if len(txs) == 0 {
-			zap.L().Info("No more txs")
 			break
 		}
 
@@ -111,8 +110,9 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 			}
 		}
 		page++
-		i.elastic.Persist()
+		i.elastic.BatchPersist()
 	}
+	i.elastic.Persist()
 
 	return nil
 }
