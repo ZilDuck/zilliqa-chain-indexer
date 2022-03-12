@@ -144,10 +144,12 @@ func (r transactionRepository) GetContractCreationForContract(contractAddr strin
 }
 
 func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error) {
+	zap.L().Info("Get contract executions for " + c.Address)
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
-		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", c.Address)),
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs.address.keyword", c.Address)),
 	)
+
 	from := size*page - size
 
 	result, err := search(r.elastic.GetClient().
@@ -165,7 +167,7 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
-		elastic.NewNestedQuery("Receipt.transitions", elastic.NewTermQuery("Receipt.transitions.addr.keyword", c.Address)),
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs.addr.keyword", c.Address)),
 	)
 	from := size*page - size
 

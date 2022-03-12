@@ -90,6 +90,10 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) er
 	nft.Metadata.Data = data
 	nft.Metadata.Error = ""
 
+	if err := i.nftRepo.ResetMetadata(*nft); err != nil {
+		return err
+	}
+
 	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
 	i.elastic.BatchPersist()
 

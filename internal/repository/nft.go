@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
@@ -27,6 +28,8 @@ type NftRepository interface {
 	GetAllZrc1Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
+	ResetMetadata(nft entity.Nft) error
+	GetBestBlockNum() (uint64, error)
 }
 
 type nftRepository struct {
@@ -38,7 +41,7 @@ func NewNftRepository(elastic elastic_search.Index) NftRepository {
 }
 
 func (r nftRepository) Exists(contract string, tokenId uint64) bool {
-	_, err := r.getNft(contract, tokenId, 1)
+	_, err := r.getNft(contract, tokenId, MAX_RETRIES)
 	return err == nil
 }
 
@@ -182,6 +185,35 @@ func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uin
 	}
 
 	return nft.TokenId, nil
+}
+
+func (r nftRepository) ResetMetadata(nft entity.Nft) error {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("contract.keyword", nft.Contract),
+		elastic.NewTermQuery("tokenId", nft.TokenId),
+	)
+
+	_, err := r.elastic.GetClient().
+		UpdateByQuery(elastic_search.NftIndex.Get()).
+		Query(query).
+		Script(elastic.NewScript("ctx._source.metadata.remove(\"data\")")).
+		Do(context.Background())
+
+	return err
+}
+
+func (r nftRepository) GetBestBlockNum() (uint64, error) {
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_search.NftIndex.Get()).
+		Size(1).
+		Sort("blockNum", false))
+
+	nft, err := r.findOne(results, err)
+	if err != nil {
+		return 0, err
+	}
+
+	return nft.BlockNum, nil
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.Nft, error) {

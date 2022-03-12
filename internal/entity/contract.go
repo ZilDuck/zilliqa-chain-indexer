@@ -59,7 +59,7 @@ const (
 	ZRC1MintEvent         Event = "MintSuccess"
 	ZRC1TransferEvent     Event = "TransferSuccess"
 	ZRC1TransferFromEvent Event = "TransferFromSuccess"
-	ZRC1BurnEvent         Event = "BurnSuccessEvent"
+	ZRC1BurnEvent         Event = "BurnSuccess"
 
 	ZRC6MintEvent         Event = "Mint"
 	ZRC6BatchMintEvent    Event = "BatchMint"
