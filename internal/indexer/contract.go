@@ -51,11 +51,10 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 					zap.String("name", c.Name),
 					zap.String("address", c.Address),
 				).Info("Index contract")
+				_ = i.indexContractState(c)
+
+				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 			}
-
-			_ = i.indexContractState(c)
-
-			i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
 		}
 
 		if tx.IsContractExecution {

@@ -3,9 +3,11 @@ package factory
 import (
 	"errors"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"go.uber.org/zap"
 	"regexp"
+	"time"
 )
 
 type ContractFactory interface {
@@ -28,10 +30,13 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 		return nil, errors.New("missing contract addr")
 	}
 
-	contractValues := make([]zilliqa.ContractValue, 0)
-	var err error
-	if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
-		zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", tx.ContractAddress)).Warn("GetSmartContractInit")
+	contractValues, err := f.getSmartContractInit(tx, 1, nil)
+	if err != nil {
+		zap.L().With(
+			zap.Error(err),
+			zap.String("txID", tx.ID),
+			zap.String("contractAddr", tx.ContractAddress),
+		).Error("GetSmartContractInit")
 		return nil, err
 	}
 
@@ -60,6 +65,29 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 	}
 
 	return c, nil
+}
+
+func (f contractFactory) getSmartContractInit(tx entity.Transaction, attempt int, err error) ([]zilliqa.ContractValue, error) {
+	zap.L().With(zap.String("contractAddr", tx.ContractAddress)).Debug("Get contract state")
+	if attempt >= repository.MaxRetries {
+		if err == nil {
+			err = errors.New("get contract state unknown error")
+		}
+		return nil, err
+	}
+
+	contractValues := make([]zilliqa.ContractValue, 0)
+	if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
+		zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", tx.ContractAddress)).Warn("GetSmartContractInit")
+
+		if err.Error() == "-5:Address does not exist" {
+			time.Sleep(2 * time.Second)
+			return f.getSmartContractInit(tx, attempt+1, err)
+		}
+		return nil, err
+	}
+
+	return contractValues, nil
 }
 
 func (f contractFactory) getContractName(code string) string {

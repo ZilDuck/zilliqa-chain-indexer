@@ -16,7 +16,7 @@ var (
 )
 
 const (
-	MAX_RETRIES = 3
+	MaxRetries = 3
 )
 
 type NftRepository interface {
@@ -41,7 +41,7 @@ func NewNftRepository(elastic elastic_search.Index) NftRepository {
 }
 
 func (r nftRepository) Exists(contract string, tokenId uint64) bool {
-	_, err := r.getNft(contract, tokenId, MAX_RETRIES)
+	_, err := r.getNft(contract, tokenId, MaxRetries)
 	return err == nil
 }
 
@@ -68,7 +68,7 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 
 	nft, err := r.findOne(result, err)
 	if err != nil {
-		if attempt == MAX_RETRIES {
+		if attempt == MaxRetries {
 			return nft, err
 		}
 		zap.S().Warnf("Failed to find NFT in repo. retry(%d)", attempt)
