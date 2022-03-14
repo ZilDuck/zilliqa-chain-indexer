@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/log"
-	"github.com/getsentry/sentry-go"
 	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 	"math/big"
@@ -44,7 +43,6 @@ type Config struct {
 type AwsConfig struct {
 	AccessKey string
 	SecretKey string
-	Token     string
 	Region    string
 }
 
@@ -55,7 +53,6 @@ type ZilliqaConfig struct {
 }
 
 type ElasticSearchConfig struct {
-	Aws              bool
 	Hosts            []string
 	Sniff            bool
 	HealthCheck      bool
@@ -81,23 +78,9 @@ func Init() {
 	}
 
 	initLogger()
-
-	initSentry()
 }
 func initLogger() {
 	log.NewLogger(Get().Debug, Get().SentryDsn)
-}
-
-func initSentry() {
-	if Get().SentryDsn != "" {
-		if err := sentry.Init(sentry.ClientOptions{
-			Dsn:         Get().SentryDsn,
-			Environment: Get().Env,
-			Debug:       Get().Debug,
-		}); err != nil {
-			zap.L().With(zap.Error(err)).Fatal("Sentry init")
-		}
-	}
 }
 
 func Get() *Config {
@@ -121,11 +104,9 @@ func Get() *Config {
 		IpfsTimeout:            getInt("IPFS_TIMEOUT", 10),
 		AssetPath:              getString("ASSET_PATH", "./var/assets"),
 		AssetPort:              getString("ASSET_PORT", "8080"),
-		SentryDsn:              getString("SENTRY_DSN", ""),
 		Aws: AwsConfig{
 			AccessKey: getString("AWS_ACCESS_KEY_ID", ""),
 			SecretKey: getString("AWS_SECRET_KEY_ID", ""),
-			Token:     getString("AWS_TOKEN", ""),
 			Region:    getString("AWS_REGION", ""),
 		},
 		Zilliqa: ZilliqaConfig{
@@ -134,7 +115,6 @@ func Get() *Config {
 			Debug: getBool("ZILLIQA_DEBUG", false),
 		},
 		ElasticSearch: ElasticSearchConfig{
-			Aws:              getBool("ELASTIC_SEARCH_AWS", true),
 			Hosts:            getSlice("ELASTIC_SEARCH_HOSTS", make([]string, 0), ","),
 			Sniff:            getBool("ELASTIC_SEARCH_SNIFF", true),
 			HealthCheck:      getBool("ELASTIC_SEARCH_HEALTH_CHECK", true),
