@@ -50,7 +50,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		if !c.MatchesStandard(entity.ZRC1) {
+		if !c.MatchesStandard(entity.ZRC1) || c.MatchesStandard(entity.ZRC6) {
 			continue
 		}
 
@@ -126,11 +126,11 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
+
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 		}
-
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc1Mint)
 
 		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
@@ -174,7 +174,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 
 		nft.Owner = newOwner.Value.Primitive.(string)
 
-		zap.L().With(zap.String("contractAddr", nft.Symbol), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC1")
+		zap.L().With(zap.String("contractAddr", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner), elastic_search.Zrc1Transfer)

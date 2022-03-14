@@ -26,6 +26,8 @@ func CreateTransferAction(nft entity.Nft, blockNum uint64, txId string, prevOwne
 		Action:   entity.TransferAction,
 		From:     prevOwner,
 		To:       nft.Owner,
+		Zrc1:     nft.Zrc1,
+		Zrc6:     nft.Zrc6,
 	}
 }
 
@@ -38,5 +40,7 @@ func CreateBurnAction(nft entity.Nft) entity.NftAction {
 		Action:   entity.BurnAction,
 		From:     nft.Owner,
 		To:       "",
+		Zrc1:     nft.Zrc1,
+		Zrc6:     nft.Zrc6,
 	}
 }

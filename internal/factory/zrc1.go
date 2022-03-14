@@ -62,6 +62,7 @@ func (f zrc1Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 		}
 
 		nft.Metadata = GetMetadata(nft)
+
 		nfts = append(nfts, nft)
 	}
 

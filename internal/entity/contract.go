@@ -36,8 +36,8 @@ func CreateContractSlug(contract string) string {
 }
 
 func (c Contract) MatchesStandard(standard ZrcStandard) bool {
-	if _, ok := c.Standards[standard]; ok {
-		return true
+	if val, ok := c.Standards[standard]; ok {
+		return val == true
 	}
 	return false
 }
