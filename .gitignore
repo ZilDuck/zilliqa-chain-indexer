@@ -6,4 +6,4 @@
 /vendor
 /logs/*
 /var
-/cmd/test/.
+/cmd/internal/test/.
