@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,18 +11,15 @@ import (
 	"github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"net/http"
-	"os"
+	"sync"
 	"time"
 )
 
 type Service interface {
 	FetchMetadata(nft entity.Nft) (map[string]interface{}, error)
-	FetchImage(nft entity.Nft, force bool) error
-
-	GetNftMedia(nft entity.Nft) ([]byte, string, error)
+	FetchImage(nft entity.Nft) (io.ReadCloser, error)
 }
 
 type service struct {
@@ -34,10 +32,6 @@ type service struct {
 type Metadata map[string]interface{}
 
 const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0"
-
-var (
-	ErrorAssetAlreadyExists = errors.New("asset already exists")
-)
 
 func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, assetPath string, ipfsTimeout int) Service {
 	return service{client, ipfsHosts, assetPath, ipfsTimeout}
@@ -64,26 +58,14 @@ func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
 	return s.hydrateMetadata(resp)
 }
 
-func (s service) FetchImage(nft entity.Nft, force bool) error {
+func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 	if nft.Metadata.UriEmpty() {
-		return errors.New("metadata uri not valid")
+		return nil, errors.New("metadata uri not valid")
 	}
 
 	assetUri, err := nft.Metadata.GetAssetUri()
 	if err != nil {
 		zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Error(err.Error())
-	}
-
-	contractDir := fmt.Sprintf("%s/%s", s.assetPath, nft.Contract)
-	zap.S().Debugf("Create asset folder for contract (if not exists): %s", contractDir)
-	if err = os.MkdirAll(contractDir, os.ModePerm); err != nil {
-		zap.L().With(zap.Error(err)).Error("Failed to create contract dir")
-	}
-
-	assetPath := fmt.Sprintf("%s/%d", contractDir, nft.TokenId)
-	zap.S().Debugf("Using asset path: %s", assetPath)
-	if _, err := os.Stat(assetPath); err == nil && !force {
-		return ErrorAssetAlreadyExists
 	}
 
 	var resp *http.Response
@@ -92,31 +74,20 @@ func (s service) FetchImage(nft entity.Nft, force bool) error {
 	if helper.IsIpfs(assetUri) {
 		ipfsUri := helper.GetIpfs(assetUri)
 		resp, respErr = s.fetchIpfs(*ipfsUri)
+		zap.L().Info("Response received")
 		if respErr != nil {
 			zap.L().With(zap.Error(err), zap.String("assetUri", assetUri)).Error("Failed to fetch image from ipfs")
-			return respErr
+			return nil, respErr
 		}
 	} else {
 		resp, respErr = s.fetchHttp(assetUri)
 		if respErr != nil {
 			zap.L().With(zap.Error(err), zap.String("assetUri", assetUri)).Error("Failed to fetch image from http")
-			return respErr
+			return nil, respErr
 		}
 	}
 
-	defer resp.Body.Close()
-
-	out, err := os.Create(assetPath)
-	if err != nil {
-		return err
-	}
-	defer out.Close()
-
-	if _, err := io.Copy(out, resp.Body); err != nil {
-		return err
-	}
-
-	return nil
+	return resp.Body, nil
 }
 
 func (s service) fetchIpfs(uri string) (*http.Response, error) {
@@ -124,42 +95,54 @@ func (s service) fetchIpfs(uri string) (*http.Response, error) {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(hosts), func(i, j int) { hosts[i], hosts[j] = hosts[j], hosts[i] })
 
+	var wg sync.WaitGroup
+	ch := make(chan *http.Response, len(hosts))
+
+	ctx := context.Background()
+	//ctx, cancel := context.WithCancel(ctx)
+
 	for _, host := range hosts {
+		wg.Add(1)
+		host := host
 		uri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
-		zap.S().Debugf("Fetching IPFS metadata from %s", uri)
-		req, err := retryablehttp.NewRequest("GET", uri, nil)
-		if err != nil {
-			continue
-		}
-
-		c1 := make(chan *http.Response, 1)
-
 		go func() {
+			defer wg.Done()
+			zap.L().With(zap.String("uri", uri)).Warn("Attempting to find IPFS asset")
+			req, err := retryablehttp.NewRequest(http.MethodGet, uri, nil)
+			if err != nil {
+				zap.L().Error(err.Error())
+				return
+			}
+			req = req.WithContext(ctx)
+
 			resp, err := s.client.Do(req)
 			if err != nil {
-				c1 <- nil
-			} else {
-				c1 <- resp
+				zap.L().Error(err.Error())
+				return
+			}
+			if resp != nil && resp.StatusCode == 200 {
+				zap.L().With(zap.String("uri", uri)).Info("Response received")
+				ch <- resp // no need to test the context, ch has rooms for this push to happen anyways.
 			}
 		}()
-
-		select {
-		case resp := <-c1:
-			if resp == nil {
-				continue
-			}
-			if resp.StatusCode != 200 {
-				zap.S().With(zap.String("uri", uri)).Errorf("IPFS status code: %d", resp.StatusCode)
-				continue
-			}
-			return resp, nil
-		case <-time.After(time.Duration(s.ipfsTimeout) * time.Second):
-			zap.S().Warnf("Timedout waiting for IPFS...next")
-			continue
-		}
 	}
 
-	return nil, errors.New("failed to fetch ipfs")
+	time.Sleep(time.Second)
+	go func() {
+		wg.Wait()
+		close(ch)
+	}()
+
+	resp := <-ch
+	winnerResp := resp
+
+	//go func() {
+	//	time.Sleep(time.Second)
+	//	//cancel()
+	//}()
+
+	zap.L().With(zap.Int("statusCode", winnerResp.StatusCode)).Info("Responding")
+	return winnerResp, nil
 }
 
 func (s service) fetchHttp(uri string) (*http.Response, error) {
@@ -196,28 +179,4 @@ func (s service) hydrateMetadata(resp *http.Response) (Metadata, error) {
 	}
 
 	return md, nil
-}
-
-func (s service) GetNftMedia(nft entity.Nft) ([]byte, string, error) {
-	if s.assetPath == "" || nft.MediaUri == "" {
-		return nil, "", errors.New("media not found")
-	}
-
-	buffer, err := ioutil.ReadFile(fmt.Sprintf("%s/%s",s.assetPath, nft.MediaUri))
-	if err != nil {
-		return nil, "", err
-	}
-
-	fileType, err := getFileContentType(buffer[:512])
-	if err != nil {
-		return nil, "", err
-	}
-
-	return buffer, fileType, nil
-}
-
-func getFileContentType(b []byte) (string, error) {
-	// Use the net/http package's handy DectectContentType function. Always returns a valid
-	// content-type by returning "application/octet-stream" if no others seemed to match.
-	return http.DetectContentType(b), nil
 }

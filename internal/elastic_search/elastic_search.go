@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/event"
 	"github.com/olivere/elastic/v7"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -77,6 +78,7 @@ const (
 
 	NftMetadata   RequestAction = "NftMetadata"
 	NftAsset      RequestAction = "NftAsset"
+	NftAction     RequestAction = "NftAction"
 )
 
 const saveAttempts int = 3
@@ -337,6 +339,16 @@ func (i index) persist(bulk *elastic.BulkService) {
 				zap.String("index", failed.Index),
 				zap.String("id", failed.Id),
 			).Fatal("ElasticCache: Failed to persist requests")
+		}
+	}
+
+	i.flush()
+}
+
+func (i index) flush() {
+	for _, req := range i.GetRequests() {
+		if req.Action == Zrc1Mint || req.Action == Zrc6Mint {
+			event.EmitEvent(event.NftMintedEvent, req.Entity)
 		}
 	}
 

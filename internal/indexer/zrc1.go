@@ -131,7 +131,7 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 		}
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc1Mint)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
 
 		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}

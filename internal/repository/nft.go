@@ -32,7 +32,6 @@ type NftRepository interface {
 	GetBestBlockNum() (uint64, error)
 	PurgeActions(contractAddr string) error
 	PurgeContract(contractAddr string) error
-
 }
 
 type nftRepository struct {
