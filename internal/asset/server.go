@@ -18,14 +18,20 @@ type Server struct {
 }
 
 func NewServer(nftRepo repository.NftRepository, metadataService metadata.Service) Server {
-	return Server{nftRepo,metadataService}
+	return Server{nftRepo, metadataService}
 }
 
 func (s Server) Router() *mux.Router {
 	r := mux.NewRouter()
+	r.HandleFunc("/", s.handleHomepage).Methods("GET")
 	r.HandleFunc("/{contractAddr}/{tokenId}", s.handleGetAsset).Methods("GET")
+	r.NotFoundHandler = notFoundHandler()
 
 	return r
+}
+
+func (s Server) handleHomepage(w http.ResponseWriter, r *http.Request) {
+	_, _ = fmt.Fprintf(w, "Zilliqa Asset CDN")
 }
 
 func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
@@ -61,6 +67,7 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Header().Add("Content-Type", contentType)
 	_, _ = fmt.Fprint(w, string(data[:]))
+	zap.L().With(zap.String("contractAddr", contractAddr), zap.Uint64("tokenId", tokenId)).Info("Serving nft")
 }
 
 func getTokenId(r *http.Request) (uint64, error) {
@@ -74,4 +81,11 @@ func getTokenId(r *http.Request) (uint64, error) {
 
 func getFileContentType(b []byte) (string, error) {
 	return http.DetectContentType(b), nil
+}
+
+func notFoundHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(404)
+		_, _ = fmt.Fprintf(w, "Page not found")
+	})
 }
