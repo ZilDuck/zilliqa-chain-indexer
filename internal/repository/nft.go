@@ -43,7 +43,7 @@ func NewNftRepository(elastic elastic_search.Index) NftRepository {
 }
 
 func (r nftRepository) Exists(contract string, tokenId uint64) bool {
-	_, err := r.getNft(contract, tokenId, MaxRetries)
+	_, err := r.getNft(contract, tokenId, -1)
 	return err == nil
 }
 
@@ -70,11 +70,11 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 
 	nft, err := r.findOne(result, err)
 	if err != nil {
-		if attempt == MaxRetries {
+		if attempt == -1 || attempt == MaxRetries {
 			return nft, err
 		}
-		zap.S().Warnf("Failed to find NFT in repo. retry(%d)", attempt)
-		time.Sleep(1 * time.Second)
+		zap.S().With(zap.String("contractAddr", contract), zap.Uint64("tokenId", tokenId)).Warnf("Failed to find NFT in repo. retry(%d)", attempt)
+		time.Sleep(time.Second * 1)
 		return r.getNft(contract, tokenId, attempt+1)
 	}
 
@@ -123,7 +123,7 @@ func (r nftRepository) GetAllNfts(size, page int) ([]entity.Nft, int64, error) {
 	result, err := search(r.elastic.GetClient().
 		Search(elastic_search.NftIndex.Get()).
 		Size(size).
-		Sort("tokenId", true).
+		Sort("blockNum", false).
 		From(from).
 		TrackTotalHits(true))
 

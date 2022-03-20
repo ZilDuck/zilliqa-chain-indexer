@@ -6,23 +6,19 @@ import (
 )
 
 type Nft struct {
-	Contract string `json:"contract"`
-	TxID     string `json:"txId"`
-	BlockNum uint64 `json:"blockNum"`
-	Name     string `json:"name"`
-	Symbol   string `json:"symbol"`
-	TokenId  uint64 `json:"tokenId"`
-	BaseUri  string `json:"baseUri"`
-	TokenUri string `json:"tokenUri"`
-	MediaUri string `json:"mediaUri"`
-	Owner    string `json:"owner"`
-	BurnedAt uint64 `json:"burnedAt"`
-	Zrc1     bool   `json:"zrc1"`
-	Zrc6     bool   `json:"zrc6"`
-
+	Contract string   `json:"contract"`
+	TxID     string   `json:"txId"`
+	BlockNum uint64   `json:"blockNum"`
+	Name     string   `json:"name"`
+	Symbol   string   `json:"symbol"`
+	TokenId  uint64   `json:"tokenId"`
+	BaseUri  string   `json:"baseUri"`
+	TokenUri string   `json:"tokenUri"`
+	Owner    string   `json:"owner"`
+	BurnedAt uint64   `json:"burnedAt"`
+	Zrc1     bool     `json:"zrc1"`
+	Zrc6     bool     `json:"zrc6"`
 	Metadata Metadata `json:"metadata"`
-
-	Validated bool `json:"validated"`
 }
 
 func (n Nft) Slug() string {

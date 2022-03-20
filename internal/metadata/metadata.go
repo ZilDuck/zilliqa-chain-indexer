@@ -2,18 +2,18 @@ package metadata
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/dev"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 	"io"
-	"math/rand"
 	"net/http"
-	"sync"
+	"reflect"
+	"strings"
 	"time"
 )
 
@@ -33,6 +33,16 @@ type Metadata map[string]interface{}
 
 const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0"
 
+var (
+	ErrNoSuchHost = errors.New("no such host")
+	ErrNotFound = errors.New("404 not found")
+	ErrBadRequest = errors.New("bad request")
+	ErrInvalidContent = errors.New("invalid content")
+	ErrUnsupportedProtocolScheme = errors.New("unsupported protocol scheme")
+	ErrMetadataNotFound = errors.New("metadata not found")
+	ErrTimeout = errors.New("timeout")
+)
+
 func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, assetPath string, ipfsTimeout int) Service {
 	return service{client, ipfsHosts, assetPath, ipfsTimeout}
 }
@@ -45,13 +55,22 @@ func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
 	var resp *http.Response
 	var err error
 
-	if nft.Metadata.Ipfs {
+	if nft.Metadata.IsIpfs {
 		resp, err = s.fetchIpfs(nft.Metadata.Uri)
 	} else {
 		resp, err = s.fetchHttp(nft.Metadata.Uri)
 	}
 
 	if err != nil {
+		if errors.Is(err, ErrTimeout) || errors.Is(err, ErrMetadataNotFound) || errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		if strings.Contains(err.Error(), "unsupported protocol scheme") {
+			return nil, ErrUnsupportedProtocolScheme
+		}
+		if len(err.Error()) > 12 && err.Error()[len(err.Error())-12:] == "no such host" {
+			return nil, ErrNoSuchHost
+		}
 		return nil, err
 	}
 
@@ -60,6 +79,7 @@ func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
 
 func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 	if nft.Metadata.UriEmpty() {
+		zap.L().With(zap.String("contractAddr", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Warn("Metadata not found")
 		return nil, errors.New("metadata uri not valid")
 	}
 
@@ -74,7 +94,6 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 	if helper.IsIpfs(assetUri) {
 		ipfsUri := helper.GetIpfs(assetUri)
 		resp, respErr = s.fetchIpfs(*ipfsUri)
-		zap.L().Info("Response received")
 		if respErr != nil {
 			zap.L().With(zap.Error(err), zap.String("assetUri", assetUri)).Error("Failed to fetch image from ipfs")
 			return nil, respErr
@@ -91,81 +110,97 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 }
 
 func (s service) fetchIpfs(uri string) (*http.Response, error) {
-	hosts := s.ipfsHosts
-	rand.Seed(time.Now().UnixNano())
-	rand.Shuffle(len(hosts), func(i, j int) { hosts[i], hosts[j] = hosts[j], hosts[i] })
+	ch := make(chan *http.Response, len(s.ipfsHosts))
+	complete := 0
 
-	var wg sync.WaitGroup
-	ch := make(chan *http.Response, len(hosts))
-
-	ctx := context.Background()
-	//ctx, cancel := context.WithCancel(ctx)
-
-	for _, host := range hosts {
-		wg.Add(1)
-		host := host
-		uri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
-		go func() {
-			defer wg.Done()
-			zap.L().With(zap.String("uri", uri)).Warn("Attempting to find IPFS asset")
-			req, err := retryablehttp.NewRequest(http.MethodGet, uri, nil)
+	for _, host := range s.ipfsHosts {
+		go func(host string) {
+			uri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
+			req, err := retryablehttp.NewRequest("GET", uri, nil)
 			if err != nil {
-				zap.L().Error(err.Error())
+				ch <- nil
 				return
 			}
-			req = req.WithContext(ctx)
 
+			zap.L().With(zap.String("uri", uri)).Debug("Fetching IPFS metadata")
 			resp, err := s.client.Do(req)
 			if err != nil {
-				zap.L().Error(err.Error())
-				return
+				ch <- nil
 			}
-			if resp != nil && resp.StatusCode == 200 {
-				zap.L().With(zap.String("uri", uri)).Info("Response received")
-				ch <- resp // no need to test the context, ch has rooms for this push to happen anyways.
-			}
-		}()
+			ch <- resp
+		}(host)
 	}
 
-	time.Sleep(time.Second)
-	go func() {
-		wg.Wait()
-		close(ch)
-	}()
+	for {
+		select {
+		case resp := <-ch:
+			if resp != nil {
+				if resp.StatusCode == 200 {
+					return resp, nil
+				}
+				zap.S().With(zap.String("uri", uri)).Errorf("IPFS status code: %d", resp.StatusCode)
+			}
+			complete++
+		case <-time.After(time.Duration(s.ipfsTimeout) * time.Second):
+			zap.S().Warnf("Timedout waiting for IPFS...next")
+			complete++
+		}
 
-	resp := <-ch
-	winnerResp := resp
+		if complete == len(s.ipfsHosts) {
+			break
+		}
+	}
 
-	//go func() {
-	//	time.Sleep(time.Second)
-	//	//cancel()
-	//}()
+	return nil, errors.New("metadata not found")
+}
 
-	zap.L().With(zap.Int("statusCode", winnerResp.StatusCode)).Info("Responding")
-	return winnerResp, nil
+type fetchResponse struct {
+	resp *http.Response
+	err  error
 }
 
 func (s service) fetchHttp(uri string) (*http.Response, error) {
+	ch := make(chan fetchResponse, 1)
+
 	req, err := retryablehttp.NewRequest("GET", uri, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("User-Agent", userAgent)
+	zap.L().With(zap.String("uri", uri)).Debug("Fetching HTTP metadata")
 
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return nil, err
+	go func() {
+		resp, err := s.client.Do(req)
+		if err != nil {
+			ch <-fetchResponse{err: err}
+			return
+		}
+
+		if resp.StatusCode != 200 {
+			if resp.StatusCode == http.StatusNotFound {
+				ch <-fetchResponse{err: ErrNotFound}
+				return
+			}
+			if resp.StatusCode == http.StatusBadRequest {
+				ch <-fetchResponse{err: ErrBadRequest}
+				return
+			}
+			zap.S().With(zap.String("uri", uri)).Errorf("HTTP status code: %d", resp.StatusCode)
+			ch <-fetchResponse{err: errors.New(resp.Status)}
+		}
+
+		ch <- fetchResponse{resp: resp}
+	}()
+	select {
+	case resp := <-ch:
+		return resp.resp, resp.err
+	case <-time.After(1 * time.Second):
+		zap.L().Debug("Timed out waiting for "+uri)
+		return nil, ErrTimeout
 	}
-
-	if resp.StatusCode != 200 {
-		zap.S().With(zap.String("uri", uri)).Errorf("HTTP status code: %d", resp.StatusCode)
-		return nil, errors.New(resp.Status)
-	}
-
-	return resp, nil
 }
 
-func (s service) hydrateMetadata(resp *http.Response) (Metadata, error) {
+func (s service) hydrateMetadata(resp *http.Response) (map[string]interface{}, error) {
 	defer resp.Body.Close()
 
 	buf := new(bytes.Buffer)
@@ -173,10 +208,53 @@ func (s service) hydrateMetadata(resp *http.Response) (Metadata, error) {
 		return nil, err
 	}
 
-	var md Metadata
+	var md map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &md); err != nil {
-		return nil, err
+		return nil, ErrInvalidContent
 	}
 
 	return md, nil
+}
+
+func (s service) hydrateProperties(data map[string]interface{}) []entity.MetadataProperty {
+	properties := make([]entity.MetadataProperty, 0)
+	for key, val := range data {
+		property := entity.MetadataProperty{Key: key}
+		switch val.(type) {
+		case bool:
+			v := val.(bool)
+			property.Bool = &v
+		case int:
+			v := val.(int64)
+			property.Long = &v
+		case float64:
+			v := val.(float64)
+			if v == float64(int64(v)) {
+				cv := int64(v)
+				property.Long = &cv
+			} else {
+				property.Double = &v
+			}
+		case string:
+			v := val.(string)
+			property.String = &v
+		case map[string]interface{}:
+			property.Object = s.hydrateProperties(val.(map[string]interface{}))
+		case []interface{}:
+			property.Objects = make([]entity.MetadataProperties, 0)
+
+			for _, int := range val.([]interface{}) {
+				switch int.(type) {
+				case map[string]interface{}:
+					property.Objects = append(property.Objects, s.hydrateProperties(int.(map[string]interface{})))
+				}
+			}
+		default:
+			dev.Dump(val)
+			zap.L().Fatal("Unmapped type: " + reflect.TypeOf(val).String())
+		}
+
+		properties = append(properties, property)
+	}
+	return properties
 }

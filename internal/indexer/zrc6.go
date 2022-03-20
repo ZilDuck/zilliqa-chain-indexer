@@ -20,7 +20,6 @@ type zrc6Indexer struct {
 	nftRepo         repository.NftRepository
 	txRepo          repository.TransactionRepository
 	factory         factory.Zrc6Factory
-	metadataIndexer MetadataIndexer
 }
 
 func NewZrc6Indexer(
@@ -29,9 +28,8 @@ func NewZrc6Indexer(
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc6Factory,
-	metadataIndexer MetadataIndexer,
 ) Zrc6Indexer {
-	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer}
+	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo, factory}
 }
 
 func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -129,14 +127,11 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
-
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
+			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
-
-		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return nil
@@ -154,9 +149,8 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
-
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
+			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
@@ -224,7 +218,7 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 				zap.String("txId", tx.ID),
 				zap.String("contractAddr", c.Address),
 				zap.Uint64("tokenId", tokenId),
-			).Error("Failed to find nft in index")
+			).Fatal("Failed to find zrc6 nft in index")
 			continue
 		}
 
@@ -256,7 +250,7 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 				zap.String("txId", tx.ID),
 				zap.String("contractAddr", c.Address),
 				zap.Uint64("tokenId", tokenId),
-			).Error("Failed to find nft in index")
+			).Fatal("Failed to find zrc6 nft in index")
 			continue
 		}
 

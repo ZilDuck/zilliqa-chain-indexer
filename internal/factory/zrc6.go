@@ -60,7 +60,6 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			TokenUri:  tokenUri,
 			Owner:     strings.ToLower(to),
 			Zrc6:      true,
-			Validated: false,
 		}
 
 		nft.Metadata = GetMetadata(nft)
@@ -123,7 +122,6 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 					BaseUri:   c.BaseUri,
 					Owner:     strings.ToLower(arguments[0].(string)),
 					Zrc6:      true,
-					Validated: false,
 				}
 
 				nft.Metadata = GetMetadata(nft)

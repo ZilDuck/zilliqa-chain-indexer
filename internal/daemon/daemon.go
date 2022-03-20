@@ -25,6 +25,7 @@ type Daemon struct {
 	contractIndexer indexer.ContractIndexer
 	zrc1Indexer     indexer.Zrc1Indexer
 	zrc6Indexer     indexer.Zrc6Indexer
+	metadataIndexer indexer.MetadataIndexer
 }
 
 func NewDaemon(
@@ -38,7 +39,7 @@ func NewDaemon(
 	contractIndexer indexer.ContractIndexer,
 	zrc1Indexer indexer.Zrc1Indexer,
 	zrc6Indexer indexer.Zrc6Indexer,
-
+	metadataIndexer indexer.MetadataIndexer,
 ) *Daemon {
 	return &Daemon{
 		elastic,
@@ -51,6 +52,7 @@ func NewDaemon(
 		contractIndexer,
 		zrc1Indexer,
 		zrc6Indexer,
+		metadataIndexer,
 	}
 }
 
@@ -152,18 +154,23 @@ func (d *Daemon) bulkIndexContractsFrom(bestBlockNum uint64) uint64 {
 }
 
 func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
-	zap.L().With(zap.Uint64("bestBlockNum", bestBlockNum)).Info("Bulk index NFTs")
-
 	bulkIndexNftsFrom := d.bulkIndexNftsFrom(bestBlockNum)
 	size := 100
 	contractPage := 1
 
+	zap.L().With(zap.Uint64("bestBlockNum", bulkIndexNftsFrom)).Info("Bulk index NFTs")
+
 	for {
-		contracts, _, err := d.contractRepo.GetAllNftContracts(size, contractPage)
+		contracts, total, err := d.contractRepo.GetAllNftContracts(size, contractPage)
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Failed to get contracts when bulk indexing nfts")
 			break
 		}
+
+		if contractPage == 1 {
+			zap.S().Infof("Found %d nft contracts", total)
+		}
+
 		if len(contracts) == 0 {
 			break
 		}
@@ -171,21 +178,24 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 		for _, c := range contracts {
 			txPage := 1
 			for {
-				txs, _, err := d.txRepo.GetContractExecutionsByContractFrom(c, bulkIndexNftsFrom, size, txPage)
+				txs, total, err := d.txRepo.GetContractExecutionsByContractFrom(c, bulkIndexNftsFrom, size, txPage)
 				if err != nil {
 					zap.L().With(zap.Error(err)).Error("Failed to get txs when bulk indexing nfts")
+				}
+				if txPage == 1 {
+					zap.S().Infof("Found %d nfts for contract %s", total, c.Address)
 				}
 				if len(txs) == 0 {
 					break
 				}
 
 				for _, tx := range txs {
-					if !c.MatchesStandard(entity.ZRC1) {
+					if c.MatchesStandard(entity.ZRC1) {
 						if err := d.zrc1Indexer.IndexTx(tx, c); err != nil {
 							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc1")
 						}
 					}
-					if !c.MatchesStandard(entity.ZRC6) {
+					if c.MatchesStandard(entity.ZRC6) {
 						if err := d.zrc6Indexer.IndexTx(tx, c); err != nil {
 							zap.L().With(zap.Error(err)).Error("Failed to bulk index Zrc6")
 						}

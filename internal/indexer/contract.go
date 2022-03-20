@@ -53,7 +53,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 				).Info("Index contract")
 				_ = i.indexContractState(c)
 
-				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractCreate)
+				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), *c, elastic_search.ContractCreate)
 			}
 		}
 
@@ -64,9 +64,9 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 				go func(addr string) {
 					defer wg.Done()
 					c, err := i.contractRepo.GetContractByAddress(addr)
-					if err != nil {
+					if err == nil {
 						_ = i.indexContractState(c)
-						i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractState)
+						i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), *c, elastic_search.ContractState)
 					}
 				}(contractAddr)
 			}
@@ -93,6 +93,10 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 		}
 
 		for _, tx := range txs {
+			if _, err := i.contractRepo.GetContractByAddress(tx.ContractAddress); err == nil {
+				continue
+			}
+
 			c, err := i.factory.CreateContractFromTx(tx)
 			if err != nil {
 				continue
@@ -129,24 +133,27 @@ func (i contractIndexer) indexContractState(c *entity.Contract) error {
 		return err
 	}
 
-	cState := make([]entity.ContractStateElement, 0)
+	cState := make([]entity.StateElement, 0)
 
 	for k, v := range state {
 		switch v.(type) {
 		case map[string]interface{}:
 			vJson, _ := json.Marshal(v)
-			cState = append(cState, entity.ContractStateElement{Key: k, Value: string(vJson)})
+			cState = append(cState, entity.StateElement{Key: k, Value: string(vJson)})
 		case []interface{}:
 			vJson, _ := json.Marshal(v)
-			cState = append(cState, entity.ContractStateElement{Key: k, Value: string(vJson)})
+			cState = append(cState, entity.StateElement{Key: k, Value: string(vJson)})
 		default:
-			cState = append(cState, entity.ContractStateElement{Key: k, Value: v.(string)})
+			cState = append(cState, entity.StateElement{Key: k, Value: v.(string)})
 		}
 	}
-
-	c.State = cState
+	contractState := entity.ContractState{
+		Address: c.Address,
+		State:   cState,
+	}
 
 	zap.L().With(zap.String("address", c.Address)).Info("Index contract state")
+	i.elastic.AddIndexRequest(elastic_search.ContractStateIndex.Get(), contractState, elastic_search.ContractState)
 
 	return nil
 }

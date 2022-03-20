@@ -1,6 +1,7 @@
 package di
 
 import (
+	"crypto/tls"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/daemon"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
@@ -18,6 +19,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/sarulabs/dingo/v4"
 	"go.uber.org/zap"
+	"net/http"
 	"time"
 )
 
@@ -82,8 +84,9 @@ var Definitions = []dingo.Def{
 			contractIndexer indexer.ContractIndexer,
 			zrc1Indexer indexer.Zrc1Indexer,
 			zrc6Indexer indexer.Zrc6Indexer,
+			metadataIndexer indexer.MetadataIndexer,
 		) (*daemon.Daemon, error) {
-			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, nftRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer), nil
+			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, nftRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer, metadataIndexer), nil
 		},
 	},
 	{
@@ -132,9 +135,8 @@ var Definitions = []dingo.Def{
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc1Factory,
-			metadataIndexer indexer.MetadataIndexer,
 		) (indexer.Zrc1Indexer, error) {
-			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer), nil
+			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
 		},
 	},
 	{
@@ -145,9 +147,8 @@ var Definitions = []dingo.Def{
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc6Factory,
-			metadataIndexer indexer.MetadataIndexer,
 		) (indexer.Zrc6Indexer, error) {
-			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer), nil
+			return indexer.NewZrc6Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
 		},
 	},
 	{
@@ -209,6 +210,9 @@ var Definitions = []dingo.Def{
 			retryClient := retryablehttp.NewClient()
 			retryClient.Logger = nil
 			retryClient.RetryMax = config.Get().MetadataRetries
+			retryClient.HTTPClient.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+			}
 
 			return metadata.NewMetadataService(retryClient, config.Get().IpfsHosts, config.Get().AssetPath, config.Get().IpfsTimeout), nil
 		},

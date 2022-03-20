@@ -58,7 +58,6 @@ func (f zrc1Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			TokenUri:  tokenUri,
 			Owner:     strings.ToLower(recipient),
 			Zrc1:      true,
-			Validated: false,
 		}
 
 		nft.Metadata = GetMetadata(nft)
@@ -104,7 +103,6 @@ func (f zrc1Factory) createUnicuteFromMintTx(tx entity.Transaction, c entity.Con
 			TokenUri:  tokenUri,
 			Owner:     recipient,
 			Zrc1:      true,
-			Validated: false,
 		}
 
 		nft.Metadata = GetMetadata(nft)

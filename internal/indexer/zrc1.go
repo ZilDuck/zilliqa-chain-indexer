@@ -20,7 +20,6 @@ type zrc1Indexer struct {
 	nftRepo         repository.NftRepository
 	txRepo          repository.TransactionRepository
 	factory         factory.Zrc1Factory
-	metadataIndexer MetadataIndexer
 }
 
 func NewZrc1Indexer(
@@ -29,9 +28,8 @@ func NewZrc1Indexer(
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc1Factory,
-	metadataIndexer MetadataIndexer,
 ) Zrc1Indexer {
-	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer}
+	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo, factory}
 }
 
 func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -126,14 +124,11 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
-
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
+			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 		}
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
-
-		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
 	}
 
 	return err
@@ -160,7 +155,13 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("txId", tx.ID),  zap.String("contractAddr", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
+			zap.L().With(
+				zap.Error(err),
+				zap.String("txId", tx.ID),
+				zap.String("contractAddr", c.Address),
+				zap.Uint64("tokenId", tokenId),
+				zap.String("action", "transfer"),
+			).Error("Failed to find zrc1 nft in index")
 			continue
 		}
 
@@ -198,7 +199,12 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 
 		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("contract", c.Address), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft in index")
+			zap.L().With(
+				zap.Error(err),
+				zap.String("contract", c.Address),
+				zap.Uint64("tokenId", tokenId),
+				zap.String("action", "burn"),
+			).Fatal("Failed to find zrc1 nft in index")
 		}
 		nft.BurnedAt = tx.BlockNum
 

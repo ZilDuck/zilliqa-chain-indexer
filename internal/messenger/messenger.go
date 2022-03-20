@@ -23,7 +23,6 @@ type Queue string
 
 const (
 	MetadataRefresh Queue = "metadata_refresh"
-	AssetRefresh Queue = "asset_refresh"
 )
 
 func (q *Queue) Get() string {
