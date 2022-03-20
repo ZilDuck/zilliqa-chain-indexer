@@ -349,6 +349,9 @@ func (i index) flush() {
 		if req.Action == Zrc1Mint || req.Action == Zrc6Mint {
 			event.EmitEvent(event.NftMintedEvent, req.Entity)
 		}
+		if req.Action == Zrc6SetBaseUri {
+			event.EmitEvent(event.ContractBaseUriUpdatedEvent, req.Entity)
+		}
 	}
 
 	zap.L().Debug("ElasticCache: Flushing ES cache")

@@ -8,7 +8,7 @@ import (
 )
 
 func GetMetadata(nft entity.Nft) entity.Metadata {
-	uri := getMetadataUri(nft)
+	uri := GetMetadataUri(nft)
 
 	if ipfs := helper.GetIpfs(uri); ipfs != nil {
 		return entity.Metadata{Uri: *ipfs, IsIpfs: true, Status: entity.MetadataPending}
@@ -22,7 +22,7 @@ func GetMetadata(nft entity.Nft) entity.Metadata {
 	return entity.Metadata{Uri: uri, IsIpfs: false, Status: entity.MetadataPending}
 }
 
-func getMetadataUri(nft entity.Nft) string {
+func GetMetadataUri(nft entity.Nft) string {
 	var uri string
 	if nft.Zrc6 {
 		if nft.TokenUri != "" {

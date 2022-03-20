@@ -33,6 +33,7 @@ func NewMetadataIndexer(
 	i := metadataIndexer{elastic, nftRepo, messageService, metadataService}
 
 	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
+	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
 
 	return i
 }
