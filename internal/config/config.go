@@ -33,8 +33,6 @@ type Config struct {
 	AssetPath string
 	AssetPort string
 
-	SentryDsn string
-
 	Zilliqa       ZilliqaConfig
 	ElasticSearch ElasticSearchConfig
 	Aws           AwsConfig
@@ -80,7 +78,7 @@ func Init() {
 	initLogger()
 }
 func initLogger() {
-	log.NewLogger(Get().Debug, Get().SentryDsn)
+	log.NewLogger(Get().Debug)
 }
 
 func Get() *Config {
@@ -110,9 +108,9 @@ func Get() *Config {
 			Region:    getString("AWS_REGION", ""),
 		},
 		Zilliqa: ZilliqaConfig{
-			Url: getString("ZILLIQA_URL", ""),
+			Url:     getString("ZILLIQA_URL", ""),
 			Timeout: getInt("ZILLIQA_TIMEOUT", 30),
-			Debug: getBool("ZILLIQA_DEBUG", false),
+			Debug:   getBool("ZILLIQA_DEBUG", false),
 		},
 		ElasticSearch: ElasticSearchConfig{
 			Hosts:            getSlice("ELASTIC_SEARCH_HOSTS", make([]string, 0), ","),
@@ -123,7 +121,7 @@ func Get() *Config {
 			Password:         getString("ELASTIC_SEARCH_PASSWORD", ""),
 			MappingDir:       getString("ELASTIC_SEARCH_MAPPING_DIR", "/data/mappings"),
 			BulkPersistCount: getInt("ELASTIC_SEARCH_BULK_PERSIST_COUNT", 300),
-			Refresh:          getString("ELASTIC_SEARCH_REFRESH", "false"),
+			Refresh:          getString("ELASTIC_SEARCH_REFRESH", "wait_for"),
 		},
 	}
 }
