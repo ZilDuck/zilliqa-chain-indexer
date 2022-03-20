@@ -16,6 +16,7 @@ func main() {
 	elastic := container.GetElastic()
 
 	bestBlock, _ := container.GetTxRepo().GetBestBlockNum()
+	zap.S().Infof("Transaction index best block: %d", bestBlock)
 
 	var from uint64 = 1
 	var size uint64 = 100
