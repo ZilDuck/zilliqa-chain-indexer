@@ -12,7 +12,7 @@ type Listener struct {
 }
 
 func AddEventListener(eventType Type, callback func(msg interface{})) {
-	zap.L().With(zap.String("type", string(eventType))).Debug("EventManager: AddListener")
+	zap.L().With(zap.String("type", string(eventType))).Info("EventManager: AddListener")
 
 	listener := Listener{
 		eventType: eventType,
@@ -30,7 +30,11 @@ func AddEventListener(eventType Type, callback func(msg interface{})) {
 }
 
 func EmitEvent(eventType Type, msg interface{}) {
+	if len(listeners) == 0 {
+		zap.L().Debug("No event listeners available")
+	}
 	for _, listener := range listeners {
+		zap.L().Debug(string(listener.eventType))
 		if listener.eventType == eventType {
 			zap.L().With(zap.String("type", string(eventType))).Debug("EventManager: Emitting event")
 			go func(handler chan interface{}) {
