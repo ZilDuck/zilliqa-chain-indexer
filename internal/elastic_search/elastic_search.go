@@ -76,9 +76,8 @@ const (
 	Zrc6Transfer   RequestAction = "Zrc6Transfer"
 	Zrc6Burn       RequestAction = "Zrc6Burn"
 
-	NftMetadata   RequestAction = "NftMetadata"
-	NftAsset      RequestAction = "NftAsset"
-	NftAction     RequestAction = "NftAction"
+	NftMetadata RequestAction = "NftMetadata"
+	NftAction   RequestAction = "NftAction"
 )
 
 const saveAttempts int = 3
@@ -332,7 +331,7 @@ func (i index) persist(bulk *elastic.BulkService) {
 		}
 	}
 
-	if response.Errors == true {
+	if len(response.Failed()) != 0 {
 		for _, failed := range response.Failed() {
 			zap.L().With(
 				zap.Any("error", failed.Error),

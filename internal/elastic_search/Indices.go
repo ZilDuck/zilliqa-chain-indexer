@@ -10,6 +10,7 @@ type Indices string
 var (
 	TransactionIndex   Indices = "transaction"
 	ContractIndex      Indices = "contract"
+	ContractStateIndex Indices = "contractstate"
 	NftIndex           Indices = "nft"
 	NftActionIndex     Indices = "nftaction"
 )

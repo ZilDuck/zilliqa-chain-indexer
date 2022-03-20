@@ -14,13 +14,13 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 		result := cached.Entity.(entity.Contract)
 		if action == ContractSetBaseUri {
 			result.BaseUri = e.(entity.Contract).BaseUri
-		} else if action == ContractState {
-			result.State = e.(entity.Contract).State
 		} else {
 			result = e.(entity.Contract)
 		}
 		return result
-
+	case index == ContractStateIndex.Get():
+		result := cached.Entity.(entity.ContractState)
+		result.State = e.(entity.ContractState).State
 	case index == NftIndex.Get():
 		result := cached.Entity.(entity.Nft)
 		if action == Zrc1Transfer {
@@ -48,15 +48,9 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 		}
 
 		if action == NftMetadata {
-			result.Metadata.Attempted = e.(entity.Nft).Metadata.Attempted
+			result.Metadata.Attempts = e.(entity.Nft).Metadata.Attempts
 			result.Metadata.Error = e.(entity.Nft).Metadata.Error
-			result.Metadata.Data = e.(entity.Nft).Metadata.Data
-		}
-
-		if action == NftAsset {
-			result.Metadata.AssetAttempted = e.(entity.Nft).Metadata.AssetAttempted
-			result.Metadata.AssetError = e.(entity.Nft).Metadata.AssetError
-			result.MediaUri = e.(entity.Nft).MediaUri
+			result.Metadata.Properties = e.(entity.Nft).Metadata.Properties
 		}
 
 		return result
