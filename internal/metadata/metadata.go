@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/dev"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/hashicorp/go-retryablehttp"
 	"go.uber.org/zap"
 	"io"
 	"net/http"
-	"reflect"
 	"strings"
 	"time"
 )
@@ -214,47 +212,4 @@ func (s service) hydrateMetadata(resp *http.Response) (map[string]interface{}, e
 	}
 
 	return md, nil
-}
-
-func (s service) hydrateProperties(data map[string]interface{}) []entity.MetadataProperty {
-	properties := make([]entity.MetadataProperty, 0)
-	for key, val := range data {
-		property := entity.MetadataProperty{Key: key}
-		switch val.(type) {
-		case bool:
-			v := val.(bool)
-			property.Bool = &v
-		case int:
-			v := val.(int64)
-			property.Long = &v
-		case float64:
-			v := val.(float64)
-			if v == float64(int64(v)) {
-				cv := int64(v)
-				property.Long = &cv
-			} else {
-				property.Double = &v
-			}
-		case string:
-			v := val.(string)
-			property.String = &v
-		case map[string]interface{}:
-			property.Object = s.hydrateProperties(val.(map[string]interface{}))
-		case []interface{}:
-			property.Objects = make([]entity.MetadataProperties, 0)
-
-			for _, int := range val.([]interface{}) {
-				switch int.(type) {
-				case map[string]interface{}:
-					property.Objects = append(property.Objects, s.hydrateProperties(int.(map[string]interface{})))
-				}
-			}
-		default:
-			dev.Dump(val)
-			zap.L().Fatal("Unmapped type: " + reflect.TypeOf(val).String())
-		}
-
-		properties = append(properties, property)
-	}
-	return properties
 }
