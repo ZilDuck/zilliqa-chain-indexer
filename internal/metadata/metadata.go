@@ -149,7 +149,7 @@ func (s service) fetchIpfs(uri string) (*http.Response, error) {
 		}
 	}
 
-	return nil, errors.New("metadata not found")
+	return nil, ErrMetadataNotFound
 }
 
 type fetchResponse struct {

@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
@@ -80,13 +81,10 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
 			i.elastic.BatchPersist()
 		} else {
-			zap.L().With(
-				zap.Error(err),
-				zap.String("contractAddr", nft.Contract),
-				zap.Uint64("tokenId", nft.TokenId),
-				zap.String("baseUrl", nft.BaseUri),
-				zap.String("tokenUri", nft.TokenUri),
-			).Fatal("Failed to get NFT metadata")
+			nft.Metadata.Error = fmt.Sprintf("Unexpected: %s", err.Error())
+			nft.Metadata.Attempts++
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
+			i.elastic.BatchPersist()
 		}
 
 		return nil, err
