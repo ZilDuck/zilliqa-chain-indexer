@@ -5,6 +5,8 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"go.uber.org/zap"
+	"os"
+	"strconv"
 )
 
 func main() {
@@ -18,7 +20,14 @@ func main() {
 	bestBlock, _ := container.GetTxRepo().GetBestBlockNum()
 	zap.S().Infof("Transaction index best block: %d", bestBlock)
 
+
 	var from uint64 = 0
+	if len(os.Args) == 2 {
+		if i, err := strconv.ParseInt(os.Args[1], 10, 64); err == nil {
+			from = uint64(i)
+		}
+	}
+
 	var size uint64 = 100
 
 	for {
