@@ -16,7 +16,9 @@ var (
 
 type TransactionRepository interface {
 	GetBestBlockNum() (uint64, error)
+
 	GetTx(txId string) (*entity.Transaction, error)
+	GetMissingTxs(txIds []string) (map[string]struct{}, error)
 
 	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
@@ -68,11 +70,41 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 }
 
 func (r transactionRepository) GetTx(txId string) (*entity.Transaction, error) {
+	zap.L().Debug("TransactionRepository::GetTx: "+txId)
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_search.TransactionIndex.Get()).
 		Query(elastic.NewTermQuery("ID", txId)))
 
 	return r.findOne(results, err)
+}
+
+func (r transactionRepository) GetMissingTxs(txIds []string) (map[string]struct{}, error) {
+	zap.L().Debug("TransactionRepository::GetMissingTxs")
+	values := make([]interface{}, len(txIds))
+	for i, v := range txIds {
+		values[i] = v
+	}
+
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_search.TransactionIndex.Get()).
+		Query(elastic.NewTermsQuery("ID.keyword", values...)).
+		Aggregation("txId", elastic.NewTermsAggregation().Field("ID.keyword").Size(len(txIds))))
+	if err != nil {
+		return nil, err
+	}
+
+	missingTxIds := map[string]struct{}{}
+	for _, tx := range txIds {
+		missingTxIds[tx] = struct{}{}
+	}
+
+	if txId, found := results.Aggregations.Terms("txId"); found {
+		for _, txIdBucket := range txId.Buckets {
+			delete(missingTxIds, txIdBucket.Key.(string))
+		}
+	}
+
+	return missingTxIds, nil
 }
 
 func (r transactionRepository) GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {

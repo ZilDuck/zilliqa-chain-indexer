@@ -15,6 +15,7 @@ func main() {
 	config.Init()
 	container, _ = dic.NewContainer()
 
+	container.GetMetadataIndexer()
 	container.GetElastic().InstallMappings()
 
 	if len(os.Args) > 1 {
@@ -50,12 +51,18 @@ func importAllNfts() {
 			panic(err)
 		}
 		if page == 1 {
-			zap.S().Infof("Found %d NFTs", total)
+			zap.S().Infof("Found %d Contracts", total)
 		}
 		if len(contracts) == 0 {
 			break
 		}
 		for _, c := range contracts {
+			if c.BlockNum < 1720508 {
+				continue
+			}
+			//if c.Address == "0x3fe64e8b3e9e110db331b32ea26e191c07f14f80" || c.Address == "0x8a79bac7a6383211ae902f34e86c6b729906346d" {
+			//	continue
+			//}
 			importNftsForContract(c)
 		}
 		container.GetElastic().BatchPersist()
@@ -64,17 +71,18 @@ func importAllNfts() {
 }
 
 func importNftsForContract(contract entity.Contract) {
+	zap.L().Info("*** Import Nfts For Contract: "+contract.Address)
 	container.GetNftRepo().PurgeActions(contract.Address)
 
 	if contract.MatchesStandard(entity.ZRC6) {
 		zap.L().With(zap.String("contractAddr", contract.Address), zap.String("shape", "ZRC6")).Info("Import nfts for contract")
 		if err := container.GetZrc6Indexer().IndexContract(contract); err != nil {
-			zap.S().Errorf("Failed to index ZRC6 NFTs for contract %s", contract.Address)
+			zap.S().Fatalf("Failed to index ZRC6 NFTs for contract %s", contract.Address)
 		}
 	} else if contract.MatchesStandard(entity.ZRC1) {
 		zap.L().With(zap.String("contractAddr", contract.Address), zap.String("shape", "ZRC1")).Info("Import nfts for contract")
 		if err := container.GetZrc1Indexer().IndexContract(contract); err != nil {
-			zap.S().Errorf("Failed to index ZRC1 NFTs for contract %s", contract.Address)
+			zap.S().Fatalf("Failed to index ZRC1 NFTs for contract %s", contract.Address)
 		}
 	}
 }

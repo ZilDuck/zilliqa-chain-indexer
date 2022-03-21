@@ -18,18 +18,28 @@ func main() {
 	bestBlock, _ := container.GetTxRepo().GetBestBlockNum()
 	zap.S().Infof("Transaction index best block: %d", bestBlock)
 
-	var from uint64 = 1
+	var from uint64 = 0
 	var size uint64 = 100
 
 	for {
 		txs, _ := container.GetTxIndexer().CreateTransactions(from, size)
+		txIds := make([]string, len(txs))
+		for idx, tx := range txs {
+			txIds[idx] = tx.ID
+		}
+
+		missingTxs, err := txRepo.GetMissingTxs(txIds)
+		if err != nil {
+			panic(err)
+		}
+
 		for _, tx := range txs {
-			if _, err := txRepo.GetTx(tx.ID); err != nil {
-				zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Error("Tx Error")
+			if _, ok := missingTxs[tx.ID]; ok {
+				zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Info("Missing Tx")
 				elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), tx, elastic_search.TransactionCreate)
 			}
 		}
-		elastic.BatchPersist()
+		elastic.Persist()
 
 		from = from + size
 

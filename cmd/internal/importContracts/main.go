@@ -35,7 +35,7 @@ func main() {
 		return
 	}
 
-	if err := container.GetContractIndexer().BulkIndex(config.Get().FirstBlockNum); err != nil {
+	if err := container.GetContractIndexer().BulkIndex(1800000); err != nil {
 		zap.L().Fatal("Failed to bulk index contracts")
 	}
 }
