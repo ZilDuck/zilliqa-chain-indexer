@@ -39,7 +39,7 @@ func NewMetadataIndexer(
 }
 
 func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {
-	if config.Get().Env == "local" {
+	if !config.Get().EventsSupported {
 		return
 	}
 	nft := el.(entity.Nft)

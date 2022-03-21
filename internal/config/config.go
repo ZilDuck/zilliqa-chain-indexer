@@ -29,6 +29,7 @@ type Config struct {
 	MetadataRetries        int
 	IpfsHosts              []string
 	IpfsTimeout            int
+	EventsSupported        bool
 
 	AssetPath string
 	AssetPort string
@@ -123,6 +124,7 @@ func Get() *Config {
 			BulkPersistCount: getInt("ELASTIC_SEARCH_BULK_PERSIST_COUNT", 300),
 			Refresh:          getString("ELASTIC_SEARCH_REFRESH", "wait_for"),
 		},
+		EventsSupported: getBool("EVENTS_SUPPORTED", true),
 	}
 }
 
