@@ -5,7 +5,8 @@
         "type": "nested",
         "properties": {
           "properties": {
-            "type": "flattened"
+            "type": "flattened",
+            "ignore_above":1000
           }
         }
       }
