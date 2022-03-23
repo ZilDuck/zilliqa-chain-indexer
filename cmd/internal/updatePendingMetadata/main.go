@@ -3,7 +3,6 @@ package main
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"go.uber.org/zap"
 	"sync"
@@ -12,42 +11,35 @@ import (
 func main() {
 	config.Init()
 	container, _ := dic.NewContainer()
-	metadataService := container.GetMetadataService()
+	metadataIndexer := container.GetMetadataIndexer()
 	elastic := container.GetElastic()
 
-	size := 20
+	size := 100
 	page := 1
 	for {
-		nfts, _, err := container.GetNftRepo().GetAllNfts(size, page)
+		nfts, total, err := container.GetNftRepo().GetPendingMetadata(size, page)
 		if err != nil || len(nfts) == 0 {
 			break
+		}
+		if page == 1 {
+			zap.S().Infof("Found %d NFTS", total)
 		}
 
 		var wg sync.WaitGroup
 
+		zap.S().Infof("Processing page %d", page)
 		for _, nft := range nfts {
 			wg.Add(1)
 			go func () {
 				defer wg.Done()
 
 				if nft.Metadata.Status == entity.MetadataPending {
-					properties, err := metadataService.FetchMetadata(nft)
-					if err != nil {
-						nft.Metadata.Error = err.Error()
-						nft.Metadata.Status = entity.MetadataFailure
-						nft.Metadata.Attempts = 1
-						zap.L().With(zap.String("contractAddr", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Error("NFT metadata failure")
-					} else {
-						zap.L().With(zap.String("contractAddr", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("NFT metadata indexed")
-						nft.Metadata.Error = ""
-						nft.Metadata.Properties = properties
-						nft.Metadata.Status = entity.MetadataSuccess
-					}
-					elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.NftMetadata)
+					//metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId)
+					metadataIndexer.TriggerMetadataRefresh(nft)
 				}
 			}()
 			wg.Wait()
-			elastic.BatchPersist()
+			elastic.Persist()
 		}
 
 		page++
