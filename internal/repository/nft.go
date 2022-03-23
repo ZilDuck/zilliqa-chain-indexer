@@ -27,6 +27,7 @@ type NftRepository interface {
 	GetAllNfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc1Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
+	GetPendingMetadata(size, page int) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
 	ResetMetadata(nft entity.Nft) error
 	GetBestBlockNum() (uint64, error)
@@ -165,6 +166,23 @@ func (r nftRepository) GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, erro
 
 	return r.findMany(result, err)
 }
+func (r nftRepository) GetPendingMetadata(size, page int) ([]entity.Nft, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewNestedQuery("metadata", elastic.NewTermQuery("metadata.status.keyword", "pending")),
+	)
+
+	from := size*page - size
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.NftIndex.Get()).
+		Query(query).
+		Size(size).
+		Sort("tokenId", true).
+		From(from).
+		TrackTotalHits(true))
+
+	return r.findMany(result, err)
+}
 
 func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error) {
 	query := elastic.NewBoolQuery().Must(
@@ -198,7 +216,7 @@ func (r nftRepository) ResetMetadata(nft entity.Nft) error {
 	_, err := r.elastic.GetClient().
 		UpdateByQuery(elastic_search.NftIndex.Get()).
 		Query(query).
-		Script(elastic.NewScript("ctx._source.metadata.remove(\"data\")")).
+		Script(elastic.NewScript("ctx._source.metadata.remove(\"properties\")")).
 		Do(context.Background())
 
 	return err
