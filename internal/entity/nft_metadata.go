@@ -3,6 +3,7 @@ package entity
 import (
 	"encoding/json"
 	"errors"
+	"time"
 )
 
 type Metadata struct {
@@ -13,6 +14,9 @@ type Metadata struct {
 	Status   MetadataStatus `json:"status"`
 	Error    string         `json:"error"`
 	Attempts int            `json:"attempts"`
+
+	CreatedAt time.Time `json:"createdAt"`
+	UpdatedAt time.Time `json:"updatedAt"`
 }
 
 type MetadataStatus string

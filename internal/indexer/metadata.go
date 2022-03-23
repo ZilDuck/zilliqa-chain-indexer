@@ -11,6 +11,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
+	"time"
 )
 
 type MetadataIndexer interface {
@@ -77,21 +78,20 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 				nft.Metadata.Status = entity.MetadataFailure
 			}
 			nft.Metadata.Error = err.Error()
-			nft.Metadata.Attempts++
-			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
-			i.elastic.BatchPersist()
 		} else {
 			nft.Metadata.Error = fmt.Sprintf("Unexpected: %s", err.Error())
-			nft.Metadata.Attempts++
-			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
-			i.elastic.BatchPersist()
 		}
+		nft.Metadata.Attempts++
+		nft.Metadata.UpdatedAt = time.Now()
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
+		i.elastic.BatchPersist()
 
 		return nil, err
 	}
 
 	nft.Metadata.Properties = properties
 	nft.Metadata.Error = ""
+	nft.Metadata.UpdatedAt = time.Now()
 	nft.Metadata.Status = entity.MetadataSuccess
 
 	if err := i.nftRepo.ResetMetadata(*nft); err != nil {
