@@ -32,23 +32,25 @@ func main() {
 
 	for {
 		txs, _ := container.GetTxIndexer().CreateTransactions(from, size)
-		txIds := make([]string, len(txs))
-		for idx, tx := range txs {
-			txIds[idx] = tx.ID
-		}
-
-		missingTxs, err := txRepo.GetMissingTxs(txIds)
-		if err != nil {
-			panic(err)
-		}
-
-		for _, tx := range txs {
-			if _, ok := missingTxs[tx.ID]; ok {
-				zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Info("Missing Tx")
-				elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), tx, elastic_search.TransactionCreate)
+		if len(txs) > 0 {
+			txIds := make([]string, len(txs))
+			for idx, tx := range txs {
+				txIds[idx] = tx.ID
 			}
+
+			missingTxs, err := txRepo.GetMissingTxs(txIds)
+			if err != nil {
+				panic(err)
+			}
+
+			for _, tx := range txs {
+				if _, ok := missingTxs[tx.ID]; ok {
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID)).Info("Missing Tx")
+					elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), tx, elastic_search.TransactionCreate)
+				}
+			}
+			elastic.Persist()
 		}
-		elastic.Persist()
 
 		from = from + size
 
