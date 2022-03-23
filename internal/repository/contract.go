@@ -82,9 +82,6 @@ func (r contractRepository) GetContractByAddress(contractAddr string) (*entity.C
 		Query(elastic.NewTermQuery("address.keyword", contractAddr)))
 
 	c, err := r.findOne(results, err)
-	if err != nil && errors.Is(err, ErrContractNotFound) {
-		zap.L().With(zap.String("contractAddr", contractAddr)).Warn(err.Error())
-	}
 
 	return c, err
 }
