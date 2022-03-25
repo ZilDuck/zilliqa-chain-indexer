@@ -39,6 +39,13 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 			result.TokenUri = e.(entity.Nft).TokenUri
 		}
 
+		if action == Zrc6SetTokenUri{
+			result.TokenUri = e.(entity.Nft).TokenUri
+			result.Metadata.Uri = e.(entity.Nft).Metadata.Uri
+			result.Metadata.IsIpfs = e.(entity.Nft).Metadata.IsIpfs
+			result.Metadata.Status = e.(entity.Nft).Metadata.Status
+		}
+
 		if action == Zrc6Transfer {
 			result.Owner = e.(entity.Nft).Owner
 		}

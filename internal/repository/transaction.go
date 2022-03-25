@@ -179,8 +179,10 @@ func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract
 	zap.L().Info("Get contract executions for " + c.Address)
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
+	).Should(
 		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs.address.keyword", c.Address)),
-	)
+		elastic.NewTermQuery("ContractAddress.keyword", c.Address),
+	).MinimumShouldMatch("1")
 
 	from := size*page - size
 

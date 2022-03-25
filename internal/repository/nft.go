@@ -27,7 +27,7 @@ type NftRepository interface {
 	GetAllNfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc1Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
-	GetPendingMetadata(size, page int) ([]entity.Nft, int64, error)
+	GetMetadata(size, page int, status entity.MetadataStatus) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
 	ResetMetadata(nft entity.Nft) error
 	GetBestBlockNum() (uint64, error)
@@ -166,9 +166,9 @@ func (r nftRepository) GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, erro
 
 	return r.findMany(result, err)
 }
-func (r nftRepository) GetPendingMetadata(size, page int) ([]entity.Nft, int64, error) {
+func (r nftRepository) GetMetadata(size, page int, status entity.MetadataStatus) ([]entity.Nft, int64, error) {
 	query := elastic.NewBoolQuery().Must(
-		elastic.NewNestedQuery("metadata", elastic.NewTermQuery("metadata.status.keyword", "pending")),
+		elastic.NewNestedQuery("metadata", elastic.NewTermQuery("metadata.status.keyword", status)),
 	)
 
 	from := size*page - size

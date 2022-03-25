@@ -75,6 +75,8 @@ const (
 	ZRC6RecipientAcceptTransferFrom Callback = "ZRC6_RecipientAcceptTransferFrom"
 	ZRC6BurnCallback                Callback = "ZRC6_BurnCallback"
 	ZRC6BatchBurnCallback           Callback = "ZRC6_BatchBurnCallback"
+	ZRC6SetTokenURICallback        Callback = "ZRC6_SetTokenURICallback"
+	ZRC6BatchSetTokenURICallback   Callback = "ZRC6_BatchSetTokenURICallback"
 )
 
 
@@ -90,5 +92,14 @@ const (
 
 var (
 	Zrc1Callbacks = []Callback{ZRC1MintCallBack, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
-	Zrc6Callbacks = []Callback{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
+	Zrc6Callbacks = []Callback{
+		ZRC6MintCallback,
+		ZRC6BatchMintCallback,
+		ZRC6SetBaseURICallback,
+		ZRC6RecipientAcceptTransferFrom,
+		ZRC6BurnCallback,
+		ZRC6BatchBurnCallback,
+		ZRC6SetTokenURICallback,
+		ZRC6BatchSetTokenURICallback,
+	}
 )

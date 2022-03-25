@@ -71,10 +71,11 @@ const (
 	Zrc1Transfer         RequestAction = "Zrc1Transfer"
 	Zrc1Burn             RequestAction = "Zrc1Burn"
 
-	Zrc6Mint       RequestAction = "Zrc6Mint"
-	Zrc6SetBaseUri RequestAction = "Zrc6SetBaseUri"
-	Zrc6Transfer   RequestAction = "Zrc6Transfer"
-	Zrc6Burn       RequestAction = "Zrc6Burn"
+	Zrc6Mint        RequestAction = "Zrc6Mint"
+	Zrc6SetBaseUri  RequestAction = "Zrc6SetBaseUri"
+	Zrc6SetTokenUri RequestAction = "Zrc6SetTokenUri"
+	Zrc6Transfer    RequestAction = "Zrc6Transfer"
+	Zrc6Burn        RequestAction = "Zrc6Burn"
 
 	NftMetadata RequestAction = "NftMetadata"
 	NftAction   RequestAction = "NftAction"
@@ -351,6 +352,9 @@ func (i index) flush() {
 		}
 		if req.Action == Zrc6SetBaseUri {
 			event.EmitEvent(event.ContractBaseUriUpdatedEvent, req.Entity)
+		}
+		if req.Action == Zrc6SetTokenUri {
+			event.EmitEvent(event.TokenUriUpdatedEvent, req.Entity)
 		}
 	}
 

@@ -17,7 +17,7 @@ func main() {
 	size := 100
 	page := 1
 	for {
-		nfts, total, err := container.GetNftRepo().GetPendingMetadata(size, page)
+		nfts, total, err := container.GetNftRepo().GetMetadata(size, page, entity.MetadataPending)
 		if err != nil || len(nfts) == 0 {
 			break
 		}
@@ -30,17 +30,17 @@ func main() {
 		zap.S().Infof("Processing page %d", page)
 		for _, nft := range nfts {
 			wg.Add(1)
-			go func () {
+			go func (nft entity.Nft) {
 				defer wg.Done()
-
-				if nft.Metadata.Status == entity.MetadataPending {
-					//metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId)
-					metadataIndexer.TriggerMetadataRefresh(nft)
+				if nft.Metadata.Error == "" {
+					return
 				}
-			}()
-			wg.Wait()
-			elastic.Persist()
+				//metadataIndexer.RefreshMetadata(nft.Contract, nft.TokenId)
+				metadataIndexer.TriggerMetadataRefresh(nft)
+			}(nft)
 		}
+		wg.Wait()
+		elastic.Persist()
 
 		page++
 	}

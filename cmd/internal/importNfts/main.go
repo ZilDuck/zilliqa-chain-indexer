@@ -57,12 +57,6 @@ func importAllNfts() {
 			break
 		}
 		for _, c := range contracts {
-			if c.BlockNum < 1720508 {
-				continue
-			}
-			//if c.Address == "0x3fe64e8b3e9e110db331b32ea26e191c07f14f80" || c.Address == "0x8a79bac7a6383211ae902f34e86c6b729906346d" {
-			//	continue
-			//}
 			importNftsForContract(c)
 		}
 		container.GetElastic().BatchPersist()

@@ -1,11 +1,14 @@
 package indexer
 
 import (
+	"encoding/json"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type Zrc6Indexer interface {
@@ -80,6 +83,12 @@ func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 		return err
 	}
 	if err := i.batchBurn(tx, c); err != nil {
+		return err
+	}
+	if err := i.setTokenUri(tx, c); err != nil {
+		return err
+	}
+	if err := i.batchSetTokenUri(tx, c); err != nil {
 		return err
 	}
 
@@ -192,6 +201,89 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 			i.elastic.BatchPersist()
 			page++
 		}
+	}
+
+	return nil
+}
+
+func (i zrc6Indexer) setTokenUri(tx entity.Transaction, c entity.Contract) error {
+	if !tx.HasTransition(string(entity.ZRC6SetTokenURICallback)) {
+		return nil
+	}
+	if tx.Data.Tag != "UpdateTokenUri" {
+		return nil
+	}
+
+	tokenId, err := tx.Data.Params.GetParam("token_id")
+	if err != nil {
+		zap.L().With(zap.String("contractAddr", c.Address)).Error("Failed to get token_id_token_uri_pair_list from BatchUpdateTokenUri")
+		return nil
+	}
+
+	tokenUri, err := tx.Data.Params.GetParam("new_uri")
+	if err != nil {
+		zap.L().With(zap.String("contractAddr", c.Address)).Error("Failed to get token_id_token_uri_pair_list from BatchUpdateTokenUri")
+		return nil
+	}
+
+	tokenIdInt, err := strconv.Atoi(tokenId.Value.Primitive.(string))
+	if err != nil {
+		return nil
+	}
+
+	nft, err := i.nftRepo.GetNft(c.Address, uint64(tokenIdInt))
+	if err != nil {
+		return nil
+	}
+	nft.TokenUri = tokenUri.Value.Primitive.(string)
+
+	zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Update token URI")
+	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6SetTokenUri)
+
+	return nil
+}
+
+func (i zrc6Indexer) batchSetTokenUri(tx entity.Transaction, c entity.Contract) error {
+	if !tx.HasTransition(string(entity.ZRC6BatchSetTokenURICallback)) {
+		return nil
+	}
+	if tx.Data.Tag != "BatchUpdateTokenUri" {
+		return nil
+	}
+
+	type TokenIdTokenUriPairList struct {
+		ArgTypes  []string `json:"argtypes"`
+		Arguments []string `json:"arguments"`
+		Constructor string `json:"constructor"`
+	}
+
+	data, err := tx.Data.Params.GetParam("token_id_token_uri_pair_list")
+	if err != nil {
+		zap.L().With(zap.String("contractAddr", c.Address)).Error("Failed to get token_id_token_uri_pair_list from BatchUpdateTokenUri")
+		return nil
+	}
+
+	var tokenIdTokenUriPairList []TokenIdTokenUriPairList
+	if err := json.Unmarshal([]byte(data.Value.Primitive.(string)), &tokenIdTokenUriPairList); err != nil {
+		zap.L().With(zap.String("contractAddr", c.Address)).Error("Failed to unmarshall token_id_token_uri_pair_list from BatchUpdateTokenUri")
+	}
+
+	for _, tokenIdTokenUriPair := range tokenIdTokenUriPairList {
+		tokenId, err := strconv.Atoi(tokenIdTokenUriPair.Arguments[0])
+		if err != nil {
+			continue
+		}
+		nft, err := i.nftRepo.GetNft(c.Address, uint64(tokenId))
+		if err != nil {
+			continue
+		}
+		nft.TokenUri = tokenIdTokenUriPair.Arguments[1]
+		nft.Metadata.Uri = factory.GetMetadataUri(*nft)
+		nft.Metadata.IsIpfs = helper.IsIpfs(nft.Metadata.Uri)
+		nft.Metadata.Status = entity.MetadataPending
+
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId), zap.String("tokenUri", nft.TokenUri)).Info("Update token URI")
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6SetTokenUri)
 	}
 
 	return nil

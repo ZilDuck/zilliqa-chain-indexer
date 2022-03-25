@@ -36,6 +36,7 @@ func NewMetadataIndexer(
 
 	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
 	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
+	event.AddEventListener(event.TokenUriUpdatedEvent, i.TriggerMetadataRefresh)
 
 	return i
 }
@@ -79,6 +80,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 			}
 			nft.Metadata.Error = err.Error()
 		} else {
+			nft.Metadata.Status = entity.MetadataFailure
 			nft.Metadata.Error = fmt.Sprintf("Unexpected: %s", err.Error())
 		}
 		nft.Metadata.Attempts++
