@@ -17,6 +17,7 @@ import (
 type MetadataIndexer interface {
 	TriggerMetadataRefresh(el interface{})
 	RefreshMetadata(contractAddr string, tokenId uint64) (*entity.Nft, error)
+	RefreshByStatus(status entity.MetadataStatus, metadataError string) error
 }
 
 type metadataIndexer struct {
@@ -104,4 +105,31 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	i.elastic.BatchPersist()
 
 	return nft, nil
+}
+
+func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus, metadataError string) error {
+	size := 100
+	page := 1
+
+	for {
+		nfts, total, err := i.nftRepo.GetMetadata(size, page, status, metadataError)
+		if err != nil || len(nfts) == 0 {
+			break
+		}
+		if page == 1 {
+			zap.S().Infof("Processing %d %s NFTS", total, status)
+		}
+
+		for _, nft := range nfts {
+			if metadataError != "" && metadataError != nft.Metadata.Error {
+				continue
+			}
+			i.TriggerMetadataRefresh(nft)
+		}
+		i.elastic.BatchPersist()
+		page++
+	}
+	i.elastic.Persist()
+
+	return nil
 }

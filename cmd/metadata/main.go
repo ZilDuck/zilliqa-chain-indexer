@@ -50,9 +50,10 @@ func refreshMetadata(msg *sqs.Message) {
 	_, err := metadataIndexer.RefreshMetadata(data.Contract, data.TokenId)
 	if err != nil {
 		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Metadata refresh failed")
-		return
+	} else {
+		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh success")
 	}
-
-	zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh success")
 	elastic.Persist()
+
+	return
 }

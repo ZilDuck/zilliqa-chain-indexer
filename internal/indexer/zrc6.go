@@ -281,6 +281,7 @@ func (i zrc6Indexer) batchSetTokenUri(tx entity.Transaction, c entity.Contract) 
 		nft.Metadata.Uri = factory.GetMetadataUri(*nft)
 		nft.Metadata.IsIpfs = helper.IsIpfs(nft.Metadata.Uri)
 		nft.Metadata.Status = entity.MetadataPending
+		nft.Metadata.Error = ""
 
 		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId), zap.String("tokenUri", nft.TokenUri)).Info("Update token URI")
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6SetTokenUri)

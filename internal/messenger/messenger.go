@@ -1,11 +1,13 @@
 package messenger
 
 import (
+	"errors"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type MessageService interface {
@@ -13,6 +15,7 @@ type MessageService interface {
 	SendMessage(queue Queue, body []byte) error
 	PollMessages(queue Queue, chn chan <- *sqs.Message)
 	DeleteMessage(queue Queue, msg *sqs.Message) error
+	GetQueueSize(queue Queue) (*int, error)
 }
 
 type Messenger struct {
@@ -31,6 +34,34 @@ func (q *Queue) Get() string {
 
 func NewMessenger(sqsClient *sqs.SQS) MessageService {
 	return &Messenger{sqsClient}
+}
+
+func (m Messenger) GetQueueSize(queue Queue) (*int, error) {
+	queueUrl, err := m.getQueueUrl(queue)
+	if err != nil {
+		return nil, err
+	}
+
+	all := "ApproximateNumberOfMessages"
+	attributeNames := []*string{&all}
+	result, err := m.sqsClient.GetQueueAttributes(&sqs.GetQueueAttributesInput{
+		AttributeNames: attributeNames,
+		QueueUrl: queueUrl,
+	})
+	if err != nil {
+		zap.L().With(zap.Error(err), zap.String("queueUrl", *queueUrl)).Error("Failed to get queue attributes")
+	}
+
+	if _, ok := result.Attributes["ApproximateNumberOfMessages"]; ok != true {
+		return nil, errors.New("attribute 'ApproximateNumberOfMessages' not found")
+	}
+
+	numberOfmessages, err := strconv.Atoi(*result.Attributes["ApproximateNumberOfMessages"])
+	if err != nil {
+		return nil, err
+	}
+
+	return &numberOfmessages, nil
 }
 
 func (m Messenger) CreateQueue(queue Queue) (*string, error) {

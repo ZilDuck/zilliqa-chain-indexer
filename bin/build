@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+./bin/auth
+
 go run ./cmd/internal/injectDependencies/main.go ./generated
 
 if [ $# -eq 0 ]

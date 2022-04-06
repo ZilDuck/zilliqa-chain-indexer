@@ -16,5 +16,6 @@ require (
 	github.com/sarulabs/di/v2 v2.4.2
 	github.com/sarulabs/dingo/v4 v4.1.1
 	github.com/sha1sum/aws_signing_client v0.0.0-20200229211254-f7815c59d5c1 // indirect
+	github.com/urfave/cli/v2 v2.4.0
 	go.uber.org/zap v1.19.1
 )

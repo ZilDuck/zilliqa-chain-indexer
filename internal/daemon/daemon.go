@@ -182,7 +182,7 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 				if err != nil {
 					zap.L().With(zap.Error(err)).Error("Failed to get txs when bulk indexing nfts")
 				}
-				if txPage == 1 {
+				if txPage == 1 && total != 0 {
 					zap.S().Infof("Found %d nfts for contract %s", total, c.Address)
 				}
 				if len(txs) == 0 {

@@ -12,7 +12,7 @@ type Listener struct {
 }
 
 func AddEventListener(eventType Type, callback func(msg interface{})) {
-	zap.L().With(zap.String("type", string(eventType))).Info("EventManager: AddListener")
+	zap.L().With(zap.String("type", string(eventType))).Debug("EventManager: AddListener")
 
 	listener := Listener{
 		eventType: eventType,
