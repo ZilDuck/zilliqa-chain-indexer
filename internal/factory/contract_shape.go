@@ -31,6 +31,10 @@ func IsZrc1(c entity.Contract) bool {
 		// Unicutes
 		return true
 	}
+	if c.Address == "0x852c4105660ab288d0df8b2491f7462c66a1c0ae" {
+		// Zilmorphs
+		return true
+	}
 
 	if !c.ImmutableParams.HasParam("contract_owner", "ByStr20") ||
 		!c.ImmutableParams.HasParam("name", "String") ||

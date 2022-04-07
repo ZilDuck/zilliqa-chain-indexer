@@ -316,13 +316,18 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			continue
 		}
 
-		prevOwner := nft.Owner
+		prevOwner, err := event.Params.GetParam("from")
+		if err != nil {
+			zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get zrc1:from for transfer")
+			return err
+		}
+
 		nft.Owner = to.Value.Primitive.(string)
 
 		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC6")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Transfer)
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner), elastic_search.Zrc6Transfer)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner.Value.Primitive.(string)), elastic_search.Zrc6Transfer)
 	}
 
 	return nil
@@ -353,7 +358,7 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Burn ZRC6")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Burn)
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft), elastic_search.Zrc6Burn)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft, tx), elastic_search.Zrc6Burn)
 	}
 
 	return nil

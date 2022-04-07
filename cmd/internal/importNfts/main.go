@@ -36,6 +36,8 @@ func main() {
 
 	container.GetElastic().Persist()
 
+	importMarketplaceSales()
+
 	zap.L().Info("Ready for exit")
 	fmt.Scanln()
 }
@@ -79,4 +81,23 @@ func importNftsForContract(contract entity.Contract) {
 			zap.S().Fatalf("Failed to index ZRC1 NFTs for contract %s", contract.Address)
 		}
 	}
+}
+
+func importMarketplaceSales() {
+	page := 1
+	size := 100
+	for {
+		txs, _, err := container.GetTxRepo().GetNftMarketplaceExecutionTxs(0, size, page)
+		if err != nil {
+			break
+		}
+
+		if len(txs) == 0 {
+			break
+		}
+		container.GetMarketplaceIndexer().IndexTxs(txs)
+		container.GetElastic().BatchPersist()
+		page++
+	}
+	container.GetElastic().Persist()
 }

@@ -31,12 +31,28 @@ func CreateTransferAction(nft entity.Nft, blockNum uint64, txId string, prevOwne
 	}
 }
 
-func CreateBurnAction(nft entity.Nft) entity.NftAction {
+func CreateSaleAction(nft entity.Nft, blockNum uint64, txId string, buyer, seller string, cost, fee int) entity.NftAction {
 	return entity.NftAction{
 		Contract: nft.Contract,
 		TokenId:  nft.TokenId,
-		TxID:     nft.TxID,
-		BlockNum: nft.BlockNum,
+		TxID:     txId,
+		BlockNum: blockNum,
+		Action:   entity.SaleAction,
+		From:     seller,
+		To:       buyer,
+		Zrc1:     nft.Zrc1,
+		Zrc6:     nft.Zrc6,
+		Cost:     cost,
+		Fee:      fee,
+	}
+}
+
+func CreateBurnAction(nft entity.Nft, tx entity.Transaction) entity.NftAction {
+	return entity.NftAction{
+		Contract: nft.Contract,
+		TokenId:  nft.TokenId,
+		TxID:     tx.ID,
+		BlockNum: tx.BlockNum,
 		Action:   entity.BurnAction,
 		From:     nft.Owner,
 		To:       "",

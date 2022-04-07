@@ -26,6 +26,8 @@ type TransactionRepository interface {
 	GetContractCreationForContract(contractAddr string) (*entity.Transaction, error)
 	GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionsByContractFrom(c entity.Contract, fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
+
+	GetNftMarketplaceExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 }
 
 type transactionRepository struct {
@@ -212,6 +214,32 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 		Size(size).
 		From(from).
 		TrackTotalHits(true))
+
+	return r.findMany(result, err)
+}
+
+func (r transactionRepository) GetNftMarketplaceExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("ContractExecution", true),
+		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "ExecuteTradeSuccess")),
+	)
+
+	from := size*page - size
+
+	zap.L().With(
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetNftMarketplaceExecutionTxs")
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.TransactionIndex.Get()).
+		Query(query).
+		Sort("BlockNum", true).
+		TrackTotalHits(true).
+		Size(size).
+		From(from))
 
 	return r.findMany(result, err)
 }

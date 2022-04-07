@@ -84,9 +84,10 @@ var Definitions = []dingo.Def{
 			contractIndexer indexer.ContractIndexer,
 			zrc1Indexer indexer.Zrc1Indexer,
 			zrc6Indexer indexer.Zrc6Indexer,
+			marketplaceIndexer indexer.MarketplaceIndexer,
 			metadataIndexer indexer.MetadataIndexer,
 		) (*daemon.Daemon, error) {
-			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, nftRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer, metadataIndexer), nil
+			return daemon.NewDaemon(elastic, config.Get().FirstBlockNum, indexer, zilliqa, txRepo, nftRepo, contractRepo, contractIndexer, zrc1Indexer, zrc6Indexer, marketplaceIndexer, metadataIndexer), nil
 		},
 	},
 	{
@@ -97,10 +98,11 @@ var Definitions = []dingo.Def{
 			contractIndexer indexer.ContractIndexer,
 			zrc1Indexer indexer.Zrc1Indexer,
 			zrc6Indexer indexer.Zrc6Indexer,
+			marketplaceIndexer indexer.MarketplaceIndexer,
 			txRepo repository.TransactionRepository,
 			cache *cache.Cache,
 		) (indexer.Indexer, error) {
-			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, contractIndexer, zrc1Indexer, zrc6Indexer, txRepo, cache), nil
+			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, contractIndexer, zrc1Indexer, zrc6Indexer, marketplaceIndexer, txRepo, cache), nil
 		},
 	},
 	{
@@ -160,6 +162,15 @@ var Definitions = []dingo.Def{
 			metadataService metadata.Service,
 		) (indexer.MetadataIndexer, error) {
 			return indexer.NewMetadataIndexer(elastic, nftRepo, messageService, metadataService), nil
+		},
+	},
+	{
+		Name: "marketplace.indexer",
+		Build: func(
+			elastic elastic_search.Index,
+			nftRepo repository.NftRepository,
+		) (indexer.MarketplaceIndexer, error) {
+			return indexer.NewMarketplaceIndexer(elastic, nftRepo), nil
 		},
 	},
 	{

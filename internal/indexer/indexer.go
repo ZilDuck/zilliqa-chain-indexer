@@ -18,14 +18,15 @@ type Indexer interface {
 }
 
 type indexer struct {
-	bulkIndexSize   uint64
-	elastic         elastic_search.Index
-	txIndexer       TransactionIndexer
-	contractIndexer ContractIndexer
-	zrc1Indexer     Zrc1Indexer
-	zrc6Indexer     Zrc6Indexer
-	txRepo          repository.TransactionRepository
-	cache           *cache.Cache
+	bulkIndexSize      uint64
+	elastic            elastic_search.Index
+	txIndexer          TransactionIndexer
+	contractIndexer    ContractIndexer
+	zrc1Indexer        Zrc1Indexer
+	zrc6Indexer        Zrc6Indexer
+	marketplaceIndexer MarketplaceIndexer
+	txRepo             repository.TransactionRepository
+	cache              *cache.Cache
 }
 
 var (
@@ -39,6 +40,7 @@ func NewIndexer(
 	contractIndexer ContractIndexer,
 	zrc1Indexer Zrc1Indexer,
 	zrc6Indexer Zrc6Indexer,
+	marketplaceIndexer MarketplaceIndexer,
 	txRepo repository.TransactionRepository,
 	cache *cache.Cache,
 ) Indexer {
@@ -49,6 +51,7 @@ func NewIndexer(
 		contractIndexer,
 		zrc1Indexer,
 		zrc6Indexer,
+		marketplaceIndexer,
 		txRepo,
 		cache,
 	}
@@ -107,6 +110,11 @@ func (i indexer) index(height, target uint64, option IndexOption.IndexOption) er
 
 		if err := i.zrc6Indexer.IndexTxs(txs); err != nil {
 			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index ZRC6s")
+			return err
+		}
+
+		if err := i.marketplaceIndexer.IndexTxs(txs); err != nil {
+			zap.L().With(zap.Error(err), zap.Uint64("height", height), zap.Uint64("size", size)).Error("Failed to index marketplace actions")
 			return err
 		}
 	}

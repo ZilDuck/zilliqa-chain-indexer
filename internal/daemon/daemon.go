@@ -15,17 +15,18 @@ import (
 )
 
 type Daemon struct {
-	elastic         elastic_search.Index
-	firstBlockNum   uint64
-	indexer         indexer.Indexer
-	zilliqa         zilliqa.Service
-	txRepo          repository.TransactionRepository
-	nftRepo         repository.NftRepository
-	contractRepo    repository.ContractRepository
-	contractIndexer indexer.ContractIndexer
-	zrc1Indexer     indexer.Zrc1Indexer
-	zrc6Indexer     indexer.Zrc6Indexer
-	metadataIndexer indexer.MetadataIndexer
+	elastic            elastic_search.Index
+	firstBlockNum      uint64
+	indexer            indexer.Indexer
+	zilliqa            zilliqa.Service
+	txRepo             repository.TransactionRepository
+	nftRepo            repository.NftRepository
+	contractRepo       repository.ContractRepository
+	contractIndexer    indexer.ContractIndexer
+	zrc1Indexer        indexer.Zrc1Indexer
+	zrc6Indexer        indexer.Zrc6Indexer
+	marketplaceIndexer indexer.MarketplaceIndexer
+	metadataIndexer    indexer.MetadataIndexer
 }
 
 func NewDaemon(
@@ -39,6 +40,7 @@ func NewDaemon(
 	contractIndexer indexer.ContractIndexer,
 	zrc1Indexer indexer.Zrc1Indexer,
 	zrc6Indexer indexer.Zrc6Indexer,
+	marketplaceIndexer indexer.MarketplaceIndexer,
 	metadataIndexer indexer.MetadataIndexer,
 ) *Daemon {
 	return &Daemon{
@@ -52,6 +54,7 @@ func NewDaemon(
 		contractIndexer,
 		zrc1Indexer,
 		zrc6Indexer,
+		marketplaceIndexer,
 		metadataIndexer,
 	}
 }
@@ -212,6 +215,29 @@ func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
 
 	d.elastic.Persist()
 	time.Sleep(2 * time.Second)
+}
+
+func (d *Daemon) bulkIndexMarketPlaceSales(bestBlockNum uint64) {
+	bulkIndexFrom := d.bulkIndexNftsFrom(bestBlockNum)
+	page := 1
+	size := 100
+
+	zap.L().With(zap.Uint64("bestBlockNum", bulkIndexFrom)).Info("Bulk index Marketplace sales")
+
+	for {
+		txs, _, err := d.txRepo.GetNftMarketplaceExecutionTxs(bulkIndexFrom, size, page)
+		if err != nil {
+			break
+		}
+
+		if len(txs) == 0 {
+			break
+		}
+		d.marketplaceIndexer.IndexTxs(txs)
+		d.elastic.BatchPersist()
+		page++
+	}
+	d.elastic.Persist()
 }
 
 func (d *Daemon) bulkIndexNftsFrom(bestBlockNum uint64) uint64 {

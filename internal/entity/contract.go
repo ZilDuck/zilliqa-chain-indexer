@@ -60,6 +60,8 @@ const (
 	ZRC6SetBaseURIEvent   Event = "SetBaseURI"
 	ZRC6TransferFromEvent Event = "TransferFrom"
 	ZRC6BurnEvent         Event = "Burn"
+
+	MpArkyTradeEvent      Event = "ExecuteTradeSuccess"
 )
 
 type Callback string

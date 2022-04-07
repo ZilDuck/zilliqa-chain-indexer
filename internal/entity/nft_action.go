@@ -15,6 +15,8 @@ type NftAction struct {
 	To       string     `json:"to"`
 	Zrc1     bool       `json:"zrc1"`
 	Zrc6     bool       `json:"zrc6"`
+	Cost     int        `json:"cost"`
+	Fee      int        `json:"fee"`
 }
 
 type ActionType string
@@ -22,6 +24,7 @@ type ActionType string
 const (
 	MintAction     ActionType = "mint"
 	TransferAction ActionType = "transfer"
+	SaleAction     ActionType = "sale"
 	BurnAction     ActionType = "burn"
 )
 
