@@ -222,7 +222,12 @@ func (r transactionRepository) GetNftMarketplaceExecutionTxs(fromBlockNum uint64
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
-		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "ExecuteTradeSuccess")),
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewBoolQuery().Should(
+			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "ExecuteTradeSuccess"),
+			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "Listed"),
+			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "Delisted"),
+			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "Sold"),
+		).MinimumNumberShouldMatch(1)),
 	)
 
 	from := size*page - size

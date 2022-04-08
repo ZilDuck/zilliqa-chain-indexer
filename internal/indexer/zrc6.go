@@ -291,6 +291,9 @@ func (i zrc6Indexer) batchSetTokenUri(tx entity.Transaction, c entity.Contract) 
 }
 
 func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
+	if tx.HasEventLog(entity.MpZilkListingEvent) || tx.HasEventLog(entity.MpZilkDelistingEvent) || tx.HasEventLog(entity.MpZilkTradeEvent) {
+		return nil
+	}
 	for _, event := range tx.GetEventLogs(entity.ZRC6TransferFromEvent) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
@@ -327,7 +330,7 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC6")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Transfer)
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner.Value.Primitive.(string)), elastic_search.Zrc6Transfer)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, nft.Owner, prevOwner.Value.String()), elastic_search.Zrc6Transfer)
 	}
 
 	return nil

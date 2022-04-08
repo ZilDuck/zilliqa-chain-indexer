@@ -22,3 +22,13 @@ func (c ContractState) Slug() string {
 func CreateStateSlug(contract string) string {
 	return slug.Make(fmt.Sprintf("state-%s", contract))
 }
+
+func (c ContractState) GetElement(key string) (string, bool) {
+	for _, el := range c.State {
+		if el.Key == key {
+			return el.Value, true
+		}
+	}
+
+	return "", false
+}

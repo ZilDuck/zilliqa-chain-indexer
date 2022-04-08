@@ -169,8 +169,9 @@ var Definitions = []dingo.Def{
 		Build: func(
 			elastic elastic_search.Index,
 			nftRepo repository.NftRepository,
+			contractRepo repository.ContractRepository,
 		) (indexer.MarketplaceIndexer, error) {
-			return indexer.NewMarketplaceIndexer(elastic, nftRepo), nil
+			return indexer.NewMarketplaceIndexer(elastic, nftRepo, contractRepo), nil
 		},
 	},
 	{

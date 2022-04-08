@@ -17,33 +17,64 @@ func CreateMintAction(nft entity.Nft) entity.NftAction {
 	}
 }
 
-func CreateTransferAction(nft entity.Nft, blockNum uint64, txId string, prevOwner string) entity.NftAction {
+func CreateTransferAction(nft entity.Nft, blockNum uint64, txId, buyer, seller string) entity.NftAction {
 	return entity.NftAction{
 		Contract: nft.Contract,
 		TokenId:  nft.TokenId,
 		TxID:     txId,
 		BlockNum: blockNum,
 		Action:   entity.TransferAction,
-		From:     prevOwner,
-		To:       nft.Owner,
+		From:     seller,
+		To:       buyer,
 		Zrc1:     nft.Zrc1,
 		Zrc6:     nft.Zrc6,
 	}
 }
 
-func CreateSaleAction(nft entity.Nft, blockNum uint64, txId string, buyer, seller string, cost, fee int) entity.NftAction {
+func CreateMarketplaceListingAction(marketplace string, nft entity.Nft, blockNum uint64, txId string, cost string, fungible string) entity.NftAction {
 	return entity.NftAction{
+		Marketplace: marketplace,
 		Contract: nft.Contract,
 		TokenId:  nft.TokenId,
 		TxID:     txId,
 		BlockNum: blockNum,
-		Action:   entity.SaleAction,
+		Action:   entity.MarketplaceListingAction,
+		Zrc1:     nft.Zrc1,
+		Zrc6:     nft.Zrc6,
+		Cost:     cost,
+		Fungible: fungible,
+	}
+}
+
+func CreateMarketplaceDelistingAction(marketplace string, nft entity.Nft, blockNum uint64, txId string) entity.NftAction {
+	return entity.NftAction{
+		Marketplace: marketplace,
+		Contract: nft.Contract,
+		TokenId:  nft.TokenId,
+		TxID:     txId,
+		BlockNum: blockNum,
+		Action:   entity.MarketplaceDelistingAction,
+		Zrc1:     nft.Zrc1,
+		Zrc6:     nft.Zrc6,
+	}
+}
+
+func CreateMarketplaceSaleAction(marketplace string, nft entity.Nft, blockNum uint64, txId, buyer, seller, cost, fee, royalty, fungible string) entity.NftAction {
+	return entity.NftAction{
+		Marketplace: marketplace,
+		Contract: nft.Contract,
+		TokenId:  nft.TokenId,
+		TxID:     txId,
+		BlockNum: blockNum,
+		Action:   entity.MarketplaceSaleAction,
 		From:     seller,
 		To:       buyer,
 		Zrc1:     nft.Zrc1,
 		Zrc6:     nft.Zrc6,
 		Cost:     cost,
 		Fee:      fee,
+		Royalty:  royalty,
+		Fungible: fungible,
 	}
 }
 

@@ -44,10 +44,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			return nil, err
 		}
 
-		tokenUri, err := getNftTokenUri(event.Params, tx)
-		if err != nil {
-			zap.L().With(zap.String("txID", tx.ID)).Warn("No tokenUri when minting zrc6")
-		}
+		tokenUri, _ := getNftTokenUri(event.Params, tx)
 
 		nft := entity.Nft{
 			Contract:  c.Address,
@@ -78,18 +75,11 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 	}
 
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
+		zap.L().Info(tx.ID)
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
-			var toTokenUris []toTokenUri
-			toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
-			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
-				continue
-			}
 
-			if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
-				continue
-			}
+			name, _ := c.Data.Params.GetParam("name")
+			symbol, _ := c.Data.Params.GetParam("symbol")
 
 			startId, err := event.Params.GetParam("start_id")
 			if err != nil {
@@ -102,32 +92,77 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 				zap.L().With(zap.Error(err)).Error("Failed to convert start_id to uint64")
 			}
 
-			name, _ := c.Data.Params.GetParam("name")
-			symbol, _ := c.Data.Params.GetParam("symbol")
-
-			for _, i := range toTokenUris {
-				arguments := i.Arguments.([]interface{})
-				if len(arguments) != 2 {
-					zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
+			var toTokenUris []toTokenUri
+			if event.Params.HasParam("to_token_uri_pair_list", "List (Pair ByStr20 String)") {
+				toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
+				if err != nil {
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
+					continue
 				}
 
-				nft := entity.Nft{
-					Contract:  c.Address,
-					TxID:      tx.ID,
-					BlockNum:  tx.BlockNum,
-					Name:      name.Value.Primitive.(string),
-					Symbol:    symbol.Value.Primitive.(string),
-					TokenId:   nextTokenId,
-					TokenUri:  arguments[1].(string),
-					BaseUri:   c.BaseUri,
-					Owner:     strings.ToLower(arguments[0].(string)),
-					Zrc6:      true,
+				if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
+					zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
+					continue
 				}
 
-				nft.Metadata = GetMetadata(nft)
+				for _, i := range toTokenUris {
+					arguments := i.Arguments.([]interface{})
+					if len(arguments) != 2 {
+						zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
+					}
 
-				nfts = append(nfts, nft)
-				nextTokenId++
+					nft := entity.Nft{
+						Contract: c.Address,
+						TxID:     tx.ID,
+						BlockNum: tx.BlockNum,
+						Name:     name.Value.Primitive.(string),
+						Symbol:   symbol.Value.Primitive.(string),
+						TokenId:  nextTokenId,
+						TokenUri: arguments[1].(string),
+						BaseUri:  c.BaseUri,
+						Owner:    strings.ToLower(arguments[0].(string)),
+						Zrc6:     true,
+					}
+
+					nft.Metadata = GetMetadata(nft)
+
+					nfts = append(nfts, nft)
+					nextTokenId++
+				}
+			}
+
+
+			// If a contract uses to_list when batch minting it in NON compliant ZRC6
+			var toUris []string
+			if event.Params.HasParam("to_list", "List (ByStr20)") {
+				toList, err := event.Params.GetParam("to_list")
+				if err != nil {
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_list")
+					continue
+				}
+				if err := json.Unmarshal([]byte(toList.Value.Primitive.(string)), &toUris); err != nil {
+					zap.L().With(zap.Error(err)).Error("Failed to unmarshal toList")
+					continue
+				}
+
+				for _, i := range toUris {
+					nft := entity.Nft{
+						Contract: c.Address,
+						TxID:     tx.ID,
+						BlockNum: tx.BlockNum,
+						Name:     name.Value.Primitive.(string),
+						Symbol:   symbol.Value.Primitive.(string),
+						TokenId:  nextTokenId,
+						BaseUri:  c.BaseUri,
+						Owner:    strings.ToLower(i),
+						Zrc6:     true,
+					}
+
+					nft.Metadata = GetMetadata(nft)
+
+					nfts = append(nfts, nft)
+					nextTokenId++
+				}
 			}
 		}
 	}

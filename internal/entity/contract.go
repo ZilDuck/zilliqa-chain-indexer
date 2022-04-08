@@ -62,6 +62,9 @@ const (
 	ZRC6BurnEvent         Event = "Burn"
 
 	MpArkyTradeEvent      Event = "ExecuteTradeSuccess"
+	MpZilkListingEvent    Event = "Listed"
+	MpZilkDelistingEvent  Event = "Delisted"
+	MpZilkTradeEvent      Event = "Sold"
 )
 
 type Callback string

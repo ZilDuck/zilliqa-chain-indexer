@@ -18,12 +18,12 @@ type ContractIndexer interface {
 }
 
 type contractIndexer struct {
-	elastic      elastic_search.Index
-	zilliqa      zilliqa.Service
-	factory      factory.ContractFactory
-	txRepo       repository.TransactionRepository
-	contractRepo repository.ContractRepository
-	nftRepo      repository.NftRepository
+	elastic        elastic_search.Index
+	zilliqa        zilliqa.Service
+	factory        factory.ContractFactory
+	txRepo         repository.TransactionRepository
+	contractRepo   repository.ContractRepository
+	nftRepo        repository.NftRepository
 }
 
 func NewContractIndexer(
