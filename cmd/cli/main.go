@@ -28,6 +28,11 @@ func main() {
 					&cli.StringFlag{Name: "err", Value: "", Usage: "filter NFTs by metadata error"},
 				},
 			},
+			{
+				Name:    "marketplace",
+				Usage:   "Reindex all marketplace actions",
+				Action:  processMarketplaceActions,
+			},
 		},
 	}
 
@@ -71,6 +76,27 @@ func processMetadata(c *cli.Context) error {
 		return err
 	}
 	zap.L().Info("Metadata processing complete")
+
+	return nil
+}
+
+func processMarketplaceActions(c *cli.Context) error {
+	page := 1
+	size := 100
+	for {
+		txs, _, err := container.GetTxRepo().GetNftMarketplaceExecutionTxs(0, size, page)
+		if err != nil {
+			return err
+		}
+
+		if len(txs) == 0 {
+			break
+		}
+		container.GetMarketplaceIndexer().IndexTxs(txs)
+		container.GetElastic().BatchPersist()
+		page++
+	}
+	container.GetElastic().Persist()
 
 	return nil
 }

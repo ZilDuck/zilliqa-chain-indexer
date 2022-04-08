@@ -30,7 +30,6 @@ func NewMarketplaceIndexer(
 func (i marketplaceIndexer) IndexTxs(txs []entity.Transaction) error {
 	for _, tx := range txs {
 		if !tx.IsContractExecution {
-			zap.L().Error("Tx is not a contract execution")
 			continue
 		}
 
