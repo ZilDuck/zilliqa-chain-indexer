@@ -1,6 +1,7 @@
 package factory
 
 import (
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"strings"
 )
@@ -19,6 +20,12 @@ func CreateContractTransition(name string, args ...string) entity.ContractTransi
 }
 
 func IsZrc1(c entity.Contract) bool {
+	for _, additionals := range config.Get().AdditionalZrc1 {
+		if additionals == c.Address {
+			return true
+		}
+	}
+
 	if c.Address == "0xd793f378a925b9f0d3c4b6ee544d31c707899386" {
 		// The Bear Market
 		return true
@@ -141,6 +148,12 @@ func IsZrc4(c entity.Contract) bool {
 }
 
 func IsZrc6(c entity.Contract) bool {
+	for _, additionals := range config.Get().AdditionalZrc6 {
+		if additionals == c.Address {
+			return true
+		}
+	}
+
 	if c.Address == "0xd2b54e791930dd7d06ea51f3c2a6cf2c00f165ea" {
 		// beanterra
 		return true

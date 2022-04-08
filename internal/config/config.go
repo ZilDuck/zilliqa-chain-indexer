@@ -31,6 +31,9 @@ type Config struct {
 	IpfsTimeout            int
 	EventsSupported        bool
 
+	AdditionalZrc1         []string
+	AdditionalZrc6         []string
+
 	AssetPath string
 	AssetPort string
 
@@ -125,6 +128,8 @@ func Get() *Config {
 			Refresh:          getString("ELASTIC_SEARCH_REFRESH", "wait_for"),
 		},
 		EventsSupported: getBool("EVENTS_SUPPORTED", true),
+		AdditionalZrc1:  getSlice("ADDITIONAL_ZRC1", ipfsHosts, ","),
+		AdditionalZrc6:  getSlice("ADDITIONAL_ZRC6", ipfsHosts, ","),
 	}
 }
 
