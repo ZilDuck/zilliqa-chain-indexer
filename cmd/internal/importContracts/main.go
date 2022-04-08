@@ -18,11 +18,6 @@ func main() {
 
 	if len(os.Args) == 2 {
 		contractAddr := os.Args[1]
-		_, err := container.GetContractRepo().GetContractByAddress(contractAddr)
-		if err != nil {
-			zap.S().Fatalf("Failed to find contract: %s", os.Args[1])
-			return
-		}
 
 		tx, err := container.GetTxRepo().GetContractCreationForContract(contractAddr)
 		if err != nil {
