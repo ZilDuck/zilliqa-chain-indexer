@@ -157,3 +157,92 @@ func (tx Transaction) GetEngagedContracts() (addrs []string) {
 
 	return
 }
+
+func (tx Transaction) IsMarketplaceTx() bool {
+	if tx.IsMarketplaceListing(ZilkroadMarketplace) || tx.IsMarketplaceListing(ArkyMarketplace) || tx.IsMarketplaceListing(OkimotoMarketplace) {
+		return true
+	}
+
+	if tx.IsMarketplaceDelisting(ZilkroadMarketplace) || tx.IsMarketplaceDelisting(ArkyMarketplace) || tx.IsMarketplaceDelisting(OkimotoMarketplace) {
+		return true
+	}
+
+	if tx.IsMarketplaceSale(ZilkroadMarketplace) || tx.IsMarketplaceSale(ArkyMarketplace) || tx.IsMarketplaceSale(OkimotoMarketplace) {
+		return true
+	}
+
+	return false
+}
+
+func (tx Transaction) IsMarketplaceListing(marketplace Marketplace) bool {
+	switch marketplace {
+	case ZilkroadMarketplace:
+		return tx.HasEventLog(MpZilkroadListingEvent)
+	case ArkyMarketplace:
+		return false
+	case OkimotoMarketplace:
+		if tx.HasEventLog(MpOkiListingEvent) {
+			event := tx.GetEventLogs(MpOkiListingEvent)[0]
+
+			recipient, err := event.Params.GetParam("recipient")
+			if err != nil {
+				return false
+			}
+
+			return recipient.Value.String() == OkimotoMarketplaceAddress
+		}
+
+		return false
+	}
+	return false
+}
+
+func (tx Transaction) IsMarketplaceDelisting(marketplace Marketplace) bool {
+	switch marketplace {
+	case ZilkroadMarketplace:
+		return tx.HasEventLog(MpZilkroadDelistingEvent)
+	case ArkyMarketplace:
+		return false
+	case OkimotoMarketplace:
+		if tx.HasEventLog(MpOkiDelistingEvent) && tx.Data.Tag == "WithdrawalToken" {
+			event := tx.GetEventLogs(MpOkiDelistingEvent)[0]
+
+			from, err := event.Params.GetParam("from")
+			if err != nil {
+				return false
+			}
+
+			return from.Value.String() == OkimotoMarketplaceAddress
+		}
+
+		return false
+	}
+	return false
+}
+
+func (tx Transaction) IsMarketplaceSale(marketplace Marketplace) bool {
+	switch marketplace {
+	case ZilkroadMarketplace:
+		return tx.HasEventLog(MpZilkroadSaleEvent)
+	case ArkyMarketplace:
+		return tx.HasEventLog(MpArkySaleEvent)
+	case OkimotoMarketplace:
+		if tx.HasEventLog(MpOkiSaleEvent) && tx.Data.Tag == "Buy" {
+			event := tx.GetEventLogs(MpOkiSaleEvent)[0]
+
+			from, err := event.Params.GetParam("from")
+			if err != nil {
+				return false
+			}
+
+			if from.Value.String() != OkimotoMarketplaceAddress {
+				return false
+			}
+
+			return true
+		}
+	}
+	return false
+
+	return false
+}

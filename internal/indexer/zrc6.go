@@ -136,8 +136,8 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
@@ -158,8 +158,8 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
@@ -291,9 +291,10 @@ func (i zrc6Indexer) batchSetTokenUri(tx entity.Transaction, c entity.Contract) 
 }
 
 func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
-	if tx.HasEventLog(entity.MpZilkListingEvent) || tx.HasEventLog(entity.MpZilkDelistingEvent) || tx.HasEventLog(entity.MpZilkTradeEvent) {
+	if tx.IsMarketplaceTx() {
 		return nil
 	}
+
 	for _, event := range tx.GetEventLogs(entity.ZRC6TransferFromEvent) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {

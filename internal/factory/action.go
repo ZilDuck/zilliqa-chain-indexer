@@ -31,9 +31,9 @@ func CreateTransferAction(nft entity.Nft, blockNum uint64, txId, buyer, seller s
 	}
 }
 
-func CreateMarketplaceListingAction(marketplace string, nft entity.Nft, blockNum uint64, txId string, cost string, fungible string) entity.NftAction {
+func CreateMarketplaceListingAction(marketplace entity.Marketplace, nft entity.Nft, blockNum uint64, txId string, cost string, fungible string) entity.NftAction {
 	return entity.NftAction{
-		Marketplace: marketplace,
+		Marketplace: string(marketplace),
 		Contract: nft.Contract,
 		TokenId:  nft.TokenId,
 		TxID:     txId,
@@ -46,9 +46,9 @@ func CreateMarketplaceListingAction(marketplace string, nft entity.Nft, blockNum
 	}
 }
 
-func CreateMarketplaceDelistingAction(marketplace string, nft entity.Nft, blockNum uint64, txId string) entity.NftAction {
+func CreateMarketplaceDelistingAction(marketplace entity.Marketplace, nft entity.Nft, blockNum uint64, txId string) entity.NftAction {
 	return entity.NftAction{
-		Marketplace: marketplace,
+		Marketplace: string(marketplace),
 		Contract: nft.Contract,
 		TokenId:  nft.TokenId,
 		TxID:     txId,
@@ -59,9 +59,9 @@ func CreateMarketplaceDelistingAction(marketplace string, nft entity.Nft, blockN
 	}
 }
 
-func CreateMarketplaceSaleAction(marketplace string, nft entity.Nft, blockNum uint64, txId, buyer, seller, cost, fee, royalty, fungible string) entity.NftAction {
+func CreateMarketplaceSaleAction(marketplace entity.Marketplace, nft entity.Nft, blockNum uint64, txId, buyer, seller, cost, fee, royalty, fungible string) entity.NftAction {
 	return entity.NftAction{
-		Marketplace: marketplace,
+		Marketplace: string(marketplace),
 		Contract: nft.Contract,
 		TokenId:  nft.TokenId,
 		TxID:     txId,

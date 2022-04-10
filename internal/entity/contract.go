@@ -61,10 +61,19 @@ const (
 	ZRC6TransferFromEvent Event = "TransferFrom"
 	ZRC6BurnEvent         Event = "Burn"
 
-	MpArkyTradeEvent      Event = "ExecuteTradeSuccess"
-	MpZilkListingEvent    Event = "Listed"
-	MpZilkDelistingEvent  Event = "Delisted"
-	MpZilkTradeEvent      Event = "Sold"
+	MpOkiListingEvent     Event = "TransferSuccess"
+	MpOkiDelistingEvent   Event = "TransferSuccess"
+	MpOkiSaleEvent        Event = "TransferSuccess"
+
+	MpArkySaleEvent Event = "ExecuteTradeSuccess"
+
+	MpZilkroadListingEvent   Event = "Listed"
+	MpZilkroadDelistingEvent Event = "Delisted"
+	MpZilkroadSaleEvent      Event = "Sold"
+)
+
+const (
+	OkimotoMarketplaceAddress string = "0x8d329a47bf148c7d63d52b75fb2028adc10a3d2f"
 )
 
 type Callback string

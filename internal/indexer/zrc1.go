@@ -48,7 +48,7 @@ func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		if !c.MatchesStandard(entity.ZRC1) || c.MatchesStandard(entity.ZRC6) {
+		if !c.MatchesStandard(entity.ZRC1) {
 			continue
 		}
 
@@ -124,8 +124,8 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
+		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 		}
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
@@ -135,7 +135,9 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 }
 
 func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
-	zap.L().With(zap.String("txId", tx.ID), zap.String("contractAddr", c.Address)).Debug("Zrc1Indexer: transferFrom")
+	if tx.IsMarketplaceTx() {
+		return nil
+	}
 
 	var eventName entity.Event
 	if tx.HasEventLog(entity.ZRC1TransferEvent) {

@@ -30,13 +30,15 @@ func main() {
 		}
 
 		importNftsForContract(*c)
+		importMarketplaceSalesForContract(*c)
 	} else {
 		importAllNfts()
+		importMarketplaceSales()
 	}
 
 	container.GetElastic().Persist()
 
-	importMarketplaceSales()
+
 
 	zap.L().Info("Ready for exit")
 	fmt.Scanln()
@@ -88,6 +90,25 @@ func importMarketplaceSales() {
 	size := 100
 	for {
 		txs, _, err := container.GetTxRepo().GetNftMarketplaceExecutionTxs(0, size, page)
+		if err != nil {
+			break
+		}
+
+		if len(txs) == 0 {
+			break
+		}
+		container.GetMarketplaceIndexer().IndexTxs(txs)
+		container.GetElastic().BatchPersist()
+		page++
+	}
+	container.GetElastic().Persist()
+}
+
+func importMarketplaceSalesForContract(c entity.Contract) {
+	page := 1
+	size := 100
+	for {
+		txs, _, err := container.GetTxRepo().GetContractExecutionsByContract(c, size, page)
 		if err != nil {
 			break
 		}

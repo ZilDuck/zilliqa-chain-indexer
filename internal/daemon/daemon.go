@@ -103,6 +103,7 @@ func (d *Daemon) bulkIndex(bestBlockNum uint64) {
 	d.bulkIndexTxs()
 	d.bulkIndexContracts(bestBlockNum)
 	d.bulkIndexNfts(bestBlockNum)
+	d.bulkIndexMarketPlaceSales(bestBlockNum)
 
 	zap.L().Info("Bulk indexing complete")
 }

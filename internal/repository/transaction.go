@@ -221,13 +221,28 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 func (r transactionRepository) GetNftMarketplaceExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
-		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
-		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewBoolQuery().Should(
-			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "ExecuteTradeSuccess"),
-			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "Listed"),
-			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "Delisted"),
-			elastic.NewTermQuery("Receipt.event_logs._eventname.keyword", "Sold"),
-		).MinimumNumberShouldMatch(1)),
+		elastic.NewRangeQuery("BlockNum").Gte(0),
+		elastic.NewBoolQuery().Should(
+			elastic.NewBoolQuery().Must(
+				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiListingEvent)),
+				elastic.NewMatchPhraseQuery("Data._tag.keyword", "Transfer"),
+				elastic.NewMatchPhraseQuery("Data.params.value.primitive", entity.OkimotoMarketplaceAddress),
+			),
+			elastic.NewBoolQuery().Must(
+				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiDelistingEvent)),
+				elastic.NewMatchPhraseQuery("Data._tag.keyword", "WithdrawalToken"),
+			),
+			elastic.NewBoolQuery().Must(
+				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiSaleEvent)),
+				elastic.NewMatchPhraseQuery("Data._tag.keyword", "Buy"),
+			),
+			elastic.NewNestedQuery("Receipt.event_logs", elastic.NewBoolQuery().Should(
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadSaleEvent),
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadListingEvent),
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadDelistingEvent),
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpArkySaleEvent),
+			).MinimumNumberShouldMatch(1)),
+		).MinimumNumberShouldMatch(1),
 	)
 
 	from := size*page - size
