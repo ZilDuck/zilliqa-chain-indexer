@@ -180,7 +180,10 @@ func (tx Transaction) IsMarketplaceListing(marketplace Marketplace) bool {
 		return false
 	case OkimotoMarketplace:
 		if tx.HasEventLog(MpOkiListingEvent) {
-			recipient, _ := tx.GetEventLogs(MpOkiListingEvent)[0].Params.GetParam("recipient")
+			recipient, err := tx.GetEventLogs(MpOkiListingEvent)[0].Params.GetParam("recipient")
+			if err != nil {
+				return false
+			}
 			return recipient.Value.String() == OkimotoMarketplaceAddress
 		}
 	}
@@ -195,7 +198,10 @@ func (tx Transaction) IsMarketplaceDelisting(marketplace Marketplace) bool {
 		return false
 	case OkimotoMarketplace:
 		if tx.HasEventLog(MpOkiDelistingEvent) && tx.Data.Tag == "WithdrawalToken" {
-			from, _ := tx.GetEventLogs(MpOkiDelistingEvent)[0].Params.GetParam("from")
+			from, err := tx.GetEventLogs(MpOkiDelistingEvent)[0].Params.GetParam("from")
+			if err != nil {
+				return false
+			}
 			return from.Value.String() == OkimotoMarketplaceAddress
 		}
 	}
@@ -210,7 +216,10 @@ func (tx Transaction) IsMarketplaceSale(marketplace Marketplace) bool {
 		return tx.HasEventLog(MpArkySaleEvent)
 	case OkimotoMarketplace:
 		if tx.HasEventLog(MpOkiSaleEvent) && tx.Data.Tag == "Buy" {
-			from, _ := tx.GetEventLogs(MpOkiSaleEvent)[0].Params.GetParam("from")
+			from, err := tx.GetEventLogs(MpOkiSaleEvent)[0].Params.GetParam("from")
+			if err != nil {
+				return false
+			}
 			return from.Value.String() == OkimotoMarketplaceAddress
 		}
 	}
