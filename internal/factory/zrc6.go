@@ -75,9 +75,7 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 	}
 
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
-		zap.L().Info(tx.ID)
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
-
 			name, _ := c.Data.Params.GetParam("name")
 			symbol, _ := c.Data.Params.GetParam("symbol")
 
@@ -93,7 +91,7 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			}
 
 			var toTokenUris []toTokenUri
-			if event.Params.HasParam("to_token_uri_pair_list", "List (Pair ByStr20 String)") {
+			if event.Params.HasParam("to_token_uri_pair_list") {
 				toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
 				if err != nil {
 					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
@@ -131,10 +129,9 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 				}
 			}
 
-
 			// If a contract uses to_list when batch minting it in NON compliant ZRC6
 			var toUris []string
-			if event.Params.HasParam("to_list", "List (ByStr20)") {
+			if event.Params.HasParamWithType("to_list", "List (ByStr20)") {
 				toList, err := event.Params.GetParam("to_list")
 				if err != nil {
 					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_list")

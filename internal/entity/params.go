@@ -56,10 +56,15 @@ func (p Params) GetParam(vName string) (Param, error) {
 	return Param{}, errors.New(fmt.Sprintf("%s param not found", vName))
 }
 
-func (p Params) HasParam(vName string, paramType string) bool {
+func (p Params) HasParamWithType(vName string, paramType string) bool {
 	param, err := p.GetParam(vName)
 	if err != nil {
 		return false
 	}
 	return param.Type == paramType
+}
+
+func (p Params) HasParam(vName string) bool {
+	_, err := p.GetParam(vName)
+	return err == nil
 }
