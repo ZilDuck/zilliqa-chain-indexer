@@ -52,7 +52,7 @@ func processMetadata(c *cli.Context) error {
 		return nil
 	}
 	if *size != 0 {
-		zap.S().Errorf("Can only schedule metadata updates when the queue is empty, current size (%d)", size)
+		zap.S().Errorf("Can only schedule metadata updates when the queue is empty, current size (%d)", *size)
 		return nil
 	}
 
