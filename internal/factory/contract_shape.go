@@ -43,20 +43,20 @@ func IsZrc1(c entity.Contract) bool {
 		return true
 	}
 
-	if !c.ImmutableParams.HasParam("contract_owner", "ByStr20") ||
-		!c.ImmutableParams.HasParam("name", "String") ||
-		!c.ImmutableParams.HasParam("symbol", "String") {
+	if !c.ImmutableParams.HasParamWithType("contract_owner", "ByStr20") ||
+		!c.ImmutableParams.HasParamWithType("name", "String") ||
+		!c.ImmutableParams.HasParamWithType("symbol", "String") {
 		return false
 	}
 
-	if !c.MutableParams.HasParam("minters", "Map ByStr20 Dummy") ||
-		!c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") ||
-		!c.MutableParams.HasParam("owned_token_count", "Map ByStr20 Uint256") ||
-		!c.MutableParams.HasParam("token_approvals", "Map Uint256 ByStr20") ||
-		!c.MutableParams.HasParam("operator_approvals", "Map ByStr20 (Map ByStr20 Dummy)") ||
-		!c.MutableParams.HasParam("token_uris", "Map Uint256 String") ||
-		!c.MutableParams.HasParam("total_supply", "Uint256") ||
-		!c.MutableParams.HasParam("token_id_count", "Uint256") {
+	if !c.MutableParams.HasParamWithType("minters", "Map ByStr20 Dummy") ||
+		!c.MutableParams.HasParamWithType("token_owners", "Map Uint256 ByStr20") ||
+		!c.MutableParams.HasParamWithType("owned_token_count", "Map ByStr20 Uint256") ||
+		!c.MutableParams.HasParamWithType("token_approvals", "Map Uint256 ByStr20") ||
+		!c.MutableParams.HasParamWithType("operator_approvals", "Map ByStr20 (Map ByStr20 Dummy)") ||
+		!c.MutableParams.HasParamWithType("token_uris", "Map Uint256 String") ||
+		!c.MutableParams.HasParamWithType("total_supply", "Uint256") ||
+		!c.MutableParams.HasParamWithType("token_id_count", "Uint256") {
 		return false
 	}
 
@@ -71,17 +71,17 @@ func IsZrc1(c entity.Contract) bool {
 }
 
 func IsZrc2(c entity.Contract) bool {
-	if !c.ImmutableParams.HasParam("contract_owner", "ByStr20") ||
-		!c.ImmutableParams.HasParam("name", "String") ||
-		!c.ImmutableParams.HasParam("symbol", "String") ||
-		!c.ImmutableParams.HasParam("decimals", "Uint32") ||
-		!c.ImmutableParams.HasParam("init_supply", "Uint128") {
+	if !c.ImmutableParams.HasParamWithType("contract_owner", "ByStr20") ||
+		!c.ImmutableParams.HasParamWithType("name", "String") ||
+		!c.ImmutableParams.HasParamWithType("symbol", "String") ||
+		!c.ImmutableParams.HasParamWithType("decimals", "Uint32") ||
+		!c.ImmutableParams.HasParamWithType("init_supply", "Uint128") {
 		return false
 	}
 
-	if !c.MutableParams.HasParam("total_supply", "Uint128") ||
-		!c.MutableParams.HasParam("balances", "Map ByStr20 Uint128") ||
-		!c.MutableParams.HasParam("allowances", "Map ByStr20 (Map ByStr20 Uint128)") {
+	if !c.MutableParams.HasParamWithType("total_supply", "Uint128") ||
+		!c.MutableParams.HasParamWithType("balances", "Map ByStr20 Uint128") ||
+		!c.MutableParams.HasParamWithType("allowances", "Map ByStr20 (Map ByStr20 Uint128)") {
 		return false
 	}
 
@@ -96,18 +96,18 @@ func IsZrc2(c entity.Contract) bool {
 }
 
 func IsZrc3(c entity.Contract) bool {
-	if !c.ImmutableParams.HasParam("contract_owner", "ByStr20") ||
-		!c.ImmutableParams.HasParam("name", "String") ||
-		!c.ImmutableParams.HasParam("symbol", "String") ||
-		!c.ImmutableParams.HasParam("decimals", "Uint32") ||
-		!c.ImmutableParams.HasParam("init_supply", "Uint128") {
+	if !c.ImmutableParams.HasParamWithType("contract_owner", "ByStr20") ||
+		!c.ImmutableParams.HasParamWithType("name", "String") ||
+		!c.ImmutableParams.HasParamWithType("symbol", "String") ||
+		!c.ImmutableParams.HasParamWithType("decimals", "Uint32") ||
+		!c.ImmutableParams.HasParamWithType("init_supply", "Uint128") {
 		return false
 	}
 
-	if !c.MutableParams.HasParam("total_supply", "Uint128") ||
-		!c.MutableParams.HasParam("balances", "Map ByStr20 Uint128") ||
-		!c.MutableParams.HasParam("allowances", "Map ByStr20 (Map ByStr20 Uint128)") ||
-		!c.MutableParams.HasParam("void_cheques", "Map ByStr ByStr20") {
+	if !c.MutableParams.HasParamWithType("total_supply", "Uint128") ||
+		!c.MutableParams.HasParamWithType("balances", "Map ByStr20 Uint128") ||
+		!c.MutableParams.HasParamWithType("allowances", "Map ByStr20 (Map ByStr20 Uint128)") ||
+		!c.MutableParams.HasParamWithType("void_cheques", "Map ByStr ByStr20") {
 		return false
 	}
 
@@ -123,16 +123,16 @@ func IsZrc3(c entity.Contract) bool {
 }
 
 func IsZrc4(c entity.Contract) bool {
-	if !c.ImmutableParams.HasParam("owners_list", "List ByStr20") ||
-		!c.ImmutableParams.HasParam("required_signatures", "Uint32") {
+	if !c.ImmutableParams.HasParamWithType("owners_list", "List ByStr20") ||
+		!c.ImmutableParams.HasParamWithType("required_signatures", "Uint32") {
 		return false
 	}
 
-	if !c.MutableParams.HasParam("owners", "Map ByStr20 Bool") ||
-		!c.MutableParams.HasParam("transactionCount", "Uint32") ||
-		!c.MutableParams.HasParam("signatures", "Map Uint32 (Map ByStr20 Bool)") ||
-		!c.MutableParams.HasParam("signature_counts", "Map Uint32 Uint32") ||
-		!c.MutableParams.HasParam("transactions", "Map Uint32 Transaction") {
+	if !c.MutableParams.HasParamWithType("owners", "Map ByStr20 Bool") ||
+		!c.MutableParams.HasParamWithType("transactionCount", "Uint32") ||
+		!c.MutableParams.HasParamWithType("signatures", "Map Uint32 (Map ByStr20 Bool)") ||
+		!c.MutableParams.HasParamWithType("signature_counts", "Map Uint32 Uint32") ||
+		!c.MutableParams.HasParamWithType("transactions", "Map Uint32 Transaction") {
 		return false
 	}
 
@@ -159,20 +159,20 @@ func IsZrc6(c entity.Contract) bool {
 		return true
 	}
 
-	if !c.ImmutableParams.HasParam("initial_contract_owner", "ByStr20") ||
-		!c.ImmutableParams.HasParam("initial_base_uri", "String") {
+	if !c.ImmutableParams.HasParamWithType("initial_contract_owner", "ByStr20") ||
+		!c.ImmutableParams.HasParamWithType("initial_base_uri", "String") {
 		return false
 	}
 
-	if !c.MutableParams.HasParam("contract_owner", "ByStr20") ||
-		!c.MutableParams.HasParam("base_uri", "String") ||
-		!c.MutableParams.HasParam("minters", "Map ByStr20 Bool") ||
-		!c.MutableParams.HasParam("token_owners", "Map Uint256 ByStr20") ||
-		!c.MutableParams.HasParam("spenders", "Map Uint256 ByStr20") ||
-		!c.MutableParams.HasParam("operators", "Map ByStr20 (Map ByStr20 Bool)") ||
-		!c.MutableParams.HasParam("token_id_count", "Uint256") ||
-		!c.MutableParams.HasParam("balances", "Map ByStr20 Uint256") ||
-		!c.MutableParams.HasParam("total_supply", "Uint256") {
+	if !c.MutableParams.HasParamWithType("contract_owner", "ByStr20") ||
+		!c.MutableParams.HasParamWithType("base_uri", "String") ||
+		!c.MutableParams.HasParamWithType("minters", "Map ByStr20 Bool") ||
+		!c.MutableParams.HasParamWithType("token_owners", "Map Uint256 ByStr20") ||
+		!c.MutableParams.HasParamWithType("spenders", "Map Uint256 ByStr20") ||
+		!c.MutableParams.HasParamWithType("operators", "Map ByStr20 (Map ByStr20 Bool)") ||
+		!c.MutableParams.HasParamWithType("token_id_count", "Uint256") ||
+		!c.MutableParams.HasParamWithType("balances", "Map ByStr20 Uint256") ||
+		!c.MutableParams.HasParamWithType("total_supply", "Uint256") {
 		return false
 	}
 
