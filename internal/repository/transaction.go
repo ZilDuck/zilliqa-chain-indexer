@@ -221,7 +221,7 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 func (r transactionRepository) GetNftMarketplaceExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
-		elastic.NewRangeQuery("BlockNum").Gte(0),
+		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
 		elastic.NewBoolQuery().Should(
 			elastic.NewBoolQuery().Must(
 				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiListingEvent)),
