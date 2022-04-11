@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
@@ -168,7 +169,7 @@ func (i marketplaceIndexer) indexSales(tx entity.Transaction) error {
 			price = addFunds.Msg.Amount
 		}
 
-		i.executeSale(entity.OkimotoMarketplace, tx, salesEvent.Address, tokenId, buyer.Value.String(), nft.Owner, price, "", "", "ZIL")
+		i.executeSale(entity.OkimotoMarketplace, tx, salesEvent.Address, tokenId, buyer.Value.String(), nft.Owner, price, "0", "", "ZIL")
 		return nil
 	}
 
@@ -287,6 +288,13 @@ func (i marketplaceIndexer) indexSales(tx entity.Transaction) error {
 			if fees.Value != nil && len(fees.Value.Arguments) == 2 {
 				fee = fees.Value.Arguments[1].String()
 			}
+
+			costInt, errCost := strconv.ParseUint(cost, 10, 64)
+			feeInt, errFee := strconv.ParseUint(fee, 10, 64)
+			if errCost == nil && errFee == nil {
+				cost = fmt.Sprintf("%d", costInt + feeInt)
+			}
+
 			i.executeSale(entity.ArkyMarketplace, tx, contractAddr, uint64(tokenId), buyer.Value.Primitive.(string), seller.Value.Primitive.(string), cost, fee, "0", "")
 		}
 	}
