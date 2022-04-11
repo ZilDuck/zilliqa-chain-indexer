@@ -55,7 +55,7 @@ func (i marketplaceIndexer) indexListings(tx entity.Transaction) error {
 			zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get token id")
 			return err
 		}
-		i.executeListing(entity.OkimotoMarketplace, tx, listingEvent.Address, tokenId, "", "")
+		i.executeListing(entity.OkimotoMarketplace, tx, listingEvent.Address, tokenId, "", "ZIL")
 		return nil
 	}
 
