@@ -34,7 +34,7 @@ func GetIpfs(ipfsUri string, c *entity.Contract) *string {
 	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
 	parts := re.FindStringSubmatch(ipfsUri)
 	if len(parts) == 2 {
-		if c.CustomIpfs != nil {
+		if c != nil && c.CustomIpfs != nil {
 			ipfsUri = *c.CustomIpfs + parts[1]
 		} else {
 			ipfsUri = "ipfs://" + parts[1]
