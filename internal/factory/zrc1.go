@@ -2,7 +2,7 @@ package factory
 
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -12,11 +12,11 @@ type Zrc1Factory interface {
 }
 
 type zrc1Factory struct {
-	metadata metadata.Service
+	contractsWithoutMetadata map[string]string
 }
 
-func NewZrc1Factory() Zrc1Factory {
-	return zrc1Factory{}
+func NewZrc1Factory(contractsWithoutMetadata map[string]string) Zrc1Factory {
+	return zrc1Factory{contractsWithoutMetadata}
 }
 
 func (f zrc1Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error) {
@@ -60,7 +60,20 @@ func (f zrc1Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			Zrc1:      true,
 		}
 
-		nft.Metadata = GetMetadata(nft)
+		if f.contractHasMetadata(c) {
+			nft.Metadata = GetMetadata(nft)
+		} else {
+			if helper.IsIpfs(nft.TokenUri) {
+				ipfsUri := *helper.GetIpfs(nft.TokenUri, &c)
+				if val, exists := f.contractsWithoutMetadata[nft.Contract]; exists {
+					nft.AssetUri = val + ipfsUri[7:]
+				} else {
+					nft.AssetUri = *helper.GetIpfs(nft.TokenUri, &c)
+				}
+			} else {
+				nft.AssetUri = nft.TokenUri
+			}
+		}
 
 		nfts = append(nfts, nft)
 	}
@@ -111,4 +124,9 @@ func (f zrc1Factory) createUnicuteFromMintTx(tx entity.Transaction, c entity.Con
 	}
 
 	return nfts, nil
+}
+
+func (f zrc1Factory) contractHasMetadata(c entity.Contract) bool {
+	_, exists := f.contractsWithoutMetadata[c.Address]
+	return !exists
 }

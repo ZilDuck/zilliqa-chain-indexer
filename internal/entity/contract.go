@@ -18,7 +18,9 @@ type Contract struct {
 	Standards       map[ZrcStandard]bool `json:"standards"`
 
 	//mutable
-	BaseUri string                 `json:"baseuri"`
+	BaseUri string `json:"baseuri"`
+
+	CustomIpfs *string `json:"customIpfs"`
 }
 
 func (c Contract) Slug() string {

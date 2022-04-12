@@ -94,7 +94,7 @@ func (d *Daemon) rewind() uint64 {
 }
 
 func (d *Daemon) bulkIndex(bestBlockNum uint64) {
-	if !config.Get().BulkIndex {
+	if !config.Get().BulkIndex.Active {
 		return
 	}
 
@@ -108,21 +108,20 @@ func (d *Daemon) bulkIndex(bestBlockNum uint64) {
 	zap.L().Info("Bulk indexing complete")
 }
 
-func (d *Daemon) getTargetHeight() uint64 {
-	targetHeight := config.Get().BulkTargetHeight
-	if targetHeight == 0 {
-		latestCoreTxBlock, err := d.zilliqa.GetLatestTxBlock()
-		if err != nil {
-			zap.L().With(zap.Error(err)).Fatal("Failed to get latest block from zilliqa")
-		}
-		targetHeight, err = strconv.ParseUint(latestCoreTxBlock.Header.BlockNum, 0, 64)
-		if err != nil {
-			zap.L().With(zap.Error(err)).Fatal("Failed to parse latest block num")
-		}
+func (d *Daemon) getTargetHeight() (targetHeight uint64) {
+	latestCoreTxBlock, err := d.zilliqa.GetLatestTxBlock()
+	if err != nil {
+		zap.L().With(zap.Error(err)).Fatal("Failed to get latest block from zilliqa")
 	}
+
+	targetHeight, err = strconv.ParseUint(latestCoreTxBlock.Header.BlockNum, 0, 64)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Fatal("Failed to parse latest block num")
+	}
+
 	zap.S().Infof("Target Height: %d", targetHeight)
 
-	return targetHeight
+	return
 }
 
 func (d *Daemon) bulkIndexTxs() {
@@ -144,17 +143,16 @@ func (d *Daemon) bulkIndexContracts(bestBlockNum uint64) {
 }
 
 func (d *Daemon) bulkIndexContractsFrom(bestBlockNum uint64) uint64 {
-	bulkIndexFrom := config.Get().BulkIndexContractsFrom
-	if bulkIndexFrom == -1 {
+	bulkIndexFrom := config.Get().BulkIndex.IndexContractsFrom
+	if bulkIndexFrom == nil {
 		cBestBlockNum, err := d.contractRepo.GetBestBlockNum()
 		if err == nil && cBestBlockNum < bestBlockNum {
-			bulkIndexFrom = int(cBestBlockNum)
-		} else {
-			bulkIndexFrom = int(bestBlockNum)
+			return cBestBlockNum
 		}
+		return bestBlockNum
 	}
 
-	return uint64(bulkIndexFrom)
+	return *bulkIndexFrom
 }
 
 func (d *Daemon) bulkIndexNfts(bestBlockNum uint64) {
@@ -242,17 +240,16 @@ func (d *Daemon) bulkIndexMarketPlaceSales(bestBlockNum uint64) {
 }
 
 func (d *Daemon) bulkIndexNftsFrom(bestBlockNum uint64) uint64 {
-	bulkIndexFrom := config.Get().BulkIndexNftsFrom
-	if bulkIndexFrom == -1 {
+	bulkIndexFrom := config.Get().BulkIndex.IndexNftsFrom
+	if bulkIndexFrom == nil {
 		cBestBlockNum, err := d.nftRepo.GetBestBlockNum()
 		if err == nil && cBestBlockNum < bestBlockNum {
-			bulkIndexFrom = int(cBestBlockNum)
-		} else {
-			bulkIndexFrom = int(bestBlockNum)
+			return cBestBlockNum
 		}
+		return bestBlockNum
 	}
 
-	return uint64(bulkIndexFrom)
+	return *bulkIndexFrom
 }
 
 func (d *Daemon) subscribe() {
@@ -283,9 +280,9 @@ func (d *Daemon) subscribe() {
 }
 
 func (d Daemon) targetHeight(bestBlockNum uint64) uint64 {
-	if config.Get().RewindToHeight != 0 {
-		zap.L().With(zap.Uint64("height", config.Get().RewindToHeight)).Info("Rewinding to height from config")
-		return config.Get().RewindToHeight
+	if config.Get().RewindToHeight != nil {
+		zap.L().With(zap.Uint64("height", *config.Get().RewindToHeight)).Info("Rewinding to height from config")
+		return *config.Get().RewindToHeight
 	}
 
 	height := bestBlockNum

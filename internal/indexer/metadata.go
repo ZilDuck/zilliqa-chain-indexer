@@ -1,7 +1,6 @@
 package indexer
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
@@ -26,7 +25,6 @@ type metadataIndexer struct {
 	nftRepo         repository.NftRepository
 	messageService  messenger.MessageService
 	metadataService metadata.Service
-	secret          string
 }
 
 func NewMetadataIndexer(
@@ -34,9 +32,8 @@ func NewMetadataIndexer(
 	nftRepo repository.NftRepository,
 	messageService messenger.MessageService,
 	metadataService metadata.Service,
-	secret string,
 ) MetadataIndexer {
-	i := metadataIndexer{elastic, nftRepo, messageService, metadataService, secret}
+	i := metadataIndexer{elastic, nftRepo, messageService, metadataService}
 
 	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
 	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
@@ -52,7 +49,13 @@ func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {
 	}
 	nft := el.(entity.Nft)
 
-	if nft.Metadata.UriEmpty() {
+	_, exists := config.Get().ContractsWithoutMetadata[nft.Contract]
+	if exists {
+		zap.L().With(zap.String("contract", nft.Contract)).Warn("Contract doesnt support metadata")
+		return
+	}
+
+	if nft.Metadata == nil || nft.Metadata.UriEmpty() {
 		return
 	}
 
@@ -100,10 +103,8 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	nft.Metadata.Error = ""
 	nft.Metadata.UpdatedAt = time.Now()
 	nft.Metadata.Status = entity.MetadataSuccess
-	assetUri, err := nft.Metadata.GetAssetUri()
-	if err != nil {
+	if assetUri, err := nft.Metadata.GetAssetUri(); err == nil {
 		nft.AssetUri = assetUri
-		nft.CdnUri = hex.EncodeToString([]byte(fmt.Sprintf("%s-%d-%s", nft.Contract, nft.TokenId, i.secret))[:])
 	}
 
 	if err := i.nftRepo.ResetMetadata(*nft); err != nil {

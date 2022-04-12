@@ -23,7 +23,6 @@ type Service interface {
 type service struct {
 	client      *retryablehttp.Client
 	ipfsHosts   []string
-	assetPath   string
 	ipfsTimeout int
 }
 
@@ -41,8 +40,8 @@ var (
 	ErrTimeout = errors.New("timeout")
 )
 
-func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, assetPath string, ipfsTimeout int) Service {
-	return service{client, ipfsHosts, assetPath, ipfsTimeout}
+func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, ipfsTimeout int) Service {
+	return service{client, ipfsHosts, ipfsTimeout}
 }
 
 func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
@@ -90,7 +89,7 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 	var respErr error
 
 	if helper.IsIpfs(assetUri) {
-		ipfsUri := helper.GetIpfs(assetUri)
+		ipfsUri := helper.GetIpfs(assetUri, nil)
 		resp, respErr = s.fetchIpfs(*ipfsUri)
 		if respErr != nil {
 			zap.L().With(zap.Error(err), zap.String("assetUri", assetUri)).Error("Failed to fetch image from ipfs")
