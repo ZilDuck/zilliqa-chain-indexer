@@ -1,6 +1,7 @@
 package indexer
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
@@ -25,6 +26,7 @@ type metadataIndexer struct {
 	nftRepo         repository.NftRepository
 	messageService  messenger.MessageService
 	metadataService metadata.Service
+	secret          string
 }
 
 func NewMetadataIndexer(
@@ -32,8 +34,9 @@ func NewMetadataIndexer(
 	nftRepo repository.NftRepository,
 	messageService messenger.MessageService,
 	metadataService metadata.Service,
+	secret string,
 ) MetadataIndexer {
-	i := metadataIndexer{elastic, nftRepo, messageService, metadataService}
+	i := metadataIndexer{elastic, nftRepo, messageService, metadataService, secret}
 
 	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
 	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
@@ -44,6 +47,7 @@ func NewMetadataIndexer(
 
 func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {
 	if !config.Get().EventsSupported {
+		zap.L().Warn("TriggerMetadataRefresh: Events not supported")
 		return
 	}
 	nft := el.(entity.Nft)
@@ -96,6 +100,11 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	nft.Metadata.Error = ""
 	nft.Metadata.UpdatedAt = time.Now()
 	nft.Metadata.Status = entity.MetadataSuccess
+	assetUri, err := nft.Metadata.GetAssetUri()
+	if err != nil {
+		nft.AssetUri = assetUri
+		nft.CdnUri = hex.EncodeToString([]byte(fmt.Sprintf("%s-%d-%s", nft.Contract, nft.TokenId, i.secret))[:])
+	}
 
 	if err := i.nftRepo.ResetMetadata(*nft); err != nil {
 		return nil, err

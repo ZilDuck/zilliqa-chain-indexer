@@ -29,6 +29,7 @@ type Config struct {
 	MetadataRetries        int
 	IpfsHosts              []string
 	IpfsTimeout            int
+	CdnSecret              string
 	EventsSupported        bool
 
 	AdditionalZrc1         []string
@@ -104,6 +105,7 @@ func Get() *Config {
 		MetadataRetries:        getInt("METADATA_RETRIES", 3),
 		IpfsHosts:              getSlice("IPFS_HOSTS", ipfsHosts, ","),
 		IpfsTimeout:            getInt("IPFS_TIMEOUT", 10),
+		CdnSecret:              getString("CDN_SECRET", ""),
 		AssetPath:              getString("ASSET_PATH", "./var/assets"),
 		AssetPort:              getString("ASSET_PORT", "8080"),
 		Aws: AwsConfig{

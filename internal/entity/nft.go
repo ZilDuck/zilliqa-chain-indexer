@@ -19,6 +19,8 @@ type Nft struct {
 	Zrc1     bool     `json:"zrc1"`
 	Zrc6     bool     `json:"zrc6"`
 	Metadata Metadata `json:"metadata"`
+	AssetUri string   `json:"assetUri"`
+	CdnUri   string   `json:"cdnUri"`
 }
 
 func (n Nft) Slug() string {

@@ -161,7 +161,7 @@ var Definitions = []dingo.Def{
 			messageService messenger.MessageService,
 			metadataService metadata.Service,
 		) (indexer.MetadataIndexer, error) {
-			return indexer.NewMetadataIndexer(elastic, nftRepo, messageService, metadataService), nil
+			return indexer.NewMetadataIndexer(elastic, nftRepo, messageService, metadataService, config.Get().CdnSecret), nil
 		},
 	},
 	{
