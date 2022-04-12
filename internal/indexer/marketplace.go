@@ -1,13 +1,11 @@
 package indexer
 
 import (
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type MarketplaceIndexer interface {
@@ -15,17 +13,36 @@ type MarketplaceIndexer interface {
 }
 
 type marketplaceIndexer struct {
-	elastic      elastic_search.Index
-	nftRepo      repository.NftRepository
-	contractRepo repository.ContractRepository
+	elastic                    elastic_search.Index
+	nftRepo                    repository.NftRepository
+	contractRepo               repository.ContractRepository
+	contractStateRepo          repository.ContractStateRepository
+	zilkroadMarketplaceFactory factory.ZilkroadMarketplaceFactory
+	okimotoMarketplaceFactory  factory.OkimotoMarketplaceFactory
+	arkyMarketplaceFactory     factory.ArkyMarketplaceFactory
+	mintableMarketplaceFactory factory.MintableMarketplaceFactory
 }
 
 func NewMarketplaceIndexer(
 	elastic elastic_search.Index,
 	nftRepo repository.NftRepository,
 	contractRepo repository.ContractRepository,
+	contractStateRepo repository.ContractStateRepository,
+	zilkroadMarketplaceFactory factory.ZilkroadMarketplaceFactory,
+	okimotoMarketplaceFactory factory.OkimotoMarketplaceFactory,
+	arkyMarketplaceFactory factory.ArkyMarketplaceFactory,
+	mintableMarketplaceFactory factory.MintableMarketplaceFactory,
 ) MarketplaceIndexer {
-	return marketplaceIndexer{elastic, nftRepo, contractRepo}
+	return marketplaceIndexer{
+		elastic,
+		nftRepo,
+		contractRepo,
+		contractStateRepo,
+		zilkroadMarketplaceFactory,
+		okimotoMarketplaceFactory,
+		arkyMarketplaceFactory,
+		mintableMarketplaceFactory,
+	}
 }
 
 func (i marketplaceIndexer) IndexTxs(txs []entity.Transaction) error {
@@ -33,331 +50,148 @@ func (i marketplaceIndexer) IndexTxs(txs []entity.Transaction) error {
 		if !tx.IsContractExecution {
 			continue
 		}
-
 		if err := i.indexListings(tx); err != nil {
-			return err
+			continue
+			//return err
 		}
 		if err := i.indexDelistings(tx); err != nil {
-			return err
+			continue
+			//return err
 		}
 		if err := i.indexSales(tx); err != nil {
-			return err
+			continue
+			//return err
 		}
 	}
 
 	return nil
 }
 
-func (i marketplaceIndexer) indexListings(tx entity.Transaction) error {
-	if tx.IsMarketplaceListing(entity.OkimotoMarketplace) {
-		listingEvent := tx.GetEventLogs(entity.MpOkiListingEvent)[0]
-		tokenId, err := factory.GetTokenId(listingEvent.Params)
-		if err != nil {
-			zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get token id")
-			return err
-		}
-		i.executeListing(entity.OkimotoMarketplace, tx, listingEvent.Address, tokenId, "", "ZIL")
+func (i marketplaceIndexer) indexListings(tx entity.Transaction) (err error) {
+	var listing *entity.MarketplaceListing
+
+	switch {
+	case tx.IsMarketplaceListing(entity.OkimotoMarketplace):
+		listing, err = i.okimotoMarketplaceFactory.CreateListing(tx)
+	case tx.IsMarketplaceListing(entity.ZilkroadMarketplace):
+		listing, err = i.zilkroadMarketplaceFactory.CreateListing(tx)
+	case tx.IsMarketplaceListing(entity.MintableMarketplace):
+		listing, err = i.mintableMarketplaceFactory.CreateListing(tx)
+	}
+
+	if err != nil {
+		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Info("Failed to create listing")
+		return
+	}
+
+	if listing != nil {
+		i.executeListing(*listing)
+	}
+
+	return
+}
+
+func (i marketplaceIndexer) indexDelistings(tx entity.Transaction) (err error) {
+	var delisting *entity.MarketplaceDelisting
+
+	switch {
+	case tx.IsMarketplaceListing(entity.OkimotoMarketplace):
+		delisting, err = i.okimotoMarketplaceFactory.CreateDelisting(tx)
+	case tx.IsMarketplaceDelisting(entity.ZilkroadMarketplace):
+		delisting, err = i.zilkroadMarketplaceFactory.CreateDelisting(tx)
+	case tx.IsMarketplaceDelisting(entity.MintableMarketplace):
+		delisting, err = i.mintableMarketplaceFactory.CreateDelisting(tx)
+	}
+
+	if err != nil {
+		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Info("Failed to create delisting")
+		return err
+	}
+
+	if delisting != nil {
+		i.executeDelisting(*delisting)
+	}
+
+	return nil
+}
+
+func (i marketplaceIndexer) indexSales(tx entity.Transaction) (err error) {
+	if tx.ID == "5b0cfeb1d8f032fe6b9403cd41fc872d48e7fc6d5f1da296b0565d755354ed78" {
+		// This is to avoid the unknown mint of DragonZil 2646
 		return nil
 	}
 
-	if tx.IsMarketplaceListing(entity.ZilkroadMarketplace) {
-		for _, listingEvent := range tx.GetEventLogs(entity.MpZilkroadListingEvent) {
-			tokenId, err := factory.GetTokenId(listingEvent.Params)
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad listing: Failed to get token id")
-				return err
-			}
+	var sale *entity.MarketplaceSale
 
-			contractAddr, err := listingEvent.Params.GetParam("nonfungible")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad listing: Failed to get contract addr")
-				return err
-			}
+	switch {
+	case tx.IsMarketplaceSale(entity.ZilkroadMarketplace):
+		sale, err = i.zilkroadMarketplaceFactory.CreateSale(tx)
+	case tx.IsMarketplaceSale(entity.OkimotoMarketplace):
+		sale, err = i.okimotoMarketplaceFactory.CreateSale(tx)
+	case tx.IsMarketplaceSale(entity.ArkyMarketplace):
+		sale, err = i.arkyMarketplaceFactory.CreateSale(tx)
+	case tx.IsMarketplaceSale(entity.MintableMarketplace):
+		sale, err = i.mintableMarketplaceFactory.CreateSale(tx)
+	}
 
-			priceAsString, err := listingEvent.Params.GetParam("sell_price")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad listing: Failed to get sell_price")
-				return err
-			}
-			price := priceAsString.Value.String()
+	if err != nil {
+		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Info("Failed to create sale")
+		return err
+	}
 
-			fungibleToken, err := listingEvent.Params.GetParam("fungible")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible token")
-				return err
-			}
-
-			fungibleContract, err := i.contractRepo.GetContractByAddress(fungibleToken.Value.String())
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.String("contractAddr", fungibleToken.Value.String()), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible contract")
-				return err
-			}
-
-			symbol, err := fungibleContract.Data.Params.GetParam("symbol")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible symbol")
-				return err
-			}
-
-			i.executeListing(entity.ZilkroadMarketplace, tx, contractAddr.Value.String(), tokenId, price, symbol.Value.String())
-		}
+	if sale != nil {
+		i.executeSale(*sale)
 	}
 
 	return nil
 }
 
-func (i marketplaceIndexer) indexDelistings(tx entity.Transaction) error {
-	if tx.IsMarketplaceDelisting(entity.OkimotoMarketplace) {
-		listingEvent := tx.GetEventLogs(entity.MpOkiDelistingEvent)[0]
-		tokenId, err := factory.GetTokenId(listingEvent.Params)
-		if err != nil {
-			zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get token id")
-			return err
-		}
-		i.executeDelisting(entity.OkimotoMarketplace, tx, listingEvent.Address, tokenId)
-		return nil
-	}
-
-	if tx.IsMarketplaceDelisting(entity.ZilkroadMarketplace) {
-		for _, delistingEvent := range tx.GetEventLogs(entity.MpZilkroadDelistingEvent) {
-			tokenId, err := factory.GetTokenId(delistingEvent.Params)
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad delisting: Failed to get token id")
-				return err
-			}
-
-			contractAddr, err := delistingEvent.Params.GetParam("nonfungible")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad delisting: Failed to get contract addr")
-				return err
-			}
-
-			i.executeDelisting(entity.ZilkroadMarketplace, tx, contractAddr.Value.String(), tokenId)
-		}
-	}
-
-	return nil
-}
-
-func (i marketplaceIndexer) indexSales(tx entity.Transaction) error {
-	if tx.IsMarketplaceSale(entity.OkimotoMarketplace) {
-		salesEvent := tx.GetEventLogs(entity.MpOkiSaleEvent)[0]
-
-		tokenId, err := factory.GetTokenId(salesEvent.Params)
-		if err != nil {
-			zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get token id")
-			return err
-		}
-
-		contractAddr := salesEvent.Address
-
-		nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
-		if err != nil {
-			zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get nft")
-			return err
-		}
-
-		buyer, err := salesEvent.Params.GetParam("recipient")
-		if err != nil {
-			zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto Sale: Failed to get buyer")
-			return err
-		}
-
-		price := ""
-		if tx.HasTransition("AddFunds") {
-			addFunds := tx.GetTransition("AddFunds")[0]
-			price = addFunds.Msg.Amount
-		}
-
-		i.executeSale(entity.OkimotoMarketplace, tx, salesEvent.Address, tokenId, buyer.Value.String(), nft.Owner, price, "0", "", "ZIL")
-		return nil
-	}
-
-	if tx.IsMarketplaceSale(entity.ZilkroadMarketplace) {
-		for _, salesEvent := range tx.GetEventLogs(entity.MpZilkroadSaleEvent) {
-			buyer, err := salesEvent.Params.GetParam("buyer")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get buyer")
-				return err
-			}
-			seller, err := salesEvent.Params.GetParam("buyer")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get seller")
-				return err
-			}
-
-			tokenId, err := factory.GetTokenId(salesEvent.Params)
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get token id")
-				return err
-			}
-
-			contractAddr, err := salesEvent.Params.GetParam("nonfungible")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get contract addr")
-				return err
-			}
-
-			priceAsString, err := salesEvent.Params.GetParam("sell_price")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get sell_price")
-				return err
-			}
-			price := priceAsString.Value.String()
-
-			royaltyAsString, err := salesEvent.Params.GetParam("royalty_amount")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get royalty_amount")
-				return err
-			}
-			royalty := royaltyAsString.Value.String()
-
-			fungibleToken, err := salesEvent.Params.GetParam("fungible")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get fungible token")
-				return err
-			}
-
-			fungibleContract, err := i.contractRepo.GetContractByAddress(fungibleToken.Value.String())
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.String("contractAddr", fungibleToken.Value.String()), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible contract")
-				return err
-			}
-
-			symbol, err := fungibleContract.Data.Params.GetParam("symbol")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible symbol")
-				return err
-			}
-
-			i.executeSale(entity.ZilkroadMarketplace, tx, contractAddr.Value.String(), tokenId, buyer.Value.String(), seller.Value.String(), price, "0", royalty, symbol.Value.String())
-		}
-	}
-
-	if tx.IsMarketplaceSale(entity.ArkyMarketplace) {
-		for _, tradeEvent := range tx.GetEventLogs(entity.MpArkySaleEvent) {
-			token, err := tradeEvent.Params.GetParam("token")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Arky trade: Failed to get token")
-				return err
-			}
-
-			var contractAddr string
-			var tokenId int
-			if token.Value != nil && len(token.Value.Arguments) == 2 {
-				contractAddr = token.Value.Arguments[0].Primitive.(string)
-
-				tokenIdString := token.Value.Arguments[1].Primitive.(string)
-				tokenId, err = strconv.Atoi(tokenIdString)
-				if err != nil {
-					zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Arky trade: Failed to get token id")
-					return err
-				}
-			}
-
-			seller, err := tradeEvent.Params.GetParam("seller")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Arky trade: Failed to get seller")
-				return err
-			}
-
-			buyer, err := tradeEvent.Params.GetParam("buyer")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Arky trade: Failed to get buyer")
-				return err
-			}
-
-			proceeds, err := tradeEvent.Params.GetParam("proceeds")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Arky trade: Failed to get proceeds")
-				return err
-			}
-
-			cost := "0"
-			if proceeds.Value != nil && len(proceeds.Value.Arguments) == 2 {
-				cost = proceeds.Value.Arguments[1].String()
-			}
-
-			fees, err := tradeEvent.Params.GetParam("fees")
-			if err != nil {
-				zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Arky trade: Failed to get proceeds")
-				return err
-			}
-
-			fee := "0"
-			if fees.Value != nil && len(fees.Value.Arguments) == 2 {
-				fee = fees.Value.Arguments[1].String()
-			}
-
-			costInt, errCost := strconv.ParseUint(cost, 10, 64)
-			feeInt, errFee := strconv.ParseUint(fee, 10, 64)
-			if errCost == nil && errFee == nil {
-				cost = fmt.Sprintf("%d", costInt + feeInt)
-			}
-
-			i.executeSale(entity.ArkyMarketplace, tx, contractAddr, uint64(tokenId), buyer.Value.Primitive.(string), seller.Value.Primitive.(string), cost, fee, "0", "")
-		}
-	}
-
-	return nil
-}
-
-func (i marketplaceIndexer) executeListing(marketplace entity.Marketplace, tx entity.Transaction, contractAddr string, tokenId uint64, cost string, fungible string) {
+func (i marketplaceIndexer) executeListing(listing entity.MarketplaceListing) {
 	zap.L().With(
-		zap.String("marketplace", string(marketplace)),
-		zap.String("txId", tx.ID),
-		zap.String("contractAddr", contractAddr),
-		zap.Uint64("tokenId", tokenId),
-		zap.String("fungible", fungible),
-		zap.String("cost", cost),
+		zap.String("marketplace", string(listing.Marketplace)),
+		zap.String("txId", listing.Tx.ID),
+		zap.String("contractAddr", listing.Nft.Contract),
+		zap.Uint64("tokenId", listing.Nft.TokenId),
+		zap.String("fungible", listing.Fungible),
+		zap.String("cost", listing.Cost),
 	).Info("Marketplace listing")
 
-	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
-	if err != nil {
-		zap.L().Error("Failed to find NFT")
-		return
-	}
 
-	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMarketplaceListingAction(marketplace, *nft, tx.BlockNum, tx.ID, cost, fungible), elastic_search.NftAction)
+	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(),
+		factory.CreateMarketplaceListingAction(listing.Marketplace, listing.Nft, listing.Tx.BlockNum, listing.Tx.ID,
+			listing.Cost, listing.Fungible), elastic_search.NftAction)
 }
 
-func (i marketplaceIndexer) executeDelisting(marketplace entity.Marketplace, tx entity.Transaction, contractAddr string, tokenId uint64) {
+func (i marketplaceIndexer) executeDelisting(delisting entity.MarketplaceDelisting) {
 	zap.L().With(
-		zap.String("marketplace", string(marketplace)),
-		zap.String("txId", tx.ID),
-		zap.String("contractAddr", contractAddr),
-		zap.Uint64("tokenId", tokenId),
+		zap.String("marketplace", string(delisting.Marketplace)),
+		zap.String("txId", delisting.Tx.ID),
+		zap.String("contractAddr", delisting.Nft.Contract),
+		zap.Uint64("tokenId", delisting.Nft.TokenId),
 	).Info("Marketplace delisting")
 
-	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
-	if err != nil {
-		zap.L().Error("Failed to find NFT")
-		return
-	}
-
-	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMarketplaceDelistingAction(marketplace, *nft, tx.BlockNum, tx.ID), elastic_search.NftAction)
+	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMarketplaceDelistingAction(delisting.Marketplace,
+		delisting.Nft, delisting.Tx.BlockNum, delisting.Tx.ID), elastic_search.NftAction)
 }
 
-func (i marketplaceIndexer) executeSale(marketplace entity.Marketplace, tx entity.Transaction, contractAddr string, tokenId uint64, buyer, seller string, cost, fee, royalty string, fungible string) {
+func (i marketplaceIndexer) executeSale(sale entity.MarketplaceSale) {
 	zap.L().With(
-		zap.String("marketplace", string(marketplace)),
-		zap.String("txId", tx.ID),
-		zap.String("contractAddr", contractAddr),
-		zap.Uint64("tokenId", tokenId),
-		zap.String("from", seller),
-		zap.String("to", buyer),
-		zap.String("cost", cost),
-		zap.String("fee", fee),
-		zap.String("royalty", royalty),
-		zap.String("fungible", fungible),
+		zap.String("marketplace", string(sale.Marketplace)),
+		zap.String("txId", sale.Tx.ID),
+		zap.String("contractAddr", sale.Nft.Contract),
+		zap.Uint64("tokenId", sale.Nft.TokenId),
+		zap.String("from", sale.Seller),
+		zap.String("to", sale.Buyer),
+		zap.String("cost", sale.Cost),
+		zap.String("fee", sale.Fee),
+		zap.String("royalty", sale.Royalty),
+		zap.String("royaltyBps", sale.RoyaltyBps),
+		zap.String("fungible", sale.Fungible),
 	).Info("Marketplace trade")
 
-	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
-	if err != nil {
-		zap.L().Error("Failed to find NFT")
-		return
-	}
-
-	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, buyer, seller), elastic_search.Zrc6Transfer)
-	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMarketplaceSaleAction(marketplace, *nft, tx.BlockNum, tx.ID, buyer, seller, cost, fee, royalty, fungible), elastic_search.NftAction)
+	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(sale.Nft,
+		sale.Tx.BlockNum, sale.Tx.ID, sale.Buyer, sale.Seller), elastic_search.Zrc6Transfer)
+	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMarketplaceSaleAction(sale.Marketplace,
+		sale.Nft, sale.Tx.BlockNum, sale.Tx.ID, sale.Buyer, sale.Seller, sale.Cost, sale.Fee, sale.Royalty,
+		sale.RoyaltyBps, sale.Fungible), elastic_search.NftAction)
 }

@@ -223,24 +223,27 @@ func (r transactionRepository) GetNftMarketplaceExecutionTxs(fromBlockNum uint64
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
 		elastic.NewBoolQuery().Should(
-			elastic.NewBoolQuery().Must(
-				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiListingEvent)),
-				elastic.NewMatchPhraseQuery("Data._tag.keyword", "Transfer"),
-				elastic.NewMatchPhraseQuery("Data.params.value.primitive", entity.OkimotoMarketplaceAddress),
-			),
-			elastic.NewBoolQuery().Must(
-				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiDelistingEvent)),
-				elastic.NewMatchPhraseQuery("Data._tag.keyword", "WithdrawalToken"),
-			),
-			elastic.NewBoolQuery().Must(
-				elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiSaleEvent)),
-				elastic.NewMatchPhraseQuery("Data._tag.keyword", "Buy"),
-			),
+			//elastic.NewBoolQuery().Must(
+			//	elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiListingEvent)),
+			//	elastic.NewMatchPhraseQuery("Data._tag.keyword", "Transfer"),
+			//	elastic.NewMatchPhraseQuery("Data.params.value.primitive", entity.OkimotoMarketplaceAddress),
+			//),
+			//elastic.NewBoolQuery().Must(
+			//	elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiDelistingEvent)),
+			//	elastic.NewMatchPhraseQuery("Data._tag.keyword", "WithdrawalToken"),
+			//),
+			//elastic.NewBoolQuery().Must(
+			//	elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiSaleEvent)),
+			//	elastic.NewMatchPhraseQuery("Data._tag.keyword", "Buy"),
+			//),
 			elastic.NewNestedQuery("Receipt.event_logs", elastic.NewBoolQuery().Should(
-				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadSaleEvent),
-				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadListingEvent),
-				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadDelistingEvent),
-				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpArkySaleEvent),
+				//elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadListingEvent),
+				//elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadDelistingEvent),
+				//elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadSaleEvent),
+				//elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpArkySaleEvent),
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpMintableListingEvent),
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpMintableDelistingEvent),
+				elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpMintableSaleEvent),
 			).MinimumNumberShouldMatch(1)),
 		).MinimumNumberShouldMatch(1),
 	)

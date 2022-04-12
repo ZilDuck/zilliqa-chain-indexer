@@ -74,7 +74,9 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 		if attempt == -1 || attempt == MaxRetries {
 			return nft, err
 		}
-		zap.S().With(zap.String("contractAddr", contract), zap.Uint64("tokenId", tokenId)).Warnf("Failed to find NFT in repo. retry(%d)", attempt)
+		if contract != "0xe876b112a62f945484ede1f3ccdd6b0ac6f39382" {
+			zap.S().With(zap.String("contractAddr", contract), zap.Uint64("tokenId", tokenId)).Fatalf("Failed to find NFT in repo. retry(%d)", attempt)
+		}
 		time.Sleep(time.Second * 1)
 		return r.getNft(contract, tokenId, attempt+1)
 	}

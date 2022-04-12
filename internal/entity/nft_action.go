@@ -19,6 +19,7 @@ type NftAction struct {
 	Cost        string     `json:"cost"`
 	Fee         string     `json:"fee"`
 	Royalty     string     `json:"royalty"`
+	RoyaltyBps  string     `json:"royaltyBps"`
 	Fungible    string     `json:"fungible"`
 }
 

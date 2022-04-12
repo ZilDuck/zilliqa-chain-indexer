@@ -59,22 +59,23 @@ func CreateMarketplaceDelistingAction(marketplace entity.Marketplace, nft entity
 	}
 }
 
-func CreateMarketplaceSaleAction(marketplace entity.Marketplace, nft entity.Nft, blockNum uint64, txId, buyer, seller, cost, fee, royalty, fungible string) entity.NftAction {
+func CreateMarketplaceSaleAction(marketplace entity.Marketplace, nft entity.Nft, blockNum uint64, txId, buyer, seller, cost, fee, royalty, royaltyBps, fungible string) entity.NftAction {
 	return entity.NftAction{
 		Marketplace: string(marketplace),
-		Contract: nft.Contract,
-		TokenId:  nft.TokenId,
-		TxID:     txId,
-		BlockNum: blockNum,
-		Action:   entity.MarketplaceSaleAction,
-		From:     seller,
-		To:       buyer,
-		Zrc1:     nft.Zrc1,
-		Zrc6:     nft.Zrc6,
-		Cost:     cost,
-		Fee:      fee,
-		Royalty:  royalty,
-		Fungible: fungible,
+		Contract:    nft.Contract,
+		TokenId:     nft.TokenId,
+		TxID:        txId,
+		BlockNum:    blockNum,
+		Action:      entity.MarketplaceSaleAction,
+		From:        seller,
+		To:          buyer,
+		Zrc1:        nft.Zrc1,
+		Zrc6:        nft.Zrc6,
+		Cost:        cost,
+		Fee:         fee,
+		Royalty:     royalty,
+		RoyaltyBps:  royaltyBps,
+		Fungible:    fungible,
 	}
 }
 

@@ -186,6 +186,8 @@ func (tx Transaction) IsMarketplaceListing(marketplace Marketplace) bool {
 			}
 			return recipient.Value.String() == OkimotoMarketplaceAddress
 		}
+	case MintableMarketplace:
+		return tx.HasEventLog(MpMintableListingEvent) && !tx.HasEventLog("DragonApprovedSuccess") && tx.Data.Tag == "Sell"
 	}
 	return false
 }
@@ -204,6 +206,8 @@ func (tx Transaction) IsMarketplaceDelisting(marketplace Marketplace) bool {
 			}
 			return from.Value.String() == OkimotoMarketplaceAddress
 		}
+	case MintableMarketplace:
+		return tx.HasEventLog(MpMintableDelistingEvent) && !tx.HasEventLog("Configured") && tx.Data.Tag == "CancelListing"
 	}
 	return false
 }
@@ -222,6 +226,8 @@ func (tx Transaction) IsMarketplaceSale(marketplace Marketplace) bool {
 			}
 			return from.Value.String() == OkimotoMarketplaceAddress
 		}
+	case MintableMarketplace:
+		return tx.HasEventLog(MpMintableSaleEvent) && tx.Data.Tag == "Purchase"
 	}
 	return false
 }

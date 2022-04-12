@@ -65,6 +65,10 @@ const (
 	MpOkiDelistingEvent   Event = "TransferSuccess"
 	MpOkiSaleEvent        Event = "TransferSuccess"
 
+	MpMintableListingEvent   Event = "PendingOrderRecorded"
+	MpMintableDelistingEvent Event = "OrderCanceled"
+	MpMintableSaleEvent      Event = "PurchaseSuccess"
+
 	MpArkySaleEvent Event = "ExecuteTradeSuccess"
 
 	MpZilkroadListingEvent   Event = "Listed"

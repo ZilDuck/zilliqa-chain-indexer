@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
@@ -30,6 +29,8 @@ func main() {
 		}
 
 		importNftsForContract(*c)
+		container.GetElastic().Persist()
+
 		importMarketplaceSalesForContract(*c)
 	} else {
 		importAllNfts()
@@ -41,7 +42,7 @@ func main() {
 
 
 	zap.L().Info("Ready for exit")
-	fmt.Scanln()
+	//fmt.Scanln()
 }
 
 func importAllNfts() {
