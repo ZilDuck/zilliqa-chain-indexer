@@ -65,7 +65,7 @@ type Config struct {
 	}
 }
 
-func Init() {
+func Init(command string) {
 	viper.SetConfigName("env.yaml")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
@@ -82,7 +82,7 @@ func Init() {
 	_ = os.Setenv("AWS_SECRET_KEY_ID", config.Aws.SecretKey)
 	_ = os.Setenv("AWS_REGION", config.Aws.Region)
 
-	log.NewLogger(config.Debug, config.LogPath)
+	log.NewLogger(config.Debug, fmt.Sprintf("%s/%s.log",config.LogPath, command))
 }
 
 func Get() Config {

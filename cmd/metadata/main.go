@@ -18,7 +18,7 @@ var (
 )
 
 func main() {
-	config.Init()
+	config.Init("metadata")
 
 	container, _ := dic.NewContainer()
 	messageService = container.GetMessenger()

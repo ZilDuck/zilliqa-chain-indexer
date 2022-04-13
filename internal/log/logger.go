@@ -4,6 +4,7 @@ import (
 	"github.com/mattn/go-colorable"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"log"
 	"os"
 )
 
@@ -16,11 +17,14 @@ func NewLogger(debug bool, file string) {
 
 func fileCore(file string) zapcore.Core {
 	cfg := zap.NewProductionEncoderConfig()
-	cfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	cfg.EncodeTime = zapcore.RFC3339TimeEncoder
 	cfg.MessageKey = "message"
 	cfg.TimeKey = "time"
 
-	logFile, _ := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	logFile, err := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+	if err != nil {
+		log.Fatal(err.Error())
+	}
 
 	return zapcore.NewCore(zapcore.NewJSONEncoder(cfg), zapcore.AddSync(logFile), zap.ErrorLevel)
 }

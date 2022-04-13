@@ -10,7 +10,7 @@ import (
 )
 
 func main() {
-	config.Init()
+	config.Init("missingTx")
 
 	container, _ := dic.NewContainer()
 

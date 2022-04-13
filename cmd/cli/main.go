@@ -30,7 +30,7 @@ var (
 
 
 func main() {
-	config.Init()
+	config.Init("cli")
 
 	container, _ = dic.NewContainer()
 	elastic = container.GetElastic()

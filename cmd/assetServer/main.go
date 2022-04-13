@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	config.Init()
+	config.Init("asset")
 	container, _ := dic.NewContainer()
 
 	router := asset.NewServer(container.GetNftRepo(), container.GetMetadataService()).Router()

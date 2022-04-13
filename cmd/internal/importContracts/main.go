@@ -11,7 +11,7 @@ import (
 var container *dic.Container
 
 func main() {
-	config.Init()
+	config.Init("importContracts")
 	container, _ = dic.NewContainer()
 
 	container.GetElastic().InstallMappings()
