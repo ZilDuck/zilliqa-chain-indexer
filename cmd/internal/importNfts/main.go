@@ -30,9 +30,11 @@ func main() {
 		}
 
 		importNftsForContract(*c)
+		container.GetElastic().Persist()
 		importMarketplaceSalesForContract(*c)
 	} else {
 		importAllNfts()
+		container.GetElastic().Persist()
 		importMarketplaceSales()
 	}
 
