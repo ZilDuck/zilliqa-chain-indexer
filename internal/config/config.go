@@ -10,8 +10,9 @@ import (
 var config Config
 
 type Config struct {
-	Env   string
-	Debug bool
+	Env     string
+	Debug   bool
+	LogPath string
 
 	Network        string
 	Index          string
@@ -81,7 +82,7 @@ func Init() {
 	_ = os.Setenv("AWS_SECRET_KEY_ID", config.Aws.SecretKey)
 	_ = os.Setenv("AWS_REGION", config.Aws.Region)
 
-	log.NewLogger(config.Debug)
+	log.NewLogger(config.Debug, config.LogPath)
 }
 
 func Get() Config {

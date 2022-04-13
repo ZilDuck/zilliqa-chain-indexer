@@ -4,30 +4,40 @@ import (
 	"github.com/mattn/go-colorable"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
+	"os"
 )
 
-func NewLogger(debug bool) {
-	pe := zap.NewProductionEncoderConfig()
-	pe.EncodeTime = zapcore.ISO8601TimeEncoder
-	pe.MessageKey = "message"
-	pe.TimeKey = "time"
+func NewLogger(debug bool, file string) {
+	logger := zap.New(zapcore.NewTee(fileCore(file), consoleCore(debug)))
+	defer logger.Sync()
 
-	pe.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	consoleEncoder := zapcore.NewConsoleEncoder(pe)
+	zap.ReplaceGlobals(logger)
+}
+
+func fileCore(file string) zapcore.Core {
+	cfg := zap.NewProductionEncoderConfig()
+	cfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	cfg.MessageKey = "message"
+	cfg.TimeKey = "time"
+
+	logFile, _ := os.OpenFile(file, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+
+	return zapcore.NewCore(zapcore.NewJSONEncoder(cfg), zapcore.AddSync(logFile), zap.ErrorLevel)
+}
+
+func consoleCore(debug bool) zapcore.Core {
+	cfg := zap.NewProductionEncoderConfig()
+	cfg.EncodeTime = zapcore.ISO8601TimeEncoder
+	cfg.MessageKey = "message"
+	cfg.TimeKey = "time"
+	cfg.EncodeLevel = zapcore.CapitalColorLevelEncoder
 
 	level := zap.InfoLevel
 	if debug {
 		level = zap.DebugLevel
 	}
 
-	core := zapcore.NewTee(
-		zapcore.NewCore(consoleEncoder, zapcore.AddSync(colorable.NewColorableStdout()), level),
-	)
-
-	logger := zap.New(core)
-	defer logger.Sync()
-
-	zap.ReplaceGlobals(logger)
+	return zapcore.NewCore(zapcore.NewConsoleEncoder(cfg), zapcore.AddSync(colorable.NewColorableStdout()), level)
 }
 
 type Logger interface {
