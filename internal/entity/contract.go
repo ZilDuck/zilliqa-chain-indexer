@@ -53,6 +53,7 @@ type Event string
 
 const (
 	ZRC1MintEvent         Event = "MintSuccess"
+	ZRC1UnicutesMintEvent Event = "UnicuteInsertDrandValues"
 	ZRC1TransferEvent     Event = "TransferSuccess"
 	ZRC1TransferFromEvent Event = "TransferFromSuccess"
 	ZRC1BurnEvent         Event = "BurnSuccess"

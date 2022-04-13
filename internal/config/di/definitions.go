@@ -158,10 +158,11 @@ var Definitions = []dingo.Def{
 		Build: func(
 			elastic elastic_search.Index,
 			nftRepo repository.NftRepository,
+			contractRepo repository.ContractRepository,
 			messageService messenger.MessageService,
 			metadataService metadata.Service,
 		) (indexer.MetadataIndexer, error) {
-			return indexer.NewMetadataIndexer(elastic, nftRepo, messageService, metadataService), nil
+			return indexer.NewMetadataIndexer(elastic, nftRepo, contractRepo, messageService, metadataService), nil
 		},
 	},
 	{
