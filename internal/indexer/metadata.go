@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
@@ -51,9 +52,6 @@ func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {
 	}
 
 	nft := el.(entity.Nft)
-	if !nft.HasMetadata {
-		return
-	}
 
 	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
 	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
@@ -105,9 +103,18 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	nft.Metadata.Error = ""
 	nft.Metadata.UpdatedAt = time.Now()
 	nft.Metadata.Status = entity.MetadataSuccess
+	nft.HasMetadata = true
 	if assetUri, err := nft.Metadata.GetAssetUri(); err == nil {
-		if nft.Metadata.IsIpfs {
+		if helper.IsIpfs(assetUri) {
 			ipfsUri := helper.GetIpfs(assetUri, c)
+			if ipfsUri == nil {
+				zap.S().With(
+					zap.String("assetUri", assetUri),
+					zap.String("contractAddr", contractAddr),
+					zap.Uint64("tokenId", tokenId),
+				).Error("IPFS not found")
+				return nil, errors.New(fmt.Sprintf("Metadata is ipfs asset. Helper failed to retrieve (%s, %d)", contractAddr, tokenId))
+			}
 			assetUri = *ipfsUri
 		}
 		nft.AssetUri = assetUri

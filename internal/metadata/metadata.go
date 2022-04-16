@@ -45,6 +45,7 @@ func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, ipfsTi
 }
 
 func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
+	zap.L().With(zap.String("tokenId", nft.TokenUri), zap.String("contractAddr", nft.Contract)).Info("Fetch metadata")
 	if nft.Metadata.UriEmpty() {
 		return nil, errors.New("metadata uri not valid")
 	}
@@ -112,14 +113,14 @@ func (s service) fetchIpfs(uri string) (*http.Response, error) {
 
 	for _, host := range s.ipfsHosts {
 		go func(host string) {
-			uri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
-			req, err := retryablehttp.NewRequest("GET", uri, nil)
+			ipfsUri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
+			req, err := retryablehttp.NewRequest("GET", ipfsUri, nil)
 			if err != nil {
 				ch <- nil
 				return
 			}
 
-			zap.L().With(zap.String("uri", uri)).Debug("Fetching IPFS metadata")
+			zap.L().With(zap.String("uri", uri), zap.String("ipfs", ipfsUri)).Info("Fetching IPFS metadata")
 			resp, err := s.client.Do(req)
 			if err != nil {
 				ch <- nil

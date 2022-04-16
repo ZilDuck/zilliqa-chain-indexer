@@ -44,8 +44,20 @@ func NewNftRepository(elastic elastic_search.Index) NftRepository {
 }
 
 func (r nftRepository) Exists(contract string, tokenId uint64) bool {
-	_, err := r.getNft(contract, tokenId, -1)
-	return err == nil
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("contract.keyword", contract),
+		elastic.NewTermQuery("tokenId", tokenId),
+	)
+
+	result, err := count(r.elastic.GetClient().
+		Count(elastic_search.NftIndex.Get()).
+		Query(query))
+
+	if err != nil {
+		return false
+	}
+
+	return result != 0
 }
 
 func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.Nft, error) {
@@ -72,7 +84,7 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 	nft, err := r.findOne(result, err)
 	if err != nil {
 		if attempt == -1 || attempt == MaxRetries {
-			return nft, err
+			return nil, err
 		}
 		zap.S().With(zap.String("contractAddr", contract), zap.Uint64("tokenId", tokenId)).Warnf("Failed to find NFT in repo. retry(%d)", attempt)
 		time.Sleep(time.Second * 1)
@@ -260,14 +272,28 @@ func (r nftRepository) PurgeContract(contractAddr string) error {
 
 	_, err := r.elastic.GetClient().
 		DeleteByQuery(elastic_search.NftIndex.Get()).
+		WaitForCompletion(true).
 		Query(elastic.NewTermsQuery("contract.keyword", contractAddr)).
 		Do(context.Background())
-
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("contractAddr", contractAddr)).Error("Failed to purge contract")
+		return err
 	}
 
-	return err
+	return r.validatePurgeContractComplete(contractAddr)
+}
+
+func (r nftRepository) validatePurgeContractComplete(contractAddr string) error {
+	zap.L().With(zap.String("contractAddr", contractAddr)).Debug("validatePurgeContractComplete")
+	_, total, err := r.GetNfts(contractAddr, 1, 1)
+	if err != nil {
+		return err
+	}
+	if total != 0 {
+		time.Sleep(1 * time.Second)
+		return r.validatePurgeContractComplete(contractAddr)
+	}
+	return nil
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.Nft, error) {

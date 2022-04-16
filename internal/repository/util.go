@@ -7,6 +7,16 @@ import (
 	"time"
 )
 
+func count(countService *elastic.CountService) (int64, error) {
+	result, err := countService.Do(context.Background())
+	if err != nil && err.Error() == "elastic: Error 429 (Too Many Requests)" {
+		zap.L().Warn("Elastic: 429 (Too Many Requests)")
+		time.Sleep(5 * time.Second)
+		return count(countService)
+	}
+
+	return result, err
+}
 func search(searchService *elastic.SearchService) (*elastic.SearchResult, error) {
 	result, err := searchService.Do(context.Background())
 	if err != nil && err.Error() == "elastic: Error 429 (Too Many Requests)" {

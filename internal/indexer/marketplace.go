@@ -314,7 +314,7 @@ func (i marketplaceIndexer) executeListing(marketplace entity.Marketplace, tx en
 
 	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
 	if err != nil {
-		zap.L().Error("Failed to find NFT")
+		zap.L().With(zap.String("txId", tx.ID), zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Error("Marketplace listing: Failed to find NFT")
 		return
 	}
 
@@ -331,7 +331,7 @@ func (i marketplaceIndexer) executeDelisting(marketplace entity.Marketplace, tx 
 
 	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
 	if err != nil {
-		zap.L().Error("Failed to find NFT")
+		zap.L().With(zap.String("txId", tx.ID), zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Error("Marketplace delisting: Failed to find NFT")
 		return
 	}
 
@@ -354,7 +354,7 @@ func (i marketplaceIndexer) executeSale(marketplace entity.Marketplace, tx entit
 
 	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
 	if err != nil {
-		zap.L().Error("Failed to find NFT")
+		zap.L().With(zap.String("txId", tx.ID), zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Error("Marketplace trade: Failed to find NFT")
 		return
 	}
 
