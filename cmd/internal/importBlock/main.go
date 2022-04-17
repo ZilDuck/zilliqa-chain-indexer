@@ -32,7 +32,7 @@ func main() {
 }
 
 func initialize() {
-	config.Init()
+	config.Init("importBlock")
 	container, _ = dic.NewContainer()
 	zap.L().Info("Import Block")
 }

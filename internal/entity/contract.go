@@ -18,7 +18,9 @@ type Contract struct {
 	Standards       map[ZrcStandard]bool `json:"standards"`
 
 	//mutable
-	BaseUri string                 `json:"baseuri"`
+	BaseUri string `json:"baseuri"`
+
+	CustomIpfs *string `json:"customIpfs"`
 }
 
 func (c Contract) Slug() string {
@@ -51,6 +53,7 @@ type Event string
 
 const (
 	ZRC1MintEvent         Event = "MintSuccess"
+	ZRC1UnicutesMintEvent Event = "UnicuteInsertDrandValues"
 	ZRC1TransferEvent     Event = "TransferSuccess"
 	ZRC1TransferFromEvent Event = "TransferFromSuccess"
 	ZRC1BurnEvent         Event = "BurnSuccess"

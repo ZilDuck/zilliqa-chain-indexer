@@ -32,9 +32,6 @@ type Index interface {
 	Save(index string, entity entity.Entity)
 	BatchPersist() bool
 	Persist() int
-
-	DeleteByID(id string, index string)
-	DeleteBlockNumGT(height uint64, indices ...string) error
 }
 
 type index struct {
@@ -338,7 +335,9 @@ func (i index) persist(bulk *elastic.BulkService) {
 				zap.Any("error", failed.Error),
 				zap.String("index", failed.Index),
 				zap.String("id", failed.Id),
-			).Fatal("ElasticCache: Failed to persist requests")
+			).Error("ElasticCache: Failed to persist request. Retying...")
+
+			i.Save(failed.Index, i.GetRequest(failed.Id).Entity)
 		}
 	}
 
@@ -360,28 +359,4 @@ func (i index) flush() {
 
 	zap.L().Debug("ElasticCache: Flushing ES cache")
 	i.cache.Flush()
-}
-
-func (i index) DeleteByID(id string, index string) {
-	i.client.Delete().Index(index).Id(id).Do(context.Background())
-	i.client.Flush(index)
-
-	zap.S().Infof("Deleted %s from index %s", id, index)
-}
-
-func (i index) DeleteBlockNumGT(height uint64, indices ...string) error {
-	_, err := i.client.DeleteByQuery(indices...).
-		Query(elastic.NewRangeQuery("BlockNum").Gt(height)).
-		Do(context.Background())
-
-	if err != nil {
-		zap.S().With(zap.Error(err)).Fatalf("Could not rewind to %d", height)
-		return err
-	}
-
-	i.client.Flush(indices...)
-
-	zap.S().Infof("Deleted height greater than %d", height)
-
-	return nil
 }

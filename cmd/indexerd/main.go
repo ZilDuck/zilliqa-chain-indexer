@@ -15,7 +15,7 @@ func main() {
 }
 
 func initialize() {
-	config.Init()
+	config.Init("indexer")
 	container, _ = dic.NewContainer()
 	zap.L().Info("Indexer Started")
 }

@@ -112,6 +112,7 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 		}
 
 		for _, tx := range txs {
+			zap.L().Info(tx.ID)
 			if err := i.IndexTx(tx, c); err != nil {
 				return err
 			}
@@ -353,7 +354,7 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 				zap.String("txId", tx.ID),
 				zap.String("contractAddr", c.Address),
 				zap.Uint64("tokenId", tokenId),
-			).Fatal("Failed to find zrc6 nft in index")
+			).Error("Failed to find zrc6 nft in index")
 			continue
 		}
 

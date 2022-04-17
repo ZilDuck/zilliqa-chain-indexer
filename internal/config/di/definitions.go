@@ -102,7 +102,7 @@ var Definitions = []dingo.Def{
 			txRepo repository.TransactionRepository,
 			cache *cache.Cache,
 		) (indexer.Indexer, error) {
-			return indexer.NewIndexer(config.Get().BulkIndexSize, elastic, txIndexer, contractIndexer, zrc1Indexer, zrc6Indexer, marketplaceIndexer, txRepo, cache), nil
+			return indexer.NewIndexer(config.Get().BulkIndex.Size, elastic, txIndexer, contractIndexer, zrc1Indexer, zrc6Indexer, marketplaceIndexer, txRepo, cache), nil
 		},
 	},
 	{
@@ -158,10 +158,11 @@ var Definitions = []dingo.Def{
 		Build: func(
 			elastic elastic_search.Index,
 			nftRepo repository.NftRepository,
+			contractRepo repository.ContractRepository,
 			messageService messenger.MessageService,
 			metadataService metadata.Service,
 		) (indexer.MetadataIndexer, error) {
-			return indexer.NewMetadataIndexer(elastic, nftRepo, messageService, metadataService), nil
+			return indexer.NewMetadataIndexer(elastic, nftRepo, contractRepo, messageService, metadataService), nil
 		},
 	},
 	{
@@ -224,13 +225,13 @@ var Definitions = []dingo.Def{
 	{
 		Name: "zrc1.factory",
 		Build: func() (factory.Zrc1Factory, error) {
-			return factory.NewZrc1Factory(), nil
+			return factory.NewZrc1Factory(config.Get().ContractsWithoutMetadata), nil
 		},
 	},
 	{
 		Name: "zrc6.factory",
 		Build: func() (factory.Zrc6Factory, error) {
-			return factory.NewZrc6Factory(), nil
+			return factory.NewZrc6Factory(config.Get().ContractsWithoutMetadata), nil
 		},
 	},
 	{
@@ -267,7 +268,7 @@ var Definitions = []dingo.Def{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
 
-			return metadata.NewMetadataService(retryClient, config.Get().IpfsHosts, config.Get().AssetPath, config.Get().IpfsTimeout), nil
+			return metadata.NewMetadataService(retryClient, config.Get().Ipfs.Hosts, config.Get().Ipfs.Timeout), nil
 		},
 	},
 }

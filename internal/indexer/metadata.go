@@ -2,11 +2,13 @@ package indexer
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/event"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
@@ -23,6 +25,7 @@ type MetadataIndexer interface {
 type metadataIndexer struct {
 	elastic         elastic_search.Index
 	nftRepo         repository.NftRepository
+	contractRepo    repository.ContractRepository
 	messageService  messenger.MessageService
 	metadataService metadata.Service
 }
@@ -30,10 +33,11 @@ type metadataIndexer struct {
 func NewMetadataIndexer(
 	elastic elastic_search.Index,
 	nftRepo repository.NftRepository,
+	contractRepo repository.ContractRepository,
 	messageService messenger.MessageService,
 	metadataService metadata.Service,
 ) MetadataIndexer {
-	i := metadataIndexer{elastic, nftRepo, messageService, metadataService}
+	i := metadataIndexer{elastic, nftRepo, contractRepo, messageService, metadataService}
 
 	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
 	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
@@ -46,23 +50,26 @@ func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {
 	if !config.Get().EventsSupported {
 		return
 	}
-	nft := el.(entity.Nft)
 
-	if nft.Metadata.UriEmpty() {
-		return
-	}
+	nft := el.(entity.Nft)
 
 	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
 	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
-		zap.L().Error("Failed to queue metadata refresh")
+		zap.L().With(zap.Error(err)).Error("Failed to queue metadata refresh")
+	} else {
+		zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger MetaData Refresh")
 	}
-	zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger MetaData Refresh")
 }
 
 func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*entity.Nft, error) {
 	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Info("NFT Refresh Metadata")
 
 	nft, err := i.nftRepo.GetNft(contractAddr, tokenId)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := i.contractRepo.GetContractByAddress(contractAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -96,9 +103,21 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	nft.Metadata.Error = ""
 	nft.Metadata.UpdatedAt = time.Now()
 	nft.Metadata.Status = entity.MetadataSuccess
-
-	if err := i.nftRepo.ResetMetadata(*nft); err != nil {
-		return nil, err
+	nft.HasMetadata = true
+	if assetUri, err := nft.Metadata.GetAssetUri(); err == nil {
+		if helper.IsIpfs(assetUri) {
+			ipfsUri := helper.GetIpfs(assetUri, c)
+			if ipfsUri == nil {
+				zap.S().With(
+					zap.String("assetUri", assetUri),
+					zap.String("contractAddr", contractAddr),
+					zap.Uint64("tokenId", tokenId),
+				).Error("IPFS not found")
+				return nil, errors.New(fmt.Sprintf("Metadata is ipfs asset. Helper failed to retrieve (%s, %d)", contractAddr, tokenId))
+			}
+			assetUri = *ipfsUri
+		}
+		nft.AssetUri = assetUri
 	}
 
 	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
