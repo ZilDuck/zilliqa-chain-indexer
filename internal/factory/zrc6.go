@@ -62,8 +62,10 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 		}
 
 		if f.contractHasMetadata(c) {
+			nft.HasMetadata = true
 			nft.Metadata = GetMetadata(nft)
 		} else {
+			nft.HasMetadata = false
 			nft.Metadata = nil
 			if helper.IsIpfs(nft.TokenUri) {
 				ipfsUri := *helper.GetIpfs(nft.TokenUri, &c)
@@ -138,7 +140,23 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 						Zrc6:     true,
 					}
 
-					nft.Metadata = GetMetadata(nft)
+					if f.contractHasMetadata(c) {
+						nft.HasMetadata = true
+						nft.Metadata = GetMetadata(nft)
+					} else {
+						nft.HasMetadata = false
+						nft.Metadata = nil
+						if helper.IsIpfs(nft.TokenUri) {
+							ipfsUri := *helper.GetIpfs(nft.TokenUri, &c)
+							if val, exists := f.contractsWithoutMetadata[nft.Contract]; exists {
+								nft.AssetUri = val + ipfsUri[7:]
+							} else {
+								nft.AssetUri = *helper.GetIpfs(nft.TokenUri, &c)
+							}
+						} else {
+							nft.AssetUri = nft.TokenUri
+						}
+					}
 
 					nfts = append(nfts, nft)
 					nextTokenId++
