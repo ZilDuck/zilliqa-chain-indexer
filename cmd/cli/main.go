@@ -12,7 +12,6 @@ import (
 	"github.com/urfave/cli/v2"
 	"go.uber.org/zap"
 	"os"
-	"strings"
 )
 
 var (
@@ -91,27 +90,15 @@ func processMetadata(c *cli.Context) error {
 		return nil
 	}
 
-	var status entity.MetadataStatus
-	switch strings.ToLower(c.Args().First()) {
-	case "pending":
-		status = entity.MetadataPending
-	case "failed":
-		status = entity.MetadataFailure
-	case "success":
-		status = entity.MetadataSuccess
-	default:
-		zap.L().Error("No status provided")
-		return nil
-	}
-	metadataError := c.Args().Get(1)
-
-	zap.S().Infof("Processing Metadata: %s, %s", status, metadataError)
-
-	if err := metadataIndexer.RefreshByStatus(status, metadataError); err != nil {
-		zap.S().With(zap.Error(err)).Fatalf("Failed to process %s metadata", status)
+	if err := metadataIndexer.RefreshByStatus(entity.MetadataPending, ""); err != nil {
+		zap.L().With(zap.Error(err)).Fatal("Failed to process pending metadata")
 		return err
 	}
-	zap.L().Info("Metadata processing complete")
+
+	if err := metadataIndexer.RefreshByStatus(entity.MetadataFailure, "timeout"); err != nil {
+		zap.L().With(zap.Error(err)).Fatal("Failed to process pending metadata")
+		return err
+	}
 
 	return nil
 }
