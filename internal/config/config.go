@@ -40,7 +40,8 @@ type Config struct {
 	AdditionalZrc6           []string
 	ContractsWithoutMetadata map[string]string
 
-	AssetPort string
+	AssetPort  string
+	HealthPort string
 
 	Zilliqa struct {
 		Url     string
