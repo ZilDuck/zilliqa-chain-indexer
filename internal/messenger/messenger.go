@@ -43,7 +43,7 @@ func (m Messenger) GetQueue(item Item) (*amqp.Queue, error) {
 
 	queue, err := ch.QueueDeclare(item.queue(), true, false, false, false, nil)
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("queue", item.queue())).Error("Failed to create queue")
+		zap.L().With(zap.Error(err), zap.String("queue", item.queue())).Error("[Queue] Failed to create queue")
 		return nil, err
 	}
 
@@ -58,17 +58,18 @@ func (m Messenger) SendMessage(item Item, body []byte, reliable bool) error {
 
 	ex, ok := exchanges[string(item)]
 	if !ok {
+		zap.L().Error("[Queue] Exchange not found")
 		return errors.New("exchange not found")
 	}
 
 	if err := ch.ExchangeDeclare(ex.Name, ex.Type, ex.Durable, ex.AutoDeleted, ex.Internal, ex.NoWait, ex.Arguments); err != nil {
-		zap.L().With(zap.Error(err)).Error("Exchange Declare")
+		zap.L().With(zap.Error(err)).Error("[Queue] Exchange Declare")
 		return err
 	}
 
 	if reliable {
 		if err := ch.Confirm(false); err != nil {
-			zap.L().With(zap.Error(err)).Error("Channel could not be put into confirm mode")
+			zap.L().With(zap.Error(err)).Error("[Queue] Channel could not be put into confirm mode")
 			return err
 		}
 
@@ -87,8 +88,11 @@ func (m Messenger) SendMessage(item Item, body []byte, reliable bool) error {
 	}
 
 	if err = ch.Publish(ex.Name, item.queue(), false, false, publishing); err != nil {
-		zap.L().With(zap.Error(err)).Error("Exchange Publish")
+		zap.L().With(zap.Error(err)).Error("[Queue] Exchange Publish")
+		return err
 	}
+
+	zap.L().With(zap.String("exchange", ex.Name), zap.String("routingKey", item.queue())).Info("[Queue] Published message")
 
 	return err
 }
@@ -105,7 +109,7 @@ func (m Messenger) ConsumeMessages(item Item, callback func(msg string)) error {
 	}
 
 	if err := ch.ExchangeDeclare(ex.Name, ex.Type, ex.Durable, ex.AutoDeleted, ex.Internal, ex.NoWait, ex.Arguments); err != nil {
-		zap.L().With(zap.Error(err)).Error("Exchange Declare")
+		zap.L().With(zap.Error(err)).Error("[Queue] Exchange Declare")
 		return err
 	}
 
@@ -158,7 +162,7 @@ func (m Messenger) openConnection() (*amqp.Connection, error) {
 
 	conn, err := amqp.Dial(m.amqpUri)
 	if err != nil {
-		zap.S().With(zap.Error(err)).Errorf("[Queue] %s", "Failed to connect to RabbitMQ")
+		zap.L().With(zap.Error(err)).Error("[Queue] Failed to connect to RabbitMQ")
 		return nil, err
 	}
 
