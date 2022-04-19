@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/log"
 	"github.com/spf13/viper"
-	"os"
 )
 
 var config Config
@@ -40,7 +39,8 @@ type Config struct {
 	AdditionalZrc6           []string
 	ContractsWithoutMetadata map[string]string
 
-	AssetPort string
+	AssetPort  string
+	HealthPort string
 
 	Zilliqa struct {
 		Url     string
@@ -58,10 +58,11 @@ type Config struct {
 		BulkPersistCount int
 		Refresh          string
 	}
-	Aws struct {
-		AccessKey string
-		SecretKey string
-		Region    string
+	Queue struct {
+		Host     string
+		User     string
+		Password string
+		Port     int
 	}
 }
 
@@ -77,10 +78,6 @@ func Init(command string) {
 	if err := viper.Unmarshal(&config); err != nil {
 		panic("Failed to unmarshal config")
 	}
-
-	_ = os.Setenv("AWS_ACCESS_KEY_ID", config.Aws.AccessKey)
-	_ = os.Setenv("AWS_SECRET_KEY_ID", config.Aws.SecretKey)
-	_ = os.Setenv("AWS_REGION", config.Aws.Region)
 
 	log.NewLogger(config.Debug, fmt.Sprintf("%s/%s.log",config.LogPath, command))
 }

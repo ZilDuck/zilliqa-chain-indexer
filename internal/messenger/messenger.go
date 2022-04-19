@@ -4,148 +4,193 @@ import (
 	"errors"
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/service/sqs"
+	"github.com/streadway/amqp"
 	"go.uber.org/zap"
-	"strconv"
 )
 
 type MessageService interface {
-	CreateQueue(queue Queue) (*string, error)
-	SendMessage(queue Queue, body []byte) error
-	PollMessages(queue Queue, chn chan <- *sqs.Message)
-	DeleteMessage(queue Queue, msg *sqs.Message) error
-	GetQueueSize(queue Queue) (*int, error)
+	GetQueue(item Item) (*amqp.Queue, error)
+	SendMessage(item Item, body []byte, reliable bool) error
+	ConsumeMessages(item Item, callback func(msg string)) error
+	GetQueueSize(item Item) (*int, error)
 }
 
 type Messenger struct {
-	sqsClient *sqs.SQS
+	amqpUri string
+	conn    *amqp.Connection
+	network string
 }
 
-type Queue string
+type Item string
 
-const (
-	MetadataRefresh Queue = "metadata_refresh"
+var (
+	MetadataRefresh Item = "metadata.refresh"
 )
 
-func (q *Queue) Get() string {
-	return fmt.Sprintf("%s_%s", *q, config.Get().Index)
+func (i Item) queue() string {
+	return fmt.Sprintf("%s.%s", config.Get().Index, i)
 }
 
-func NewMessenger(sqsClient *sqs.SQS) MessageService {
-	return &Messenger{sqsClient}
+func NewMessenger(amqpUri string) MessageService {
+	return &Messenger{amqpUri: amqpUri}
 }
 
-func (m Messenger) GetQueueSize(queue Queue) (*int, error) {
-	queueUrl, err := m.getQueueUrl(queue)
+func (m Messenger) GetQueue(item Item) (*amqp.Queue, error) {
+	ch, err := m.openChannel()
 	if err != nil {
 		return nil, err
 	}
 
-	all := "ApproximateNumberOfMessages"
-	attributeNames := []*string{&all}
-	result, err := m.sqsClient.GetQueueAttributes(&sqs.GetQueueAttributesInput{
-		AttributeNames: attributeNames,
-		QueueUrl: queueUrl,
-	})
+	queue, err := ch.QueueDeclare(item.queue(), true, false, false, false, nil)
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("queueUrl", *queueUrl)).Error("Failed to get queue attributes")
-	}
-
-	if _, ok := result.Attributes["ApproximateNumberOfMessages"]; ok != true {
-		return nil, errors.New("attribute 'ApproximateNumberOfMessages' not found")
-	}
-
-	numberOfmessages, err := strconv.Atoi(*result.Attributes["ApproximateNumberOfMessages"])
-	if err != nil {
+		zap.L().With(zap.Error(err), zap.String("queue", item.queue())).Error("[Queue] Failed to create queue")
 		return nil, err
 	}
 
-	return &numberOfmessages, nil
+	return &queue, nil
 }
 
-func (m Messenger) CreateQueue(queue Queue) (*string, error) {
-	queueName := queue.Get()
-	result, err := m.sqsClient.CreateQueue(&sqs.CreateQueueInput{
-		QueueName: &queueName,
-		Attributes: map[string]*string{
-			"DelaySeconds":      aws.String("0"),
-			"VisibilityTimeout": aws.String("30"),
-		},
-	})
-	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("queue", queueName)).Error("Failed to create queue")
-		return nil, err
-	}
-
-
-	return result.QueueUrl, nil
-}
-
-func (m Messenger) SendMessage(queue Queue, body []byte) error {
-	queueName := queue.Get()
-
-	zap.L().With(zap.String("queue", queueName), zap.String("body", string(body))).Debug("Send Message")
-	queueUrl, err := m.getQueueUrl(queue)
+func (m Messenger) SendMessage(item Item, body []byte, reliable bool) error {
+	ch, err := m.openChannel()
 	if err != nil {
 		return err
 	}
 
-	_, err = m.sqsClient.SendMessage(&sqs.SendMessageInput{
-		QueueUrl:    queueUrl,
-		MessageBody: aws.String(string(body)),
-	})
+	ex, ok := exchanges[string(item)]
+	if !ok {
+		zap.L().Error("[Queue] Exchange not found")
+		return errors.New("exchange not found")
+	}
+
+	if err := ch.ExchangeDeclare(ex.Name, ex.Type, ex.Durable, ex.AutoDeleted, ex.Internal, ex.NoWait, ex.Arguments); err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Exchange Declare")
+		return err
+	}
+
+	if reliable {
+		if err := ch.Confirm(false); err != nil {
+			zap.L().With(zap.Error(err)).Error("[Queue] Channel could not be put into confirm mode")
+			return err
+		}
+
+		confirms := ch.NotifyPublish(make(chan amqp.Confirmation, 1))
+
+		defer m.confirmOne(confirms)
+	}
+
+	publishing := amqp.Publishing{
+		Headers:         amqp.Table{},
+		ContentType:     "text/json",
+		ContentEncoding: "",
+		Body:            body,
+		DeliveryMode:    amqp.Transient,
+		Priority:        0,
+	}
+
+	if err = ch.Publish(ex.Name, item.queue(), false, false, publishing); err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Exchange Publish")
+		return err
+	}
+
+	zap.L().With(zap.String("exchange", ex.Name), zap.String("routingKey", item.queue())).Info("[Queue] Published message")
 
 	return err
 }
 
-func (m Messenger) PollMessages(queue Queue, chn chan <- *sqs.Message) {
-	queueUrl, err := m.getQueueUrl(queue)
-	if err != nil {
-		return
-	}
-
-	for {
-		output, err := m.sqsClient.ReceiveMessage(&sqs.ReceiveMessageInput{
-			QueueUrl: queueUrl,
-			MaxNumberOfMessages: aws.Int64(10),
-			WaitTimeSeconds:     aws.Int64(15),
-		})
-
-		if err != nil {
-			zap.L().With(zap.Error(err)).Warn("Failed to fetch message")
-			return
-		}
-
-		for _, message := range output.Messages {
-			chn <- message
-		}
-	}
-}
-
-
-
-func (m Messenger) DeleteMessage(queue Queue, msg *sqs.Message) error {
-	queueUrl, err := m.getQueueUrl(queue)
+func (m Messenger) ConsumeMessages(item Item, callback func(msg string)) error {
+	ch, err := m.openChannel()
 	if err != nil {
 		return err
 	}
 
-	_, err = m.sqsClient.DeleteMessage(&sqs.DeleteMessageInput{
-		QueueUrl:      queueUrl,
-		ReceiptHandle: msg.ReceiptHandle,
-	})
+	ex, ok := exchanges[string(item)]
+	if !ok {
+		return errors.New("exchange not found")
+	}
 
-	return err
+	if err := ch.ExchangeDeclare(ex.Name, ex.Type, ex.Durable, ex.AutoDeleted, ex.Internal, ex.NoWait, ex.Arguments); err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Exchange Declare")
+		return err
+	}
+
+	q, err := ch.QueueDeclare(item.queue(), true, false, false, false, nil)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Failed to declare a queue")
+		return err
+	}
+
+	err = ch.QueueBind(q.Name, "", ex.Name, false, nil)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Failed to bind a queue")
+		return err
+	}
+
+	msgs, err := ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Failed to consume the queue")
+		return err
+	}
+
+	forever := make(chan bool)
+
+	go func() {
+		for d := range msgs {
+			zap.L().Debug("[Queue] Received message")
+			callback(string(d.Body))
+		}
+	}()
+
+	zap.S().With(zap.String("exchange", ex.Name)).Debugf("[Queue] Waiting for messages")
+	<-forever
+
+	return nil
 }
 
-func (m Messenger) getQueueUrl(queue Queue) (*string, error) {
-	queueName := queue.Get()
-	result, err := m.sqsClient.GetQueueUrl(&sqs.GetQueueUrlInput{QueueName: &queueName})
+func (m Messenger) GetQueueSize(item Item) (*int, error) {
+	queue, err := m.GetQueue(item)
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("queue", queueName)).Error("Failed to get queue url")
 		return nil, err
 	}
 
-	return result.QueueUrl, nil
+	return &queue.Messages, nil
+}
+
+func (m Messenger) openConnection() (*amqp.Connection, error) {
+	if m.conn != nil && !m.conn.IsClosed() {
+		return m.conn, nil
+	}
+
+	conn, err := amqp.Dial(m.amqpUri)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Error("[Queue] Failed to connect to RabbitMQ")
+		return nil, err
+	}
+
+	m.conn = conn
+
+	return m.conn, nil
+}
+
+func (m Messenger) openChannel() (*amqp.Channel, error) {
+	conn, err := m.openConnection()
+	if err != nil {
+		return nil, err
+	}
+
+	ch, err := conn.Channel()
+	if err != nil {
+		zap.S().With(zap.Error(err)).Error("[Queue] Failed to open channel")
+	}
+
+	return ch, err
+}
+
+func (m Messenger) confirmOne(confirms <-chan amqp.Confirmation) {
+	zap.L().Debug("[Queue] Waiting for publish confirmation")
+
+	if confirmed := <-confirms; confirmed.Ack {
+		zap.L().Debug("[Queue] Publish confirmed")
+	} else {
+		zap.L().Debug("[Queue] Publish failed")
+	}
 }

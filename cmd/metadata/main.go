@@ -7,7 +7,6 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
-	"github.com/aws/aws-sdk-go/service/sqs"
 	"go.uber.org/zap"
 )
 
@@ -25,35 +24,26 @@ func main() {
 	metadataIndexer = container.GetMetadataIndexer()
 	elastic = container.GetElastic()
 
-	messages := make(chan *sqs.Message, 10)
-
-	go func() {
-		for {
-			msg := <-messages
-			refreshMetadata(msg)
-		}
-	}()
-
 	zap.L().Info("Subscribing to metadata refresh")
-	messageService.PollMessages(messenger.MetadataRefresh, messages)
+	if err := messageService.ConsumeMessages(messenger.MetadataRefresh, refreshMetadata()); err != nil {
+		zap.L().With(zap.Error(err)).Error("Failed to consume messages")
+	}
 }
 
-func refreshMetadata(msg *sqs.Message) {
-	defer messageService.DeleteMessage(messenger.MetadataRefresh, msg)
+func refreshMetadata() func(string) {
+	return func(msg string) {
+		var data messenger.Nft
+		if err := json.Unmarshal([]byte(msg), &data); err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to read message")
+			return
+		}
 
-	var data messenger.Nft
-	if err := json.Unmarshal([]byte(*msg.Body), &data); err != nil {
-		zap.L().With(zap.Error(err)).Error("Failed to read message")
-		return
+		_, err := metadataIndexer.RefreshMetadata(data.Contract, data.TokenId)
+		if err != nil {
+			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Metadata refresh failed")
+		} else {
+			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh success")
+		}
+		elastic.Persist()
 	}
-
-	_, err := metadataIndexer.RefreshMetadata(data.Contract, data.TokenId)
-	if err != nil {
-		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Error("Metadata refresh failed")
-	} else {
-		zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId)).Info("Metadata refresh success")
-	}
-	elastic.Persist()
-
-	return
 }
