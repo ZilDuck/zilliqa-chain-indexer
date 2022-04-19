@@ -14,8 +14,6 @@ func main() {
 	config.Init("importContracts")
 	container, _ = dic.NewContainer()
 
-	container.GetElastic().InstallMappings()
-
 	if len(os.Args) == 2 {
 		contractAddr := os.Args[1]
 

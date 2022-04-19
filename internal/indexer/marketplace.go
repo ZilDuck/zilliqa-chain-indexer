@@ -80,7 +80,7 @@ func (i marketplaceIndexer) indexListings(tx entity.Transaction) (err error) {
 	}
 
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Info("Failed to create listing")
+		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Failed to create listing")
 		return
 	}
 
@@ -104,7 +104,7 @@ func (i marketplaceIndexer) indexDelistings(tx entity.Transaction) (err error) {
 	}
 
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Info("Failed to create delisting")
+		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Failed to create delisting")
 		return err
 	}
 
@@ -135,7 +135,7 @@ func (i marketplaceIndexer) indexSales(tx entity.Transaction) (err error) {
 	}
 
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Info("Failed to create sale")
+		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Failed to create sale")
 		return err
 	}
 
