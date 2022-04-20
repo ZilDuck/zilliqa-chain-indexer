@@ -13,6 +13,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
+	"math/rand"
 	"time"
 )
 
@@ -143,7 +144,10 @@ func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus, metadataE
 			if metadataError != "" && metadataError != nft.Metadata.Error {
 				continue
 			}
-			i.TriggerMetadataRefresh(nft)
+
+			if rand.Intn(nft.Metadata.Attempts) == 0 {
+				i.TriggerMetadataRefresh(nft)
+			}
 		}
 		i.elastic.BatchPersist()
 		page++

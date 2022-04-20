@@ -110,6 +110,11 @@ func processMetadata(c *cli.Context) error {
 		return err
 	}
 
+	if err := metadataIndexer.RefreshByStatus(entity.MetadataFailure, "invalid content"); err != nil {
+		zap.L().With(zap.Error(err)).Fatal("Failed to process pending metadata")
+		return err
+	}
+
 	return nil
 }
 
