@@ -108,10 +108,12 @@ func (f zrc1Factory) getAssetUri(nft *entity.Nft, c entity.Contract) {
 	if helper.IsIpfs(nft.TokenUri) {
 		ipfsUri := *helper.GetIpfs(nft.TokenUri, &c)
 		if val, exists := f.contractsWithoutMetadata[nft.Contract]; exists {
-			nft.AssetUri = val + ipfsUri[7:]
-		} else {
-			nft.AssetUri = *helper.GetIpfs(nft.TokenUri, &c)
+			if val != "" {
+				nft.AssetUri = val + ipfsUri[7:]
+				return
+			}
 		}
+		nft.AssetUri = *helper.GetIpfs(nft.TokenUri, &c)
 	} else {
 		nft.AssetUri = nft.TokenUri
 	}
