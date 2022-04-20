@@ -14,6 +14,7 @@ RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/cli         ./c
 RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/indexerd    ./cmd/indexerd
 RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/metadata    ./cmd/metadata
 RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/assetServer ./cmd/assetServer
+RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/cdnPurger   ./cmd/cdnPurger
 
 RUN chmod u+x /go/bin/*
 
@@ -28,5 +29,6 @@ COPY --from=builder /go/bin/cli         /app/cli
 COPY --from=builder /go/bin/indexerd    /app/indexerd
 COPY --from=builder /go/bin/metadata    /app/metadata
 COPY --from=builder /go/bin/assetServer /app/assetServer
+COPY --from=builder /go/bin/cdnPurger   /app/cdnPurger
 
 COPY ./config/mappings               /app/config/mappings
