@@ -7,7 +7,6 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/event"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/messenger"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
@@ -38,10 +37,6 @@ func NewMetadataIndexer(
 	metadataService metadata.Service,
 ) MetadataIndexer {
 	i := metadataIndexer{elastic, nftRepo, contractRepo, messageService, metadataService}
-
-	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
-	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
-	event.AddEventListener(event.TokenUriUpdatedEvent, i.TriggerMetadataRefresh)
 
 	return i
 }

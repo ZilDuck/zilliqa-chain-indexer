@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/event"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -18,6 +19,11 @@ func main() {
 	go health()
 
 	zap.L().With(zap.String("port", config.Get().HealthPort)).Info("Indexer Started")
+
+	event.AddEventListener(event.NftMintedEvent, container.GetMetadataIndexer().TriggerMetadataRefresh)
+	event.AddEventListener(event.ContractBaseUriUpdatedEvent, container.GetMetadataIndexer().TriggerMetadataRefresh)
+	event.AddEventListener(event.TokenUriUpdatedEvent, container.GetMetadataIndexer().TriggerMetadataRefresh)
+	event.AddEventListener(event.NftMetadataEvent, container.GetBunny().TriggerPurge)
 
 	container.GetDaemon().Execute()
 }

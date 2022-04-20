@@ -355,6 +355,9 @@ func (i index) flush() {
 		if req.Action == Zrc6SetTokenUri {
 			event.EmitEvent(event.TokenUriUpdatedEvent, req.Entity)
 		}
+		if req.Action == NftMetadata {
+			event.EmitEvent(event.NftMetadataEvent, req.Entity)
+		}
 	}
 
 	zap.L().Debug("ElasticCache: Flushing ES cache")

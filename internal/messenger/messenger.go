@@ -25,6 +25,7 @@ type Item string
 
 var (
 	MetadataRefresh Item = "metadata.refresh"
+	CdnPurge        Item = "cdn.purge"
 )
 
 func (i Item) queue() string {

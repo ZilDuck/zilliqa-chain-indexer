@@ -3,6 +3,7 @@ package di
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/bunny"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/daemon"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
@@ -257,6 +258,15 @@ var Definitions = []dingo.Def{
 			}
 
 			return metadata.NewMetadataService(retryClient, config.Get().Ipfs.Hosts, config.Get().Ipfs.Timeout), nil
+		},
+	},
+	{
+		Name: "bunny",
+		Build: func(messageService messenger.MessageService) (bunny.Service, error) {
+			retryClient := retryablehttp.NewClient()
+			retryClient.Logger = nil
+
+			return bunny.NewBunnyService(messageService, retryClient, config.Get().Bunny.ApiKey, config.Get().CdnUrl), nil
 		},
 	},
 }

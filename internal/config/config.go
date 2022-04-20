@@ -64,6 +64,10 @@ type Config struct {
 		Password string
 		Port     int
 	}
+	Bunny struct {
+		ApiKey string
+	}
+	CdnUrl string
 }
 
 func Init(command string) {
