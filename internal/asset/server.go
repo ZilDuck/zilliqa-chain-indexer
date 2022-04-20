@@ -67,7 +67,7 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(200)
 	w.Header().Add("Content-Type", contentType)
 	_, _ = fmt.Fprint(w, string(data[:]))
-	zap.L().With(zap.String("contractAddr", contractAddr), zap.Uint64("tokenId", tokenId)).Info("Serving nft")
+	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Info("Serving nft")
 }
 
 func getTokenId(r *http.Request) (uint64, error) {

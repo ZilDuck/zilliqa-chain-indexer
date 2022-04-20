@@ -52,7 +52,7 @@ func (f ZilkroadMarketplaceFactory) CreateListing(tx entity.Transaction) (*entit
 
 	fungibleContract, err := f.contractRepo.GetContractByAddress(fungibleToken.Value.String())
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.String("contractAddr", fungibleToken.Value.String()), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible contract")
+		zap.L().With(zap.String("txId", tx.ID), zap.String("contract", fungibleToken.Value.String()), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible contract")
 		return nil, err
 	}
 
@@ -99,7 +99,7 @@ func (f ZilkroadMarketplaceFactory) CreateDelisting(tx entity.Transaction) (*ent
 }
 
 func (f ZilkroadMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.MarketplaceSale, error) {
-	salesEvent := tx.GetEventLogs(entity.MpArkySaleEvent)[0]
+	salesEvent := tx.GetEventLogs(entity.MpZilkroadSaleEvent)[0]
 
 	buyer, err := salesEvent.Params.GetParam("buyer")
 	if err != nil {
@@ -158,7 +158,7 @@ func (f ZilkroadMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.M
 
 	fungibleContract, err := f.contractRepo.GetContractByAddress(fungibleToken.Value.String())
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.String("contractAddr", fungibleToken.Value.String()), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible contract")
+		zap.L().With(zap.String("txId", tx.ID), zap.String("contract", fungibleToken.Value.String()), zap.Error(err)).Error("Zilkroad listing: Failed to get fungible contract")
 		return nil, err
 	}
 
@@ -169,7 +169,7 @@ func (f ZilkroadMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.M
 	}
 
 	return &entity.MarketplaceSale{
-		Marketplace:  entity.ArkyMarketplace,
+		Marketplace:  entity.ZilkroadMarketplace,
 		Tx:           tx,
 		Nft:          *nft,
 		Buyer:        buyer.Value.String(),

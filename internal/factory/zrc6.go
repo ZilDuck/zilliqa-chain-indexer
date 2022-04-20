@@ -112,7 +112,7 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			if event.Params.HasParam("to_token_uri_pair_list") {
 				toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
 				if err != nil {
-					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", c.Address)).Error("Failed to get to_token_uri_pair_list")
 					continue
 				}
 
@@ -168,7 +168,7 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			if event.Params.HasParamWithType("to_list", "List (ByStr20)") {
 				toList, err := event.Params.GetParam("to_list")
 				if err != nil {
-					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_list")
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", c.Address)).Error("Failed to get to_list")
 					continue
 				}
 				if err := json.Unmarshal([]byte(toList.Value.Primitive.(string)), &toUris); err != nil {
