@@ -3,6 +3,7 @@ package factory
 import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"go.uber.org/zap"
 	"strings"
 )
 
@@ -46,6 +47,7 @@ func IsZrc1(c entity.Contract) bool {
 	if !c.ImmutableParams.HasParamWithType("contract_owner", "ByStr20") ||
 		!c.ImmutableParams.HasParamWithType("name", "String") ||
 		!c.ImmutableParams.HasParamWithType("symbol", "String") {
+		zap.L().Warn("Fails immutables")
 		return false
 	}
 
@@ -55,8 +57,8 @@ func IsZrc1(c entity.Contract) bool {
 		!c.MutableParams.HasParamWithType("token_approvals", "Map Uint256 ByStr20") ||
 		!c.MutableParams.HasParamWithType("operator_approvals", "Map ByStr20 (Map ByStr20 Dummy)") ||
 		!c.MutableParams.HasParamWithType("token_uris", "Map Uint256 String") ||
-		!c.MutableParams.HasParamWithType("total_supply", "Uint256") ||
-		!c.MutableParams.HasParamWithType("token_id_count", "Uint256") {
+		!c.MutableParams.HasParamWithType("total_supply", "Uint256") {
+		zap.L().Warn("Fails mutables")
 		return false
 	}
 
@@ -64,6 +66,16 @@ func IsZrc1(c entity.Contract) bool {
 		!hasTransition(c, CreateContractTransition("Transfer", "to:ByStr20", "token_id:Uint256")) ||
 		!hasTransition(c, CreateContractTransition("Burn", "token_id:Uint256")) ||
 		!hasTransition(c, CreateContractTransition("TransferFrom", "to:ByStr20", "token_id:Uint256")) {
+		zap.L().Warn("Fails transitions")
+		if hasTransition(c, CreateContractTransition("Mint", "to:ByStr20", "token_id:Uint256", "token_uri:String")) &&
+			hasTransition(c, CreateContractTransition("Transfer", "to:ByStr20", "token_id:Uint256")) &&
+			hasTransition(c, CreateContractTransition("Burn", "token_id:Uint256")) &&
+			hasTransition(c, CreateContractTransition("TransferFrom", "to:ByStr20", "token_id:Uint256")) {
+			zap.L().Warn("Fixes transitions")
+			// It's an old mintable zrc1
+			return true
+		}
+
 		return false
 	}
 

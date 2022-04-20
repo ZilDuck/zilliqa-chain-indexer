@@ -94,7 +94,7 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 
 		for _, tx := range txs {
 			if _, err := i.contractRepo.GetContractByAddress(tx.ContractAddress); err == nil {
-				continue
+				//continue
 			}
 
 			c, err := i.factory.CreateContractFromTx(tx)

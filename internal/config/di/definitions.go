@@ -159,8 +159,13 @@ var Definitions = []dingo.Def{
 			elastic elastic_search.Index,
 			nftRepo repository.NftRepository,
 			contractRepo repository.ContractRepository,
+			contractStateRepo repository.ContractStateRepository,
+			zilkroadMarketplaceFactory factory.ZilkroadMarketplaceFactory,
+			okimotoMarketplaceFactory factory.OkimotoMarketplaceFactory,
+			arkyMarketplaceFactory factory.ArkyMarketplaceFactory,
+			mintableMarketplaceFactory factory.MintableMarketplaceFactory,
 		) (indexer.MarketplaceIndexer, error) {
-			return indexer.NewMarketplaceIndexer(elastic, nftRepo, contractRepo), nil
+			return indexer.NewMarketplaceIndexer(elastic, nftRepo, contractRepo, contractStateRepo, zilkroadMarketplaceFactory, okimotoMarketplaceFactory, arkyMarketplaceFactory, mintableMarketplaceFactory), nil
 		},
 	},
 	{
@@ -176,9 +181,21 @@ var Definitions = []dingo.Def{
 		},
 	},
 	{
+		Name: "contractState.repo",
+		Build: func(elastic elastic_search.Index) (repository.ContractStateRepository, error) {
+			return repository.NewContractStateRepository(elastic), nil
+		},
+	},
+	{
 		Name: "nft.repo",
 		Build: func(elastic elastic_search.Index) (repository.NftRepository, error) {
 			return repository.NewNftRepository(elastic), nil
+		},
+	},
+	{
+		Name: "nftAction.repo",
+		Build: func(elastic elastic_search.Index) (repository.NftActionRepository, error) {
+			return repository.NewNftActionRepository(elastic), nil
 		},
 	},
 	{
@@ -203,6 +220,30 @@ var Definitions = []dingo.Def{
 		Name: "zrc6.factory",
 		Build: func() (factory.Zrc6Factory, error) {
 			return factory.NewZrc6Factory(config.Get().ContractsWithoutMetadata), nil
+		},
+	},
+	{
+		Name: "marketplace.zilkroad.factory",
+		Build: func(nftRepo repository.NftRepository, contractRepo repository.ContractRepository, stateRepo repository.ContractStateRepository) (factory.ZilkroadMarketplaceFactory, error) {
+			return factory.NewZilkroadMarketplaceFactory(nftRepo, contractRepo, stateRepo), nil
+		},
+	},
+	{
+		Name: "marketplace.okimoto.factory",
+		Build: func(nftRepo repository.NftRepository, nftActionRepo repository.NftActionRepository) (factory.OkimotoMarketplaceFactory, error) {
+			return factory.NewOkimotoMarketplaceFactory(nftRepo, nftActionRepo), nil
+		},
+	},
+	{
+		Name: "marketplace.arky.factory",
+		Build: func(nftRepo repository.NftRepository, stateRepo repository.ContractStateRepository) (factory.ArkyMarketplaceFactory, error) {
+			return factory.NewArkyMarketplaceFactory(nftRepo, stateRepo), nil
+		},
+	},
+	{
+		Name: "marketplace.mintable.factory",
+		Build: func(nftRepo repository.NftRepository, nftActionRepo repository.NftActionRepository) (factory.MintableMarketplaceFactory, error) {
+			return factory.NewMintableMarketplaceFactory(nftRepo, nftActionRepo), nil
 		},
 	},
 	{
