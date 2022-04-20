@@ -45,7 +45,7 @@ func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, ipfsTi
 }
 
 func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
-	zap.L().With(zap.String("tokenId", nft.TokenUri), zap.String("contract", nft.Contract)).Info("Fetch metadata")
+	zap.L().With(zap.Uint64("tokenId", nft.TokenId), zap.String("contract", nft.Contract)).Info("Fetch metadata")
 	if nft.Metadata.UriEmpty() {
 		return nil, errors.New("metadata uri not valid")
 	}

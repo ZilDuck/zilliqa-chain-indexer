@@ -4,6 +4,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
 )
@@ -152,13 +153,22 @@ func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) 
 			return err
 		}
 
+		newDuckUri, err := transition.Msg.Params.GetParam("new_duck_uri")
+		if err != nil {
+			zap.L().Error("Failed to get the new duck metadata on duck regeneration")
+			return err
+		}
+		assetUri := helper.GetIpfs(newDuckUri.Value.String(), nil)
+		nft.AssetUri = *assetUri
+
 		newDuckMetaData, err := transition.Msg.Params.GetParam("new_duck_metadata")
 		if err != nil {
 			zap.L().Error("Failed to get the new duck metadata on duck regeneration")
 			return err
 		}
-
 		nft.TokenUri = newDuckMetaData.Value.String()
+		nft.Metadata = factory.GetMetadata(*nft)
+
 
 		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Regenerate NFD")
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1DuckRegeneration)

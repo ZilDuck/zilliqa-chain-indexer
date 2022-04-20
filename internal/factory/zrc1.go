@@ -71,6 +71,17 @@ func (f zrc1Factory) createNftFromZrc1MintEvent(event entity.EventLog, tx entity
 		f.getAssetUri(nft, c)
 	}
 
+	if nft.Contract == "0x06f70655d4aa5819e711563eb2383655449f24e9" {
+		// ducks are silly NFTs
+		rawAssetUri, err := tx.Data.Params.GetParam("this_token_uri")
+		if err != nil {
+			return nil, err
+		}
+		if assetUri := helper.GetIpfs(rawAssetUri.Value.String(), nil); assetUri != nil {
+			nft.AssetUri = *assetUri
+		}
+	}
+
 	return nft, nil
 }
 
@@ -89,6 +100,14 @@ func (f zrc1Factory) getRecipient(event entity.EventLog, c entity.Contract) (str
 }
 
 func (f zrc1Factory) getTokenUri(event entity.EventLog, tx entity.Transaction, c entity.Contract) (string, error) {
+	if c.Address == "0x06f70655d4aa5819e711563eb2383655449f24e9" { // NFDs
+		duckMetadata, err := tx.Data.Params.GetParam("this_token_metadata")
+		if err != nil {
+			return "", err
+		}
+		return duckMetadata.Value.String(), nil
+	}
+
 	if c.Name == "Unicutes" {
 		return getNftTokenUri(tx.Data.Params, tx)
 	}
