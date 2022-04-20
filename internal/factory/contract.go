@@ -35,7 +35,7 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 		zap.L().With(
 			zap.Error(err),
 			zap.String("txID", tx.ID),
-			zap.String("contractAddr", tx.ContractAddress),
+			zap.String("contract", tx.ContractAddress),
 		).Error("GetSmartContractInit")
 		return nil, err
 	}
@@ -68,7 +68,7 @@ func (f contractFactory) CreateContractFromTx(tx entity.Transaction) (*entity.Co
 }
 
 func (f contractFactory) getSmartContractInit(tx entity.Transaction, attempt int, err error) ([]zilliqa.ContractValue, error) {
-	zap.L().With(zap.String("contractAddr", tx.ContractAddress)).Debug("Get contract state")
+	zap.L().With(zap.String("contract", tx.ContractAddress)).Debug("Get contract state")
 	if attempt >= repository.MaxRetries {
 		if err == nil {
 			err = errors.New("get contract state unknown error")
@@ -78,7 +78,7 @@ func (f contractFactory) getSmartContractInit(tx entity.Transaction, attempt int
 
 	contractValues := make([]zilliqa.ContractValue, 0)
 	if contractValues, err = f.zilliqa.GetSmartContractInit(tx.ContractAddress[2:]); err != nil {
-		zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", tx.ContractAddress)).Warn("GetSmartContractInit")
+		zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", tx.ContractAddress)).Warn("GetSmartContractInit")
 
 		if err.Error() == "-5:Address does not exist" {
 			time.Sleep(2 * time.Second)

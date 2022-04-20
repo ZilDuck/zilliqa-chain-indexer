@@ -28,7 +28,9 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 		}
 
 		if action == Zrc1DuckRegeneration {
+			result.AssetUri = e.(entity.Nft).AssetUri
 			result.TokenUri = e.(entity.Nft).TokenUri
+			result.Metadata = e.(entity.Nft).Metadata
 		}
 
 		if action == Zrc1Burn {

@@ -6,7 +6,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
-	"strconv"
+	"math/big"
 )
 
 type MintableMarketplaceFactory struct {
@@ -19,7 +19,6 @@ func NewMintableMarketplaceFactory(nftRepo repository.NftRepository, nftActionRe
 }
 
 func (f MintableMarketplaceFactory) CreateListing(tx entity.Transaction) (*entity.MarketplaceListing, error) {
-	zap.L().Info("CreateListing: "+ tx.ID)
 	listingEvent := tx.GetEventLogs(entity.MpMintableListingEvent)[0]
 
 	orderInfo, err := listingEvent.Params.GetParam("order_info")
@@ -55,7 +54,6 @@ func (f MintableMarketplaceFactory) CreateListing(tx entity.Transaction) (*entit
 }
 
 func (f MintableMarketplaceFactory) CreateDelisting(tx entity.Transaction) (*entity.MarketplaceDelisting, error) {
-	zap.L().Info("CreateDelisting: "+ tx.ID)
 	delistingEvents := tx.GetEventLogs("TransferSuccess")
 	if len(delistingEvents) != 1 {
 		zap.L().With(zap.String("txId", tx.ID)).Error("Mintable delisting: Failed to transfer event")
@@ -84,7 +82,6 @@ func (f MintableMarketplaceFactory) CreateDelisting(tx entity.Transaction) (*ent
 }
 
 func (f MintableMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.MarketplaceSale, error) {
-	zap.L().Info("CreateSale: "+ tx.ID)
 	salesEvent := tx.GetEventLogs(entity.MpMintableSaleEvent)[0]
 	transferEvents := tx.GetEventLogs("TransferSuccess")
 	if len(transferEvents) != 1 {
@@ -96,53 +93,68 @@ func (f MintableMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.M
 
 	tokenId, err := GetTokenId(salesEvent.Params)
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Mintable sale: Failed to get token id")
+		zap.L().With(
+			zap.String("txId", tx.ID),
+			zap.String("contract", transferEvent.Address),
+			zap.Uint64("tokenId", tokenId),
+			zap.Error(err),
+		).Error("Mintable sale: Failed to get tokenId")
 		return nil, err
 	}
 
 	nft, err := f.nftRepo.GetNft(transferEvent.Address, tokenId)
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Mintable sale: Failed to get nft")
+		zap.L().With(
+			zap.String("txId", tx.ID),
+			zap.String("contract", transferEvent.Address),
+			zap.Uint64("tokenId", tokenId),
+			zap.Error(err),
+		).Error("Mintable sale: Failed to get nft")
 		return nil, err
 	}
 
 	buyer, err := salesEvent.Params.GetParam("buyer_address")
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Mintable sale: Failed to get buyer")
+		zap.L().With(
+			zap.String("txId", tx.ID),
+			zap.String("contract", transferEvent.Address),
+			zap.Uint64("tokenId", tokenId),
+			zap.Error(err),
+		).Error("Mintable sale: Failed to get buyer")
 		return nil, err
 	}
 
 	seller, err := f.nftActionRepo.GetNftOwnerBeforeBlockNum(*nft, tx.BlockNum)
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Mintable sale: Failed to get seller")
-		return nil, err
-	}
-
-	totalCost := tx.Amount
-	totalCostInt, errCost := strconv.ParseUint(totalCost, 10, 64)
-	if errCost != nil{
-		zap.L().With(zap.String("txId", tx.ID), zap.String("amount", totalCost), zap.Error(errCost)).Error("Mintable sale: Failed to get cost")
+		zap.L().With(
+			zap.String("txId", tx.ID),
+			zap.String("contract", transferEvent.Address),
+			zap.Uint64("tokenId", tokenId),
+			zap.Error(err),
+		).Error("Mintable sale: Failed to get seller")
 		return nil, err
 	}
 
 	costWOFee, err := salesEvent.Params.GetParam("price_sold")
 	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Mintable sale: Failed to get price sold")
-		return nil, err
-	}
-	costWOFeeInt, err := costWOFee.Value.Uint64()
-	if err != nil {
-		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Mintable sale: Failed to get cost w/o fee")
+		zap.L().With(
+			zap.String("txId", tx.ID),
+			zap.String("contract", transferEvent.Address),
+			zap.Uint64("tokenId", tokenId),
+			zap.Error(err),
+		).Error("Mintable sale: Failed to get price sold")
 		return nil, err
 	}
 
-	fee := uint(0)
-	if totalCostInt != 0 {
-		fee = uint(((totalCostInt - costWOFeeInt) / totalCostInt) * 1000)
-		if fee != entity.MintablePlatformFee {
-			zap.L().With(zap.Uint("fee", fee), zap.Uint("MintablePlatformFee", entity.MintablePlatformFee)).
-				Warn("royaltyFeeBps != royaltyFeePercent")
-		}
+	fee, err := calculateFees(tx.Amount, costWOFee.Value.String())
+	if err != nil {
+		zap.L().With(
+			zap.String("txId", tx.ID),
+			zap.String("contract", transferEvent.Address),
+			zap.Uint64("tokenId", tokenId),
+			zap.Error(err),
+		).Error("Mintable sale: Failed to get fee")
+		return nil, err
 	}
 
 	return &entity.MarketplaceSale{
@@ -157,4 +169,20 @@ func (f MintableMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.M
 		RoyaltyBps:   "0",
 		Fungible:     "ZIL",
 	}, nil
+}
+
+func calculateFees(totalCost, costWOFee string) (string, error) {
+	bigTotal, ok := new(big.Int).SetString(totalCost, 10)
+	if !ok {
+		return "", fmt.Errorf("invalid total cost (%s)", totalCost)
+	}
+
+	bigCostWOFee, ok := new(big.Int).SetString(costWOFee, 10)
+	if !ok {
+		return "", fmt.Errorf("invalid cost without fee (%s)", costWOFee)
+	}
+
+	fee := big.NewInt(0).Sub(bigTotal, bigCostWOFee).String()
+
+	return fee, nil
 }

@@ -20,13 +20,13 @@ var (
 	contractRepo       repository.ContractRepository
 	txRepo             repository.TransactionRepository
 	nftRepo            repository.NftRepository
+	contractIndexer indexer.ContractIndexer
 	marketplaceIndexer indexer.MarketplaceIndexer
 	metadataIndexer    indexer.MetadataIndexer
 	zrc1Indexer        indexer.Zrc1Indexer
 	zrc6Indexer        indexer.Zrc6Indexer
 	messengerService   messenger.MessageService
 )
-
 
 func main() {
 	config.Init("cli")
@@ -36,6 +36,7 @@ func main() {
 	contractRepo = container.GetContractRepo()
 	txRepo = container.GetTxRepo()
 	nftRepo = container.GetNftRepo()
+	contractIndexer = container.GetContractIndexer()
 	marketplaceIndexer = container.GetMarketplaceIndexer()
 	metadataIndexer = container.GetMetadataIndexer()
 	zrc1Indexer = container.GetZrc1Indexer()
@@ -53,12 +54,21 @@ func main() {
 				},
 			},
 			{
-				Name:    "importNfts",
+				Name:    "nft:import",
 				Usage:   "Import NFTs",
 				Action:  importNfts,
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "contract", Value: "", Usage: "Import for a single contract"},
 					&cli.StringFlag{Name: "purge", Value: "false", Usage: "Purge the contract"},
+				},
+			},
+			{
+				Name:    "contract:import",
+				Usage:   "Import Contracts",
+				Action:  importContracts,
+				Flags: []cli.Flag{
+					&cli.StringFlag{Name: "contract", Value: "", Usage: "Import for a single contract"},
+					&cli.Int64Flag{Name: "from", Value: 0, Usage: "Import contracts from blockNum"},
 				},
 			},
 			{
@@ -178,6 +188,33 @@ func importNftsForContract(contract entity.Contract) {
 		}
 	}
 	elastic.Persist()
+}
+
+func importContracts(c *cli.Context) error {
+	contractAddr := c.String("contract")
+	from := c.Uint64("from")
+	if from == 0 {
+		from = config.Get().FirstBlockNum
+	}
+
+	if contractAddr != "" {
+		tx, err := txRepo.GetContractCreationForContract(contractAddr)
+		if err != nil {
+			zap.L().With(zap.String("contract", contractAddr)).Error("Failed to find contract creation tx")
+			return err
+		}
+
+		contractIndexer.Index([]entity.Transaction{*tx})
+		elastic.Persist()
+		return nil
+	}
+
+	if err := contractIndexer.BulkIndex(from); err != nil {
+		zap.L().Error("Failed to bulk index contracts")
+		return err
+	}
+
+	return nil
 }
 
 func importMarketplaceSales() {

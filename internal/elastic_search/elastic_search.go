@@ -346,7 +346,7 @@ func (i index) persist(bulk *elastic.BulkService) {
 
 func (i index) flush() {
 	for _, req := range i.GetRequests() {
-		if req.Action == Zrc1Mint || req.Action == Zrc6Mint {
+		if req.Action == Zrc1Mint || req.Action == Zrc1DuckRegeneration || req.Action == Zrc6Mint {
 			event.EmitEvent(event.NftMintedEvent, req.Entity)
 		}
 		if req.Action == Zrc6SetBaseUri {

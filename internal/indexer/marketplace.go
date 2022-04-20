@@ -50,6 +50,7 @@ func (i marketplaceIndexer) IndexTxs(txs []entity.Transaction) error {
 		if !tx.IsContractExecution {
 			continue
 		}
+
 		if err := i.indexListings(tx); err != nil {
 			continue
 			//return err
@@ -116,11 +117,6 @@ func (i marketplaceIndexer) indexDelistings(tx entity.Transaction) (err error) {
 }
 
 func (i marketplaceIndexer) indexSales(tx entity.Transaction) (err error) {
-	if tx.ID == "5b0cfeb1d8f032fe6b9403cd41fc872d48e7fc6d5f1da296b0565d755354ed78" {
-		// This is to avoid the unknown mint of DragonZil 2646
-		return nil
-	}
-
 	var sale *entity.MarketplaceSale
 
 	switch {
@@ -150,7 +146,7 @@ func (i marketplaceIndexer) executeListing(listing entity.MarketplaceListing) {
 	zap.L().With(
 		zap.String("marketplace", string(listing.Marketplace)),
 		zap.String("txId", listing.Tx.ID),
-		zap.String("contractAddr", listing.Nft.Contract),
+		zap.String("contract", listing.Nft.Contract),
 		zap.Uint64("tokenId", listing.Nft.TokenId),
 		zap.String("fungible", listing.Fungible),
 		zap.String("cost", listing.Cost),
@@ -166,7 +162,7 @@ func (i marketplaceIndexer) executeDelisting(delisting entity.MarketplaceDelisti
 	zap.L().With(
 		zap.String("marketplace", string(delisting.Marketplace)),
 		zap.String("txId", delisting.Tx.ID),
-		zap.String("contractAddr", delisting.Nft.Contract),
+		zap.String("contract", delisting.Nft.Contract),
 		zap.Uint64("tokenId", delisting.Nft.TokenId),
 	).Info("Marketplace delisting")
 
@@ -178,7 +174,7 @@ func (i marketplaceIndexer) executeSale(sale entity.MarketplaceSale) {
 	zap.L().With(
 		zap.String("marketplace", string(sale.Marketplace)),
 		zap.String("txId", sale.Tx.ID),
-		zap.String("contractAddr", sale.Nft.Contract),
+		zap.String("contract", sale.Nft.Contract),
 		zap.Uint64("tokenId", sale.Nft.TokenId),
 		zap.String("from", sale.Seller),
 		zap.String("to", sale.Buyer),
@@ -187,7 +183,7 @@ func (i marketplaceIndexer) executeSale(sale entity.MarketplaceSale) {
 		zap.String("royalty", sale.Royalty),
 		zap.String("royaltyBps", sale.RoyaltyBps),
 		zap.String("fungible", sale.Fungible),
-	).Info("Marketplace trade")
+	).Info("Marketplace sale")
 
 	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(sale.Nft,
 		sale.Tx.BlockNum, sale.Tx.ID, sale.Buyer, sale.Seller), elastic_search.Zrc6Transfer)
