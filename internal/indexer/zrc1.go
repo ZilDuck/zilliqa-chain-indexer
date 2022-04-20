@@ -69,18 +69,18 @@ func (i zrc1Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 
 	zap.L().With(zap.String("txId", tx.ID), zap.String("contract", c.Address)).Debug("Zrc1Indexer: IndexTx")
 
-	//if err := i.mint(tx, c); err != nil {
-	//	return err
-	//}
+	if err := i.mint(tx, c); err != nil {
+		return err
+	}
 	if err := i.duckRegeneration(tx, c); err != nil {
 		return err
 	}
-	//if err := i.transferFrom(tx, c); err != nil {
-	//	return err
-	//}
-	//if err := i.burn(tx, c); err != nil {
-	//	return err
-	//}
+	if err := i.transferFrom(tx, c); err != nil {
+		return err
+	}
+	if err := i.burn(tx, c); err != nil {
+		return err
+	}
 
 	return nil
 }
