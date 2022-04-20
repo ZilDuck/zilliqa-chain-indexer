@@ -112,7 +112,6 @@ func (i zrc6Indexer) IndexContract(c entity.Contract) error {
 		}
 
 		for _, tx := range txs {
-			zap.L().Info(tx.ID)
 			if err := i.IndexTx(tx, c); err != nil {
 				return err
 			}
