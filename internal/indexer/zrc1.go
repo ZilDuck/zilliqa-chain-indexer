@@ -161,7 +161,7 @@ func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) 
 		nft.TokenUri = newDuckMetaData.Value.String()
 
 		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Regenerate NFD")
-		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Mint)
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1DuckRegeneration)
 	}
 
 	return nil
