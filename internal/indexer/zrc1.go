@@ -69,15 +69,18 @@ func (i zrc1Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 
 	zap.L().With(zap.String("txId", tx.ID), zap.String("contract", c.Address)).Debug("Zrc1Indexer: IndexTx")
 
-	if err := i.mint(tx, c); err != nil {
+	//if err := i.mint(tx, c); err != nil {
+	//	return err
+	//}
+	if err := i.duckRegeneration(tx, c); err != nil {
 		return err
 	}
-	if err := i.transferFrom(tx, c); err != nil {
-		return err
-	}
-	if err := i.burn(tx, c); err != nil {
-		return err
-	}
+	//if err := i.transferFrom(tx, c); err != nil {
+	//	return err
+	//}
+	//if err := i.burn(tx, c); err != nil {
+	//	return err
+	//}
 
 	return nil
 }
@@ -115,8 +118,6 @@ func (i zrc1Indexer) IndexContract(c entity.Contract) error {
 }
 
 func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
-	zap.L().With(zap.String("txId", tx.ID), zap.String("contract", c.Address)).Debug("Zrc1Indexer: mint")
-
 	nfts, err := i.factory.CreateFromMintTx(tx, c)
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("txId", tx.ID)).Error("Failed to create zrc1 from minting tx")
@@ -124,7 +125,7 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
-		zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
+		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC1")
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc1Mint)
 		}
@@ -132,6 +133,38 @@ func (i zrc1Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	return err
+}
+
+func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) error {
+	for _, transition := range tx.GetTransition("regenerateDuck") {
+		if !transition.Msg.Params.HasParam("token_id") {
+			continue
+		}
+		tokenId, err := factory.GetTokenId(transition.Msg.Params)
+		if err != nil {
+			zap.L().With(zap.Error(err), zap.String("txId", tx.ID), zap.String("contract", c.Address)).Debug("Failed to get token id for zrc1:regenerateDuck")
+			continue
+		}
+
+		nft, err := i.nftRepo.GetNft(c.Address, tokenId)
+		if err != nil {
+			zap.L().With(zap.Uint64("tokenId", tokenId)).Error("Failed to get the nft from the index on duck regeneration")
+			return err
+		}
+
+		newDuckMetaData, err := transition.Msg.Params.GetParam("new_duck_metadata")
+		if err != nil {
+			zap.L().Error("Failed to get the new duck metadata on duck regeneration")
+			return err
+		}
+
+		nft.TokenUri = newDuckMetaData.Value.String()
+
+		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Regenerate NFD")
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Mint)
+	}
+
+	return nil
 }
 
 func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
@@ -181,7 +214,7 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 
 		nft.Owner = newOwner.Value.Primitive.(string)
 
-		zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC1")
+		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, nft.Owner, prevOwner.Value.String()), elastic_search.Zrc1Transfer)
@@ -214,7 +247,7 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 		}
 		nft.BurnedAt = tx.BlockNum
 
-		zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Burn ZRC1")
+		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Burn ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Burn)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft, tx), elastic_search.Zrc1Burn)
