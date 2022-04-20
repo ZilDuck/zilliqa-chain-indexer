@@ -51,10 +51,6 @@ func (i marketplaceIndexer) IndexTxs(txs []entity.Transaction) error {
 			continue
 		}
 
-		if tx.ID == "85e22ad06f1a80835abe1f4321cc6ffafb0d1fea1643638f406559a49be3fc30" {
-			continue
-		}
-
 		if err := i.indexListings(tx); err != nil {
 			continue
 			//return err
