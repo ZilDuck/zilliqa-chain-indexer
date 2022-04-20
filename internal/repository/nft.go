@@ -86,9 +86,7 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 		if attempt == -1 || attempt == MaxRetries {
 			return nil, err
 		}
-		if contract != "0xe876b112a62f945484ede1f3ccdd6b0ac6f39382" {
-			zap.S().With(zap.String("contractAddr", contract), zap.Uint64("tokenId", tokenId)).Fatalf("Failed to find NFT in repo. retry(%d)", attempt)
-		}
+		zap.S().With(zap.String("contract", contract), zap.Uint64("tokenId", tokenId)).Errorf("Failed to find NFT in repo. retry(%d)", attempt)
 		time.Sleep(time.Second * 1)
 		return r.getNft(contract, tokenId, attempt+1)
 	}
@@ -255,7 +253,7 @@ func (r nftRepository) GetBestBlockNum() (uint64, error) {
 }
 
 func (r nftRepository) PurgeActions(contractAddr string) error {
-	zap.L().With(zap.String("contractAddr", contractAddr)).Info("Purge actions for contract")
+	zap.L().With(zap.String("contract", contractAddr)).Info("Purge actions for contract")
 
 	_, err := r.elastic.GetClient().
 		DeleteByQuery(elastic_search.NftActionIndex.Get()).
@@ -263,14 +261,14 @@ func (r nftRepository) PurgeActions(contractAddr string) error {
 		Do(context.Background())
 
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("contractAddr", contractAddr)).Error("Failed to purge nft actions")
+		zap.L().With(zap.Error(err), zap.String("contract", contractAddr)).Error("Failed to purge nft actions")
 	}
 
 	return err
 }
 
 func (r nftRepository) PurgeContract(contractAddr string) error {
-	zap.L().With(zap.String("contractAddr", contractAddr)).Info("Purge contract")
+	zap.L().With(zap.String("contract", contractAddr)).Info("Purge contract")
 
 	_, err := r.elastic.GetClient().
 		DeleteByQuery(elastic_search.NftIndex.Get()).
@@ -278,7 +276,7 @@ func (r nftRepository) PurgeContract(contractAddr string) error {
 		Query(elastic.NewTermsQuery("contract.keyword", contractAddr)).
 		Do(context.Background())
 	if err != nil {
-		zap.L().With(zap.Error(err), zap.String("contractAddr", contractAddr)).Error("Failed to purge contract")
+		zap.L().With(zap.Error(err), zap.String("contract", contractAddr)).Error("Failed to purge contract")
 		return err
 	}
 
@@ -286,7 +284,7 @@ func (r nftRepository) PurgeContract(contractAddr string) error {
 }
 
 func (r nftRepository) validatePurgeContractComplete(contractAddr string) error {
-	zap.L().With(zap.String("contractAddr", contractAddr)).Debug("validatePurgeContractComplete")
+	zap.L().With(zap.String("contract", contractAddr)).Debug("validatePurgeContractComplete")
 	_, total, err := r.GetNfts(contractAddr, 1, 1)
 	if err != nil {
 		return err

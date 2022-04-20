@@ -110,7 +110,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 			if ipfsUri == nil {
 				zap.S().With(
 					zap.String("assetUri", assetUri),
-					zap.String("contractAddr", contractAddr),
+					zap.String("contract", contractAddr),
 					zap.Uint64("tokenId", tokenId),
 				).Error("IPFS not found")
 				return nil, errors.New(fmt.Sprintf("Metadata is ipfs asset. Helper failed to retrieve (%s, %d)", contractAddr, tokenId))
