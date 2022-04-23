@@ -111,44 +111,56 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+type IpfsResp struct {
+	Uri  string
+	Resp *http.Response
+	Err  error
+}
+
 func (s service) fetchIpfs(uri string) (*http.Response, error) {
-	ch := make(chan *http.Response, len(s.ipfsHosts))
+	ch := make(chan IpfsResp, len(s.ipfsHosts))
 	complete := 0
 
 	for _, host := range s.ipfsHosts {
 		go func(host string) {
-			ipfsUri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
-			req, err := retryablehttp.NewRequest("GET", ipfsUri, nil)
+			ipfsResp := IpfsResp{Uri: fmt.Sprintf("%s/ipfs/%s", host, uri[7:])}
+			req, err := retryablehttp.NewRequest("GET", ipfsResp.Uri, nil)
 			if err != nil {
-				ch <- nil
+				ipfsResp.Err = err
+				ch <- ipfsResp
 				return
 			}
 
-			zap.L().With(zap.String("uri", uri), zap.String("ipfs", ipfsUri)).Info("Fetching IPFS metadata")
+			zap.L().With(zap.String("ipfs", ipfsResp.Uri)).Info("Fetching IPFS metadata")
 			resp, err := s.client.Do(req)
 			if err != nil {
-				ch <- nil
+				ipfsResp.Err = err
+				zap.L().With(zap.String("ipfs", ipfsResp.Uri), zap.Error(err)).Error("Failed fetching metadata")
+				ch <- ipfsResp
 			}
-			ch <- resp
+			ipfsResp.Resp = resp
+			ch <- ipfsResp
 		}(host)
 	}
 
 	for {
 		select {
 		case resp := <-ch:
-			if resp != nil {
-				if resp.StatusCode == 200 {
-					return resp, nil
+			if resp.Resp != nil {
+				zap.S().With(zap.String("uri", resp.Uri), zap.Error(resp.Err)).Warnf("IPFS status code: %d", resp.Resp.StatusCode)
+				if resp.Resp.StatusCode == 200 {
+					return resp.Resp, nil
 				}
-				zap.S().With(zap.String("uri", uri)).Errorf("IPFS status code: %d", resp.StatusCode)
+			} else {
+				zap.S().With(zap.String("uri", resp.Uri), zap.Error(resp.Err)).Errorf("Resp is nil")
 			}
 			complete++
 		case <-time.After(time.Duration(s.ipfsTimeout) * time.Second):
-			zap.S().Warnf("Timedout waiting for IPFS...next")
-			complete++
+			zap.S().With(zap.String("uri", uri)).Warnf("Timedout waiting for IPFS...next")
+			return nil, ErrMetadataNotFound
 		}
 
-		if complete == len(s.ipfsHosts) {
+		if complete == len(s.ipfsHosts) * s.client.RetryMax {
 			break
 		}
 	}
