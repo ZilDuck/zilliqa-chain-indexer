@@ -55,7 +55,7 @@ func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {
 	nft := el.(entity.Nft)
 
 	msgJson, _ := json.Marshal(messenger.Nft{Contract: nft.Contract, TokenId: nft.TokenId})
-	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson, false); err != nil {
+	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to queue metadata refresh")
 	} else {
 		zap.L().With(zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Trigger MetaData Refresh")
@@ -145,7 +145,7 @@ func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus, metadataE
 				continue
 			}
 
-			if rand.Intn(nft.Metadata.Attempts) == 0 {
+			if nft.Metadata.Attempts == 0 || rand.Intn(nft.Metadata.Attempts) == 0 {
 				i.TriggerMetadataRefresh(nft)
 			}
 		}
