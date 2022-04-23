@@ -2,7 +2,6 @@ package di
 
 import (
 	"crypto/tls"
-	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/daemon"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
@@ -12,6 +11,10 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/sqs"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/patrickmn/go-cache"
 	"github.com/sarulabs/dingo/v4"
@@ -54,10 +57,20 @@ var Definitions = []dingo.Def{
 		},
 	},
 	{
+		Name: "sqs",
+		Build: func() (*sqs.SQS, error) {
+			sess := session.Must(session.NewSession(&aws.Config{
+				Credentials: credentials.NewStaticCredentials(config.Get().Aws.AccessKey, config.Get().Aws.SecretKey, ""),
+				Region: aws.String(config.Get().Aws.Region),
+			}))
+
+			return sqs.New(sess), nil
+		},
+	},
+	{
 		Name: "messenger",
-		Build: func() (messenger.MessageService, error) {
-			ampqUri := fmt.Sprintf("amqp://%s:%s@%s:%d", config.Get().Queue.User, config.Get().Queue.Password, config.Get().Queue.Host, config.Get().Queue.Port)
-			return messenger.NewMessenger(ampqUri), nil
+		Build: func(sqs *sqs.SQS) (messenger.MessageService, error) {
+			return messenger.NewMessenger(sqs), nil
 		},
 	},
 	{

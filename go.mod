@@ -4,6 +4,10 @@ go 1.16
 
 require (
 	github.com/Zilliqa/gozilliqa-sdk v1.2.0
+	github.com/armon/consul-api v0.0.0-20180202201655-eb2c6b5be1b6 // indirect
+	github.com/aws/aws-sdk-go v1.43.21
+	github.com/coreos/etcd v3.3.10+incompatible // indirect
+	github.com/coreos/go-etcd v2.0.0+incompatible // indirect
 	github.com/gorilla/mux v1.8.0
 	github.com/gosimple/slug v1.12.0
 	github.com/hashicorp/go-retryablehttp v0.7.1
@@ -14,7 +18,6 @@ require (
 	github.com/sarulabs/di/v2 v2.4.2
 	github.com/sarulabs/dingo/v4 v4.2.0
 	github.com/spf13/viper v1.11.0
-	github.com/streadway/amqp v1.0.0
 	github.com/urfave/cli/v2 v2.4.0
 	go.uber.org/zap v1.21.0
 )
