@@ -46,8 +46,9 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := s.metadataService.FetchImage(*nft)
+	defer body.Close()
 	if err != nil {
-		zap.L().With(zap.Error(err)).Warn("NFT asset not available")
+		zap.L().With(zap.Error(err), zap.String("uri", nft.AssetUri)).Warn("NFT asset not available")
 		http.Error(w, "NFT asset not available", http.StatusNotFound)
 		return
 	}
@@ -66,8 +67,9 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(200)
 	w.Header().Add("Content-Type", contentType)
+	w.Header().Add("Cache-Control", "max-age: 31536000, immutable")
 	_, _ = fmt.Fprint(w, string(data[:]))
-	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId)).Info("Serving nft")
+	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId), zap.String("uri", nft.AssetUri)).Info("Serving nft")
 }
 
 func getTokenId(r *http.Request) (uint64, error) {
