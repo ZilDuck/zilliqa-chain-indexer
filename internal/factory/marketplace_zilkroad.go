@@ -107,7 +107,7 @@ func (f ZilkroadMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.M
 		return nil, err
 	}
 
-	seller, err := salesEvent.Params.GetParam("buyer")
+	seller, err := salesEvent.Params.GetParam("seller")
 	if err != nil {
 		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Zilkroad Sale: Failed to get seller")
 		return nil, err

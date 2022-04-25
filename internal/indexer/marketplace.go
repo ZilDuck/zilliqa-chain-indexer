@@ -96,7 +96,7 @@ func (i marketplaceIndexer) indexDelistings(tx entity.Transaction) (err error) {
 	var delisting *entity.MarketplaceDelisting
 
 	switch {
-	case tx.IsMarketplaceListing(entity.OkimotoMarketplace):
+	case tx.IsMarketplaceDelisting(entity.OkimotoMarketplace):
 		delisting, err = i.okimotoMarketplaceFactory.CreateDelisting(tx)
 	case tx.IsMarketplaceDelisting(entity.ZilkroadMarketplace):
 		delisting, err = i.zilkroadMarketplaceFactory.CreateDelisting(tx)
@@ -184,6 +184,9 @@ func (i marketplaceIndexer) executeSale(sale entity.MarketplaceSale) {
 		zap.String("royaltyBps", sale.RoyaltyBps),
 		zap.String("fungible", sale.Fungible),
 	).Info("Marketplace sale")
+
+	sale.Nft.Owner = sale.Buyer
+	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), sale.Nft, elastic_search.Zrc6Transfer)
 
 	i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(sale.Nft,
 		sale.Tx.BlockNum, sale.Tx.ID, sale.Buyer, sale.Seller), elastic_search.Zrc6Transfer)
