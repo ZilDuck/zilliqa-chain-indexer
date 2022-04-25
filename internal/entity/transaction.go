@@ -179,13 +179,7 @@ func (tx Transaction) IsMarketplaceListing(marketplace Marketplace) bool {
 	case ArkyMarketplace:
 		return false
 	case OkimotoMarketplace:
-		if tx.HasEventLog(MpOkiListingEvent) {
-			recipient, err := tx.GetEventLogs(MpOkiListingEvent)[0].Params.GetParam("recipient")
-			if err != nil {
-				return false
-			}
-			return recipient.Value.String() == OkimotoMarketplaceAddress
-		}
+		return tx.ContractAddress == OkimotoMarketplaceAddress && tx.Data.Tag == "ConfigurePrice"
 	case MintableMarketplace:
 		return tx.HasEventLog(MpMintableListingEvent) && !tx.HasEventLog("DragonApprovedSuccess") && tx.Data.Tag == "Sell"
 	}

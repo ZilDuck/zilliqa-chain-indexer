@@ -243,8 +243,8 @@ var Definitions = []dingo.Def{
 	},
 	{
 		Name: "marketplace.okimoto.factory",
-		Build: func(nftRepo repository.NftRepository, nftActionRepo repository.NftActionRepository) (factory.OkimotoMarketplaceFactory, error) {
-			return factory.NewOkimotoMarketplaceFactory(nftRepo, nftActionRepo), nil
+		Build: func(nftRepo repository.NftRepository, nftActionRepo repository.NftActionRepository, stateRepository repository.ContractStateRepository) (factory.OkimotoMarketplaceFactory, error) {
+			return factory.NewOkimotoMarketplaceFactory(nftRepo, nftActionRepo, stateRepository), nil
 		},
 	},
 	{

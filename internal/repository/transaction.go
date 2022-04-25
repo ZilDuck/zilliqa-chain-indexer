@@ -302,9 +302,8 @@ func arkyExecutionTxs() *elastic.BoolQuery {
 func okimotoExecutionTxs() *elastic.BoolQuery {
 	return elastic.NewBoolQuery().Should(
 		elastic.NewBoolQuery().Must(
-			elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiListingEvent)),
-			elastic.NewMatchPhraseQuery("Data._tag.keyword", "Transfer"),
-			elastic.NewMatchPhraseQuery("Data.params.value.primitive", entity.OkimotoMarketplaceAddress),
+			elastic.NewMatchPhraseQuery("Data._tag.keyword", "ConfigurePrice"),
+			elastic.NewMatchPhraseQuery("ContractAddress.keyword", entity.OkimotoMarketplaceAddress),
 		),
 		elastic.NewBoolQuery().Must(
 			elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiDelistingEvent)),
