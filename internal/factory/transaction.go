@@ -37,7 +37,7 @@ func (f transactionFactory) CreateTransaction(coreTx zilliqa.Transaction, blockN
 		Receipt:             f.createReceipt(coreTx.Receipt),
 		BlockNum:            f.stringToUint64(blockNum),
 		IsContractCreation:  coreTx.Code != "",
-		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0,
+		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0 || coreTx.Data != nil,
 	}
 
 	if tx.IsContractExecution && coreTx.ToAddr != "" {
