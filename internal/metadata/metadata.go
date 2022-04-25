@@ -2,6 +2,7 @@ package metadata
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -112,50 +113,80 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 }
 
 type IpfsResp struct {
-	Uri  string
-	Resp *http.Response
-	Err  error
+	uri        string
+	resp       *http.Response
+	err        error
 }
+
+type IpfsCanceller struct {
+	uri        string
+	cancelFunc context.CancelFunc
+}
+
 
 func (s service) fetchIpfs(uri string) (*http.Response, error) {
 	ch := make(chan IpfsResp, len(s.ipfsHosts))
+	cancelCh := make(chan IpfsCanceller, len(s.ipfsHosts))
 	complete := 0
 
 	for _, host := range s.ipfsHosts {
 		go func(host string) {
-			ipfsResp := IpfsResp{Uri: fmt.Sprintf("%s/ipfs/%s", host, uri[7:])}
-			req, err := retryablehttp.NewRequest("GET", ipfsResp.Uri, nil)
+			ipfsUri := fmt.Sprintf("%s/ipfs/%s", host, uri[7:])
+
+			ipfsResp := IpfsResp{uri: ipfsUri}
+
+			ctx, cancel := context.WithCancel(context.Background())
+			cancelCh <- IpfsCanceller{uri: ipfsUri, cancelFunc: cancel}
+
+			req, err := retryablehttp.NewRequestWithContext(ctx, "GET", ipfsResp.uri, nil)
 			if err != nil {
-				ipfsResp.Err = err
+				ipfsResp.err = err
 				ch <- ipfsResp
 				return
 			}
 
-			zap.L().With(zap.String("ipfs", ipfsResp.Uri)).Info("Fetching IPFS metadata")
+			zap.L().With(zap.String("ipfs", ipfsResp.uri)).Debug("Fetching IPFS metadata")
 			resp, err := s.client.Do(req)
 			if err != nil {
-				ipfsResp.Err = err
-				zap.L().With(zap.String("ipfs", ipfsResp.Uri), zap.Error(err)).Error("Failed fetching metadata")
+				ipfsResp.err = err
+				zap.L().With(zap.String("ipfs", ipfsResp.uri), zap.Error(err)).Debug("Failed fetching metadata")
 				ch <- ipfsResp
 			}
-			ipfsResp.Resp = resp
+			ipfsResp.resp = resp
 			ch <- ipfsResp
 		}(host)
+	}
+
+	cancelChannels := func(uri string) {
+		cancelled := 0
+		for {
+			select {
+			case resp := <-cancelCh:
+				cancelled++
+				if uri != resp.uri {
+					zap.L().With(zap.String("ipfs", resp.uri)).Debug("Cancelling ipfs request")
+					resp.cancelFunc()
+				}
+			}
+
+			if cancelled == len(s.ipfsHosts) * s.client.RetryMax {
+				break
+			}
+		}
 	}
 
 	for {
 		select {
 		case resp := <-ch:
-			if resp.Resp != nil {
-				zap.S().With(zap.String("uri", resp.Uri), zap.Error(resp.Err)).Warnf("IPFS status code: %d", resp.Resp.StatusCode)
-				if resp.Resp.StatusCode == 200 {
-					return resp.Resp, nil
+			if resp.resp != nil {
+				if resp.resp.StatusCode == 200 {
+					cancelChannels(resp.uri)
+					return resp.resp, nil
 				}
-			} else {
-				zap.S().With(zap.String("uri", resp.Uri), zap.Error(resp.Err)).Errorf("Resp is nil")
 			}
 			complete++
 		case <-time.After(time.Duration(s.ipfsTimeout) * time.Second):
+			cancelChannels("")
 			zap.S().With(zap.String("uri", uri)).Warnf("Timedout waiting for IPFS...next")
 			return nil, ErrMetadataNotFound
 		}

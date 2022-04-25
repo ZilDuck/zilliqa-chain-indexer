@@ -46,12 +46,12 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 	}
 
 	body, err := s.metadataService.FetchImage(*nft)
-	defer body.Close()
 	if err != nil {
 		zap.L().With(zap.Error(err), zap.String("uri", nft.AssetUri)).Warn("NFT asset not available")
 		http.Error(w, "NFT asset not available", http.StatusNotFound)
 		return
 	}
+	defer body.Close()
 
 	buf := new(bytes.Buffer)
 	_, errBuf := buf.ReadFrom(body)
