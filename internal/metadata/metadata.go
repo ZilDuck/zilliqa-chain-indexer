@@ -180,6 +180,7 @@ func (s service) fetchIpfs(uri string) (*http.Response, error) {
 		case resp := <-ch:
 			if resp.resp != nil {
 				if resp.resp.StatusCode == 200 {
+					zap.L().With(zap.String("ipfs", resp.uri)).Info("Complete ipfs request")
 					cancelChannels(resp.uri)
 					return resp.resp, nil
 				}

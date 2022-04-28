@@ -40,32 +40,38 @@ func (f OkimotoMarketplaceFactory) CreateListing(tx entity.Transaction) (*entity
 	listingString, ok := state.GetElement("listings")
 	if !ok {
 		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get contract listings")
+		return nil, err
 	}
 
 	var listings map[string]interface{}
 	err = json.Unmarshal([]byte(listingString), &listings)
 	if err != nil {
 		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to decode listings")
+		return nil, err
 	}
 
 	listingInterface, ok := listings[listingId.Value.String()]
 	if !ok {
 		zap.L().With(zap.String("txId", tx.ID), zap.String("listingId", listingId.Value.String()), zap.Error(err)).Error("Okimoto listing: Failed to find listing")
+		return nil, err
 	}
 
 	listing := CreateValueObject(listingInterface)
-	if len(listing.Arguments) < 5 {
+	if listing == nil || len(listing.Arguments) < 5 {
 		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get listing arguments")
+		return nil, err
 	}
 
 	tokenId, err := listing.Arguments[2].Uint64()
 	if err != nil {
 		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get token id")
+		return nil, err
 	}
 
 	costArgs := listing.Arguments[4].Arguments
 	if len(costArgs) != 1 {
 		zap.L().With(zap.String("txId", tx.ID), zap.Error(err)).Error("Okimoto listing: Failed to get cost")
+		return nil, err
 	}
 
 	nft, err := f.nftRepo.GetNft(listing.Arguments[1].String(), tokenId)

@@ -295,7 +295,7 @@ func zilkRoadExecutionTxs() *elastic.BoolQuery {
 
 func arkyExecutionTxs() *elastic.BoolQuery {
 	return elastic.NewBoolQuery().Should(
-		elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpArkySaleEvent),
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpArkySaleEvent)),
 	).MinimumNumberShouldMatch(1)
 }
 

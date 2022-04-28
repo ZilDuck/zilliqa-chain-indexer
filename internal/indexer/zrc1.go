@@ -253,7 +253,8 @@ func (i zrc1Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 				zap.String("contract", c.Address),
 				zap.Uint64("tokenId", tokenId),
 				zap.String("action", "burn"),
-			).Fatal("Failed to find zrc1 nft in index")
+			).Error("Failed to find zrc1 nft in index")
+			continue
 		}
 		nft.BurnedAt = tx.BlockNum
 
