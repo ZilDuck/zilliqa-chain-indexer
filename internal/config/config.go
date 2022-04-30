@@ -64,6 +64,10 @@ type Config struct {
 		SecretKey string
 		Region    string
 	}
+	Bunny struct {
+		CdnUrl string
+		AccessKey string
+	}
 }
 
 func Init(command string) {
