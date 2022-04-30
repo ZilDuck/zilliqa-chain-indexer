@@ -75,7 +75,7 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 		return nil, err
 	}
 
-	properties, err := i.metadataService.FetchMetadata(*nft)
+	properties, _, err := i.metadataService.FetchMetadata(*nft)
 	if err != nil {
 		if err == metadata.ErrNoSuchHost ||
 			err == metadata.ErrNotFound ||

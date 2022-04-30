@@ -86,16 +86,13 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 }
 
 func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error) {
-	zap.L().Debug("CreateFromBatchMint")
 	nfts := make([]entity.Nft, 0)
 
 	if !c.MatchesStandard(entity.ZRC6) {
-		zap.L().Warn("It's not a ZRC6")
 		return nfts, nil
 	}
 
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
-		zap.L().Info("It's a batch mint")
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
 			name, _ := c.Data.Params.GetParam("name")
 			symbol, _ := c.Data.Params.GetParam("symbol")
@@ -169,7 +166,6 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 			// If a contract uses to_list when batch minting it in NON compliant ZRC6
 			var toUris []string
 			if event.Params.HasParamWithType("to_list", "List (ByStr20)") {
-				zap.L().With(zap.String("contract", c.Address)).Debug("Contract uses the old to_list for batchMint")
 				toList, err := event.Params.GetParam("to_list")
 				if err != nil {
 					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", c.Address)).Error("Failed to get to_list")

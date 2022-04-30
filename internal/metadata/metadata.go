@@ -17,7 +17,7 @@ import (
 )
 
 type Service interface {
-	FetchMetadata(nft entity.Nft) (map[string]interface{}, error)
+	FetchMetadata(nft entity.Nft) (map[string]interface{}, string, error)
 	FetchImage(nft entity.Nft) (io.ReadCloser, error)
 }
 
@@ -45,10 +45,10 @@ func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, ipfsTi
 	return service{client, ipfsHosts, ipfsTimeout}
 }
 
-func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
+func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, string,  error) {
 	zap.L().With(zap.Uint64("tokenId", nft.TokenId), zap.String("contract", nft.Contract)).Info("Fetch metadata")
 	if nft.Metadata.UriEmpty() {
-		return nil, errors.New("metadata uri not valid")
+		return nil, "", errors.New("metadata uri not valid")
 	}
 
 	var resp *http.Response
@@ -62,15 +62,16 @@ func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, error) {
 
 	if err != nil {
 		if errors.Is(err, ErrTimeout) || errors.Is(err, ErrMetadataNotFound) || errors.Is(err, ErrNotFound) {
-			return nil, err
+			return nil, "", err
 		}
 		if strings.Contains(err.Error(), "unsupported protocol scheme") {
-			return nil, ErrUnsupportedProtocolScheme
+			return nil, "", ErrUnsupportedProtocolScheme
 		}
 		if len(err.Error()) > 12 && err.Error()[len(err.Error())-12:] == "no such host" {
-			return nil, ErrNoSuchHost
+			return nil, "", ErrNoSuchHost
 		}
-		return nil, err
+
+		return nil, "", err
 	}
 
 	return s.hydrateMetadata(resp)
@@ -246,18 +247,18 @@ func (s service) fetchHttp(uri string) (*http.Response, error) {
 	}
 }
 
-func (s service) hydrateMetadata(resp *http.Response) (map[string]interface{}, error) {
+func (s service) hydrateMetadata(resp *http.Response) (map[string]interface{}, string, error) {
 	defer resp.Body.Close()
 
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(resp.Body); err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
 	var md map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &md); err != nil {
-		return nil, ErrInvalidContent
+		return nil, http.DetectContentType(buf.Bytes()), ErrInvalidContent
 	}
 
-	return md, nil
+	return md, http.DetectContentType(buf.Bytes()), nil
 }
