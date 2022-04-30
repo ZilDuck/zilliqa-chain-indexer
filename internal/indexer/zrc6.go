@@ -316,7 +316,7 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 				zap.String("txId", tx.ID),
 				zap.String("contract", c.Address),
 				zap.Uint64("tokenId", tokenId),
-			).Fatal("Failed to find zrc6 nft in index")
+			).Error("Failed to find zrc6 nft in index")
 			continue
 		}
 
