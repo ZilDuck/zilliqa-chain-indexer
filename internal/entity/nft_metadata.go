@@ -51,13 +51,11 @@ func (m Metadata) GetAssetUri() (string, error) {
 
 		var resourcesMap []map[string]string
 		err = json.Unmarshal(resourcesJson, &resourcesMap)
-		if err != nil {
-			return "", err
-		}
-
-		for _, resource := range resourcesMap {
-			if _, ok := resource["uri"]; ok {
-				return resource["uri"], nil
+		if err == nil {
+			for _, resource := range resourcesMap {
+				if _, ok := resource["uri"]; ok {
+					return resource["uri"], nil
+				}
 			}
 		}
 	}
