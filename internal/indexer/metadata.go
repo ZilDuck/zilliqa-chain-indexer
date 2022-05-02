@@ -105,6 +105,12 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	nft.Metadata.UpdatedAt = time.Now()
 	nft.Metadata.Status = entity.MetadataSuccess
 	nft.HasMetadata = true
+
+	// ZilMorphs are fudge
+	if nft.Contract == "0x852c4105660ab288d0df8b2491f7462c66a1c0ae" {
+		nft.Metadata.Properties["image"] = fmt.Sprintf("https://zilmorphs.com/morph/%d.png", nft.TokenId)
+	}
+
 	if assetUri, err := nft.Metadata.GetAssetUri(); err == nil {
 		if helper.IsIpfs(assetUri) {
 			ipfsUri := helper.GetIpfs(assetUri, c)
@@ -119,6 +125,12 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 			assetUri = *ipfsUri
 		}
 		nft.AssetUri = assetUri
+	} else {
+		zap.L().With(
+			zap.Error(err),
+			zap.String("contract", contractAddr),
+			zap.Uint64("tokenId", tokenId),
+		).Error("Failed to get assetUri")
 	}
 
 	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
