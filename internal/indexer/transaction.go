@@ -38,6 +38,7 @@ func (i transactionIndexer) Index(height, size uint64) ([]entity.Transaction, er
 	}
 
 	for _, tx := range txs {
+		zap.L().With(zap.String("txID", tx.ID)).Debug("Create Transaction")
 		i.elastic.AddIndexRequest(elastic_search.TransactionIndex.Get(), tx, elastic_search.TransactionCreate)
 	}
 
@@ -85,7 +86,7 @@ func (i transactionIndexer) CreateTransactions(height uint64, size uint64) ([]en
 		}
 	}
 
-	zap.L().With(zap.Int("count", len(txs)), zap.Uint64("height", height)).Info("Index txs")
+	zap.L().With(zap.Int("count", len(txs)), zap.Uint64("height", height)).Info("Create txs")
 
 	return txs, nil
 }

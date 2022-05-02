@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -e
 
-go run ./cmd/injectDependencies/main.go ./generated
+go run ./cmd/internal/injectDependencies/main.go ./generated

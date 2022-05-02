@@ -1,6 +1,7 @@
 package helper
 
 import (
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"net/url"
 	"regexp"
 )
@@ -29,11 +30,15 @@ func IsIpfs(uri string) bool {
 	return false
 }
 
-func GetIpfs(ipfsUri string) *string {
+func GetIpfs(ipfsUri string, c *entity.Contract) *string {
 	re := regexp.MustCompile("(Qm[1-9A-HJ-NP-Za-km-z]{44}.*$)")
 	parts := re.FindStringSubmatch(ipfsUri)
 	if len(parts) == 2 {
-		ipfsUri = "ipfs://" + parts[1]
+		if c != nil && c.CustomIpfs != nil {
+			ipfsUri = *c.CustomIpfs + parts[1]
+		} else {
+			ipfsUri = "ipfs://" + parts[1]
+		}
 		return &ipfsUri
 	}
 

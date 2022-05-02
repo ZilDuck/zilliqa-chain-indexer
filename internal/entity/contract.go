@@ -18,13 +18,9 @@ type Contract struct {
 	Standards       map[ZrcStandard]bool `json:"standards"`
 
 	//mutable
-	State   []ContractStateElement `json:"state"`
-	BaseUri string                 `json:"baseuri"`
-}
+	BaseUri string `json:"baseuri"`
 
-type ContractStateElement struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	CustomIpfs *string `json:"customIpfs"`
 }
 
 func (c Contract) Slug() string {
@@ -36,8 +32,8 @@ func CreateContractSlug(contract string) string {
 }
 
 func (c Contract) MatchesStandard(standard ZrcStandard) bool {
-	if _, ok := c.Standards[standard]; ok {
-		return true
+	if val, ok := c.Standards[standard]; ok {
+		return val == true
 	}
 	return false
 }
@@ -57,6 +53,7 @@ type Event string
 
 const (
 	ZRC1MintEvent         Event = "MintSuccess"
+	ZRC1UnicutesMintEvent Event = "UnicuteInsertDrandValues"
 	ZRC1TransferEvent     Event = "TransferSuccess"
 	ZRC1TransferFromEvent Event = "TransferFromSuccess"
 	ZRC1BurnEvent         Event = "BurnSuccess"
@@ -66,6 +63,20 @@ const (
 	ZRC6SetBaseURIEvent   Event = "SetBaseURI"
 	ZRC6TransferFromEvent Event = "TransferFrom"
 	ZRC6BurnEvent         Event = "Burn"
+
+	MpOkiListingEvent     Event = "TransferSuccess"
+	MpOkiDelistingEvent   Event = "TransferSuccess"
+	MpOkiSaleEvent        Event = "TransferSuccess"
+
+	MpMintableListingEvent   Event = "PendingOrderRecorded"
+	MpMintableDelistingEvent Event = "OrderCanceled"
+	MpMintableSaleEvent      Event = "PurchaseSuccess"
+
+	MpArkySaleEvent Event = "ExecuteTradeSuccess"
+
+	MpZilkroadListingEvent   Event = "Listed"
+	MpZilkroadDelistingEvent Event = "Delisted"
+	MpZilkroadSaleEvent      Event = "Sold"
 )
 
 type Callback string
@@ -81,6 +92,8 @@ const (
 	ZRC6RecipientAcceptTransferFrom Callback = "ZRC6_RecipientAcceptTransferFrom"
 	ZRC6BurnCallback                Callback = "ZRC6_BurnCallback"
 	ZRC6BatchBurnCallback           Callback = "ZRC6_BatchBurnCallback"
+	ZRC6SetTokenURICallback        Callback = "ZRC6_SetTokenURICallback"
+	ZRC6BatchSetTokenURICallback   Callback = "ZRC6_BatchSetTokenURICallback"
 )
 
 
@@ -96,5 +109,14 @@ const (
 
 var (
 	Zrc1Callbacks = []Callback{ZRC1MintCallBack, ZRC1RecipientAcceptTransfer, ZRC1BurnCallBack}
-	Zrc6Callbacks = []Callback{ZRC6MintCallback, ZRC6BatchMintCallback, ZRC6SetBaseURICallback, ZRC6RecipientAcceptTransferFrom, ZRC6BurnCallback, ZRC6BatchBurnCallback}
+	Zrc6Callbacks = []Callback{
+		ZRC6MintCallback,
+		ZRC6BatchMintCallback,
+		ZRC6SetBaseURICallback,
+		ZRC6RecipientAcceptTransferFrom,
+		ZRC6BurnCallback,
+		ZRC6BatchBurnCallback,
+		ZRC6SetTokenURICallback,
+		ZRC6BatchSetTokenURICallback,
+	}
 )

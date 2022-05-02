@@ -37,7 +37,7 @@ func (f transactionFactory) CreateTransaction(coreTx zilliqa.Transaction, blockN
 		Receipt:             f.createReceipt(coreTx.Receipt),
 		BlockNum:            f.stringToUint64(blockNum),
 		IsContractCreation:  coreTx.Code != "",
-		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0,
+		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0 || coreTx.Data != nil,
 	}
 
 	if tx.IsContractExecution && coreTx.ToAddr != "" {
@@ -89,12 +89,12 @@ func (f transactionFactory) createParams(coreParams []zilliqa.ContractValue) (pa
 					param.Value = &entity.Value{Primitive: values}
 					break
 				default:
-					param.Value = f.createValueObject(values[0].(map[string]interface{}))
+					param.Value = CreateValueObject(values[0].(map[string]interface{}))
 				}
 			}
 			break
 		case map[string]interface{}:
-			param.Value = f.createValueObject(coreParam.Value.(map[string]interface{}))
+			param.Value = CreateValueObject(coreParam.Value.(map[string]interface{}))
 			break
 		default:
 			value, _ := json.Marshal(coreParam.Value)
@@ -151,7 +151,7 @@ func (f transactionFactory) createParamsFromInterface(coreParams interface{}) en
 		coreParamMap := coreParam.(map[string]interface{})
 		param := entity.Param{
 			Type:  coreParamMap["type"].(string),
-			Value: f.createValueObject(coreParamMap["value"]),
+			Value: CreateValueObject(coreParamMap["value"]),
 			VName: coreParamMap["vname"].(string),
 		}
 
@@ -193,7 +193,7 @@ func (f transactionFactory) createParamsFromString(paramString interface{}) (dat
 			if coreParam != nil {
 				param := entity.Param{
 					Type:  f.getParam("type", coreParam).(string),
-					Value: f.createValueObject(f.getParam("value", coreParam)),
+					Value: CreateValueObject(f.getParam("value", coreParam)),
 					VName: f.getParam("vname", coreParam).(string),
 				}
 
@@ -212,7 +212,7 @@ func (f transactionFactory) getParam(key string, coreParam map[string]interface{
 	return ""
 }
 
-func (f transactionFactory) createValueObject(valueObj interface{}) *entity.Value {
+func CreateValueObject(valueObj interface{}) *entity.Value {
 	if valueObj == nil {
 		return nil
 	}
@@ -232,7 +232,7 @@ func (f transactionFactory) createValueObject(valueObj interface{}) *entity.Valu
 				case "[]interface {}":
 					arguments := make([]*entity.Value, 0)
 					for _, argument := range valueMap["arguments"].([]interface{}) {
-						arguments = append(arguments, f.createValueObject(argument))
+						arguments = append(arguments, CreateValueObject(argument))
 					}
 					return &entity.Value{
 						ArgTypes:    valueMap["argtypes"],

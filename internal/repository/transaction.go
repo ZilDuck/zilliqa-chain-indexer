@@ -16,7 +16,9 @@ var (
 
 type TransactionRepository interface {
 	GetBestBlockNum() (uint64, error)
+
 	GetTx(txId string) (*entity.Transaction, error)
+	GetMissingTxs(txIds []string) (map[string]struct{}, error)
 
 	GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
@@ -24,6 +26,8 @@ type TransactionRepository interface {
 	GetContractCreationForContract(contractAddr string) (*entity.Transaction, error)
 	GetContractExecutionsByContract(c entity.Contract, size, page int) ([]entity.Transaction, int64, error)
 	GetContractExecutionsByContractFrom(c entity.Contract, fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
+
+	GetNftMarketplaceExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error)
 }
 
 type transactionRepository struct {
@@ -68,11 +72,41 @@ func (r transactionRepository) GetBestBlockNum() (uint64, error) {
 }
 
 func (r transactionRepository) GetTx(txId string) (*entity.Transaction, error) {
+	zap.L().Debug("TransactionRepository::GetTx: "+txId)
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_search.TransactionIndex.Get()).
 		Query(elastic.NewTermQuery("ID", txId)))
 
 	return r.findOne(results, err)
+}
+
+func (r transactionRepository) GetMissingTxs(txIds []string) (map[string]struct{}, error) {
+	zap.L().Debug("TransactionRepository::GetMissingTxs")
+	values := make([]interface{}, len(txIds))
+	for i, v := range txIds {
+		values[i] = v
+	}
+
+	results, err := search(r.elastic.GetClient().
+		Search(elastic_search.TransactionIndex.Get()).
+		Query(elastic.NewTermsQuery("ID.keyword", values...)).
+		Aggregation("txId", elastic.NewTermsAggregation().Field("ID.keyword").Size(len(txIds))))
+	if err != nil {
+		return nil, err
+	}
+
+	missingTxIds := map[string]struct{}{}
+	for _, tx := range txIds {
+		missingTxIds[tx] = struct{}{}
+	}
+
+	if txId, found := results.Aggregations.Terms("txId"); found {
+		for _, txIdBucket := range txId.Buckets {
+			delete(missingTxIds, txIdBucket.Key.(string))
+		}
+	}
+
+	return missingTxIds, nil
 }
 
 func (r transactionRepository) GetContractCreationTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
@@ -147,8 +181,10 @@ func (r transactionRepository) GetContractExecutionsByContract(c entity.Contract
 	zap.L().Info("Get contract executions for " + c.Address)
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
+	).Should(
 		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs.address.keyword", c.Address)),
-	)
+		elastic.NewTermQuery("ContractAddress.keyword", c.Address),
+	).MinimumShouldMatch("1")
 
 	from := size*page - size
 
@@ -167,7 +203,7 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 	query := elastic.NewBoolQuery().Must(
 		elastic.NewTermQuery("ContractExecution", true),
 		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
-		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs.addr.keyword", c.Address)),
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewTermQuery("Receipt.event_logs.address.keyword", c.Address)),
 	)
 	from := size*page - size
 
@@ -178,6 +214,37 @@ func (r transactionRepository) GetContractExecutionsByContractFrom(c entity.Cont
 		Size(size).
 		From(from).
 		TrackTotalHits(true))
+
+	return r.findMany(result, err)
+}
+
+func (r transactionRepository) GetNftMarketplaceExecutionTxs(fromBlockNum uint64, size, page int) ([]entity.Transaction, int64, error) {
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("ContractExecution", true),
+		elastic.NewRangeQuery("BlockNum").Gte(fromBlockNum),
+		elastic.NewBoolQuery().Should(
+			zilkRoadExecutionTxs(),
+			arkyExecutionTxs(),
+			okimotoExecutionTxs(),
+			mintableExecutionTxs(),
+		).MinimumNumberShouldMatch(1),
+	)
+
+	from := size*page - size
+
+	zap.L().With(
+		zap.Int("size", size),
+		zap.Int("page", page),
+		zap.Int("from", from),
+	).Info("GetNftMarketplaceExecutionTxs")
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.TransactionIndex.Get()).
+		Query(query).
+		Sort("BlockNum", true).
+		TrackTotalHits(true).
+		Size(size).
+		From(from))
 
 	return r.findMany(result, err)
 }
@@ -214,4 +281,47 @@ func (r transactionRepository) findMany(results *elastic.SearchResult, err error
 	}
 
 	return txs, results.TotalHits(), nil
+}
+
+func zilkRoadExecutionTxs() *elastic.BoolQuery {
+	return elastic.NewBoolQuery().Should(
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewBoolQuery().Should(
+			elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadListingEvent),
+			elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadDelistingEvent),
+			elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpZilkroadSaleEvent),
+		).MinimumNumberShouldMatch(1)),
+	).MinimumNumberShouldMatch(1)
+}
+
+func arkyExecutionTxs() *elastic.BoolQuery {
+	return elastic.NewBoolQuery().Should(
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpArkySaleEvent)),
+	).MinimumNumberShouldMatch(1)
+}
+
+func okimotoExecutionTxs() *elastic.BoolQuery {
+	return elastic.NewBoolQuery().Should(
+		elastic.NewBoolQuery().Must(
+			elastic.NewMatchPhraseQuery("Data._tag.keyword", "ConfigurePrice"),
+			elastic.NewMatchPhraseQuery("ContractAddress.keyword", entity.OkimotoMarketplaceAddress),
+		),
+		elastic.NewBoolQuery().Must(
+			elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiDelistingEvent)),
+			elastic.NewMatchPhraseQuery("Data._tag.keyword", "WithdrawalToken"),
+		),
+		elastic.NewBoolQuery().Must(
+			elastic.NewNestedQuery("Receipt.event_logs", elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpOkiSaleEvent)),
+			elastic.NewMatchPhraseQuery("Data._tag.keyword", "Buy"),
+		),
+	).MinimumNumberShouldMatch(1)
+}
+
+func mintableExecutionTxs() *elastic.BoolQuery {
+	return elastic.NewBoolQuery().Should(
+		elastic.NewNestedQuery("Receipt.event_logs", elastic.NewBoolQuery().Should(
+			elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpMintableListingEvent),
+			elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpMintableDelistingEvent),
+			elastic.NewMatchPhraseQuery("Receipt.event_logs._eventname.keyword", entity.MpMintableSaleEvent),
+		).MinimumNumberShouldMatch(1)),
+	).MinimumNumberShouldMatch(1)
 }

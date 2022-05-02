@@ -3,6 +3,7 @@ package factory
 import (
 	"encoding/json"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -14,10 +15,11 @@ type Zrc6Factory interface {
 }
 
 type zrc6Factory struct {
+	contractsWithoutMetadata map[string]string
 }
 
-func NewZrc6Factory() Zrc6Factory {
-	return zrc6Factory{}
+func NewZrc6Factory(contractsWithoutMetadata map[string]string) Zrc6Factory {
+	return zrc6Factory{contractsWithoutMetadata}
 }
 
 type toTokenUri struct {
@@ -44,10 +46,7 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			return nil, err
 		}
 
-		tokenUri, err := getNftTokenUri(event.Params, tx)
-		if err != nil {
-			zap.L().With(zap.String("txID", tx.ID)).Warn("No tokenUri when minting zrc6")
-		}
+		tokenUri, _ := getNftTokenUri(event.Params, tx)
 
 		nft := entity.Nft{
 			Contract:  c.Address,
@@ -60,10 +59,25 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 			TokenUri:  tokenUri,
 			Owner:     strings.ToLower(to),
 			Zrc6:      true,
-			Validated: false,
 		}
 
-		nft.Metadata = GetMetadata(nft)
+		if f.contractHasMetadata(c) {
+			nft.HasMetadata = true
+			nft.Metadata = GetMetadata(nft)
+		} else {
+			nft.HasMetadata = false
+			nft.Metadata = nil
+			if helper.IsIpfs(nft.TokenUri) {
+				ipfsUri := *helper.GetIpfs(nft.TokenUri, &c)
+				if val, exists := f.contractsWithoutMetadata[nft.Contract]; exists {
+					nft.AssetUri = val + ipfsUri[7:]
+				} else {
+					nft.AssetUri = *helper.GetIpfs(nft.TokenUri, &c)
+				}
+			} else {
+				nft.AssetUri = nft.TokenUri
+			}
+		}
 
 		nfts = append(nfts, nft)
 	}
@@ -80,17 +94,8 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 
 	if tx.HasEventLog(entity.ZRC6BatchMintEvent) {
 		for _, event := range tx.GetEventLogs(entity.ZRC6BatchMintEvent) {
-			var toTokenUris []toTokenUri
-			toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
-			if err != nil {
-				zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contractAddr", c.Address)).Error("Failed to get to_token_uri_pair_list")
-				continue
-			}
-
-			if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
-				zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
-				continue
-			}
+			name, _ := c.Data.Params.GetParam("name")
+			symbol, _ := c.Data.Params.GetParam("symbol")
 
 			startId, err := event.Params.GetParam("start_id")
 			if err != nil {
@@ -103,38 +108,102 @@ func (f zrc6Factory) CreateFromBatchMint(tx entity.Transaction, c entity.Contrac
 				zap.L().With(zap.Error(err)).Error("Failed to convert start_id to uint64")
 			}
 
-			name, _ := c.Data.Params.GetParam("name")
-			symbol, _ := c.Data.Params.GetParam("symbol")
-
-			for _, i := range toTokenUris {
-				arguments := i.Arguments.([]interface{})
-				if len(arguments) != 2 {
-					zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
+			var toTokenUris []toTokenUri
+			if event.Params.HasParam("to_token_uri_pair_list") {
+				toTokenUriPairList, err := event.Params.GetParam("to_token_uri_pair_list")
+				if err != nil {
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", c.Address)).Error("Failed to get to_token_uri_pair_list")
+					continue
 				}
 
-				nft := entity.Nft{
-					Contract:  c.Address,
-					TxID:      tx.ID,
-					BlockNum:  tx.BlockNum,
-					Name:      name.Value.Primitive.(string),
-					Symbol:    symbol.Value.Primitive.(string),
-					TokenId:   nextTokenId,
-					TokenUri:  arguments[1].(string),
-					BaseUri:   c.BaseUri,
-					Owner:     strings.ToLower(arguments[0].(string)),
-					Zrc6:      true,
-					Validated: false,
+				if err := json.Unmarshal([]byte(toTokenUriPairList.Value.Primitive.(string)), &toTokenUris); err != nil {
+					zap.L().With(zap.Error(err)).Error("Failed to unmarshal to_token_uri_pair_list")
+					continue
 				}
 
-				nft.Metadata = GetMetadata(nft)
+				for _, i := range toTokenUris {
+					arguments := i.Arguments.([]interface{})
+					if len(arguments) != 2 {
+						zap.L().With(zap.Error(err)).Error("Incorrectly formatted to_token_uri_pair_list")
+					}
 
-				nfts = append(nfts, nft)
-				nextTokenId++
+					nft := entity.Nft{
+						Contract: c.Address,
+						TxID:     tx.ID,
+						BlockNum: tx.BlockNum,
+						Name:     name.Value.Primitive.(string),
+						Symbol:   symbol.Value.Primitive.(string),
+						TokenId:  nextTokenId,
+						TokenUri: arguments[1].(string),
+						BaseUri:  c.BaseUri,
+						Owner:    strings.ToLower(arguments[0].(string)),
+						Zrc6:     true,
+					}
+
+					if f.contractHasMetadata(c) {
+						nft.HasMetadata = true
+						nft.Metadata = GetMetadata(nft)
+					} else {
+						nft.HasMetadata = false
+						nft.Metadata = nil
+						if helper.IsIpfs(nft.TokenUri) {
+							ipfsUri := *helper.GetIpfs(nft.TokenUri, &c)
+							if val, exists := f.contractsWithoutMetadata[nft.Contract]; exists {
+								nft.AssetUri = val + ipfsUri[7:]
+							} else {
+								nft.AssetUri = *helper.GetIpfs(nft.TokenUri, &c)
+							}
+						} else {
+							nft.AssetUri = nft.TokenUri
+						}
+					}
+
+					nfts = append(nfts, nft)
+					nextTokenId++
+				}
+			}
+
+			// If a contract uses to_list when batch minting it in NON compliant ZRC6
+			var toUris []string
+			if event.Params.HasParamWithType("to_list", "List (ByStr20)") {
+				toList, err := event.Params.GetParam("to_list")
+				if err != nil {
+					zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", c.Address)).Error("Failed to get to_list")
+					continue
+				}
+				if err := json.Unmarshal([]byte(toList.Value.Primitive.(string)), &toUris); err != nil {
+					zap.L().With(zap.Error(err)).Error("Failed to unmarshal toList")
+					continue
+				}
+
+				for _, i := range toUris {
+					nft := entity.Nft{
+						Contract: c.Address,
+						TxID:     tx.ID,
+						BlockNum: tx.BlockNum,
+						Name:     name.Value.Primitive.(string),
+						Symbol:   symbol.Value.Primitive.(string),
+						TokenId:  nextTokenId,
+						BaseUri:  c.BaseUri,
+						Owner:    strings.ToLower(i),
+						Zrc6:     true,
+					}
+
+					nft.Metadata = GetMetadata(nft)
+
+					nfts = append(nfts, nft)
+					nextTokenId++
+				}
 			}
 		}
 	}
 
 	return nfts, nil
+}
+
+func (f zrc6Factory) contractHasMetadata(c entity.Contract) bool {
+	_, exists := f.contractsWithoutMetadata[c.Address]
+	return !exists
 }
 
 func GetTokenId(params entity.Params) (uint64, error) {

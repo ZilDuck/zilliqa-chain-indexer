@@ -1,9 +1,9 @@
 .idea
 .DS_Store
-.env
+env.yaml
 /build
 /generated
 /vendor
 /logs/*
 /var
-/cmd/test/.
+/cmd/internal/test/.

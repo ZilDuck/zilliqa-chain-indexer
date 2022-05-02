@@ -4,16 +4,9 @@
       "metadata": {
         "type": "nested",
         "properties": {
-          "data": {
-            "type": "nested",
-            "properties": {
-              "attributes": {
-                "type": "nested",
-                "properties": {
-
-                }
-              }
-            }
+          "properties": {
+            "type": "flattened",
+            "ignore_above":1000
           }
         }
       }
@@ -21,7 +14,6 @@
   },
   "settings":{
     "index":{
-      "index.mapping.total_fields.limit": 3000,
       "max_result_window":"50000000",
       "number_of_replicas": 0
     }

@@ -1,11 +1,14 @@
 package indexer
 
 import (
+	"encoding/json"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type Zrc6Indexer interface {
@@ -20,7 +23,6 @@ type zrc6Indexer struct {
 	nftRepo         repository.NftRepository
 	txRepo          repository.TransactionRepository
 	factory         factory.Zrc6Factory
-	metadataIndexer MetadataIndexer
 }
 
 func NewZrc6Indexer(
@@ -29,9 +31,8 @@ func NewZrc6Indexer(
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc6Factory,
-	metadataIndexer MetadataIndexer,
 ) Zrc6Indexer {
-	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo, factory, metadataIndexer}
+	return zrc6Indexer{elastic, contractRepo, nftRepo, txRepo, factory}
 }
 
 func (i zrc6Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -64,7 +65,7 @@ func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 	if !c.MatchesStandard(entity.ZRC6) {
 		return nil
 	}
-	zap.L().With(zap.String("contractAddr", c.Address), zap.String("txID", tx.ID)).Debug("Zrc6Indexer: Index ZRC6")
+	zap.L().With(zap.String("contract", c.Address), zap.String("txID", tx.ID)).Debug("Zrc6Indexer: Index ZRC6")
 
 	if err := i.mint(tx, c); err != nil {
 		return err
@@ -82,6 +83,12 @@ func (i zrc6Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 		return err
 	}
 	if err := i.batchBurn(tx, c); err != nil {
+		return err
+	}
+	if err := i.setTokenUri(tx, c); err != nil {
+		return err
+	}
+	if err := i.batchSetTokenUri(tx, c); err != nil {
 		return err
 	}
 
@@ -129,13 +136,11 @@ func (i zrc6Indexer) mint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
+		zap.L().With(zap.String("txId", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("Mint ZRC6")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc6Mint)
-
-		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
 	}
 
 	return nil
@@ -153,13 +158,12 @@ func (i zrc6Indexer) batchMint(tx entity.Transaction, c entity.Contract) error {
 	}
 
 	for idx := range nfts {
+		zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
 		if exists := i.nftRepo.Exists(nfts[idx].Contract, nfts[idx].TokenId); !exists {
-			zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nfts[idx].TokenId)).Info("BatchMint ZRC6")
 			i.elastic.AddIndexRequest(elastic_search.NftIndex.Get(), nfts[idx], elastic_search.Zrc6Mint)
 		}
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.Zrc6Mint)
-
-		i.metadataIndexer.TriggerMetadataRefresh(nfts[idx])
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateMintAction(nfts[idx]), elastic_search.NftAction)
+		i.elastic.BatchPersist()
 	}
 
 	return nil
@@ -175,7 +179,7 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 		c.BaseUri = baseUri.Value.Primitive.(string)
 
 		i.elastic.AddUpdateRequest(elastic_search.ContractIndex.Get(), c, elastic_search.ContractSetBaseUri)
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("blockNum", tx.BlockNum), zap.String("baseUri", c.BaseUri)).Info("Update Contract base uri")
+		zap.L().With(zap.String("contract", c.Address), zap.Uint64("blockNum", tx.BlockNum), zap.String("baseUri", c.BaseUri)).Info("Update Contract base uri")
 
 		size := 100
 		page := 1
@@ -190,6 +194,7 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 
 			for _, nft := range nfts {
 				nft.BaseUri = c.BaseUri
+				nft.Metadata.Uri = factory.GetMetadataUri(nft)
 				i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6SetBaseUri)
 			}
 
@@ -201,11 +206,99 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 	return nil
 }
 
+func (i zrc6Indexer) setTokenUri(tx entity.Transaction, c entity.Contract) error {
+	if !tx.HasTransition(string(entity.ZRC6SetTokenURICallback)) {
+		return nil
+	}
+	if tx.Data.Tag != "UpdateTokenUri" {
+		return nil
+	}
+
+	tokenId, err := tx.Data.Params.GetParam("token_id")
+	if err != nil {
+		zap.L().With(zap.String("contract", c.Address)).Error("Failed to get token_id_token_uri_pair_list from BatchUpdateTokenUri")
+		return nil
+	}
+
+	tokenUri, err := tx.Data.Params.GetParam("new_uri")
+	if err != nil {
+		zap.L().With(zap.String("contract", c.Address)).Error("Failed to get token_id_token_uri_pair_list from BatchUpdateTokenUri")
+		return nil
+	}
+
+	tokenIdInt, err := strconv.Atoi(tokenId.Value.Primitive.(string))
+	if err != nil {
+		return nil
+	}
+
+	nft, err := i.nftRepo.GetNft(c.Address, uint64(tokenIdInt))
+	if err != nil {
+		return nil
+	}
+	nft.TokenUri = tokenUri.Value.Primitive.(string)
+
+	zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Update token URI")
+	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6SetTokenUri)
+
+	return nil
+}
+
+func (i zrc6Indexer) batchSetTokenUri(tx entity.Transaction, c entity.Contract) error {
+	if !tx.HasTransition(string(entity.ZRC6BatchSetTokenURICallback)) {
+		return nil
+	}
+	if tx.Data.Tag != "BatchUpdateTokenUri" {
+		return nil
+	}
+
+	type TokenIdTokenUriPairList struct {
+		ArgTypes  []string `json:"argtypes"`
+		Arguments []string `json:"arguments"`
+		Constructor string `json:"constructor"`
+	}
+
+	data, err := tx.Data.Params.GetParam("token_id_token_uri_pair_list")
+	if err != nil {
+		zap.L().With(zap.String("contract", c.Address)).Error("Failed to get token_id_token_uri_pair_list from BatchUpdateTokenUri")
+		return nil
+	}
+
+	var tokenIdTokenUriPairList []TokenIdTokenUriPairList
+	if err := json.Unmarshal([]byte(data.Value.Primitive.(string)), &tokenIdTokenUriPairList); err != nil {
+		zap.L().With(zap.String("contract", c.Address)).Error("Failed to unmarshall token_id_token_uri_pair_list from BatchUpdateTokenUri")
+	}
+
+	for _, tokenIdTokenUriPair := range tokenIdTokenUriPairList {
+		tokenId, err := strconv.Atoi(tokenIdTokenUriPair.Arguments[0])
+		if err != nil {
+			continue
+		}
+		nft, err := i.nftRepo.GetNft(c.Address, uint64(tokenId))
+		if err != nil {
+			continue
+		}
+		nft.TokenUri = tokenIdTokenUriPair.Arguments[1]
+		nft.Metadata.Uri = factory.GetMetadataUri(*nft)
+		nft.Metadata.IsIpfs = helper.IsIpfs(nft.Metadata.Uri)
+		nft.Metadata.Status = entity.MetadataPending
+		nft.Metadata.Error = ""
+
+		zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId), zap.String("tokenUri", nft.TokenUri)).Info("Update token URI")
+		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6SetTokenUri)
+	}
+
+	return nil
+}
+
 func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
+	if tx.IsMarketplaceTx() {
+		return nil
+	}
+
 	for _, event := range tx.GetEventLogs(entity.ZRC6TransferFromEvent) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address)).
+			zap.L().With(zap.Error(err), zap.String("contract", c.Address)).
 				Warn("Failed to get token id for zrc6:transfer")
 			continue
 		}
@@ -221,19 +314,24 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			zap.L().With(
 				zap.Error(err),
 				zap.String("txId", tx.ID),
-				zap.String("contractAddr", c.Address),
+				zap.String("contract", c.Address),
 				zap.Uint64("tokenId", tokenId),
-			).Error("Failed to find nft in index")
+			).Error("Failed to find zrc6 nft in index")
 			continue
 		}
 
-		prevOwner := nft.Owner
+		prevOwner, err := event.Params.GetParam("from")
+		if err != nil {
+			zap.L().With(zap.Error(err), zap.String("txID", tx.ID), zap.String("contract", c.Address)).Error("Failed to get zrc1:from for transfer")
+			return err
+		}
+
 		nft.Owner = to.Value.Primitive.(string)
 
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC6")
+		zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC6")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Transfer)
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, prevOwner), elastic_search.Zrc6Transfer)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, nft.Owner, prevOwner.Value.String()), elastic_search.Zrc6Transfer)
 	}
 
 	return nil
@@ -243,7 +341,7 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 	for _, event := range tx.GetEventLogs(entity.ZRC6BurnEvent) {
 		tokenId, err := factory.GetTokenId(event.Params)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("contractAddr", c.Address)).
+			zap.L().With(zap.Error(err), zap.String("contract", c.Address)).
 				Warn("Failed to get token id for zrc6:transfer")
 			continue
 		}
@@ -253,18 +351,18 @@ func (i zrc6Indexer) burn(tx entity.Transaction, c entity.Contract) error {
 			zap.L().With(
 				zap.Error(err),
 				zap.String("txId", tx.ID),
-				zap.String("contractAddr", c.Address),
+				zap.String("contract", c.Address),
 				zap.Uint64("tokenId", tokenId),
-			).Error("Failed to find nft in index")
+			).Error("Failed to find zrc6 nft in index")
 			continue
 		}
 
 		nft.BurnedAt = tx.BlockNum
 
-		zap.L().With(zap.String("contractAddr", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Burn ZRC6")
+		zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Burn ZRC6")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6Burn)
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft), elastic_search.Zrc6Burn)
+		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateBurnAction(*nft, tx), elastic_search.Zrc6Burn)
 	}
 
 	return nil

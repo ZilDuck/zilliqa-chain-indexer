@@ -5,24 +5,25 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"go.uber.org/zap"
+	"time"
 )
 
-func GetMetadata(nft entity.Nft) entity.Metadata {
-	uri := getMetadataUri(nft)
+func GetMetadata(nft entity.Nft) *entity.Metadata {
+	uri := GetMetadataUri(nft)
 
-	if ipfs := helper.GetIpfs(uri); ipfs != nil {
-		return entity.Metadata{Uri: *ipfs, Ipfs: true}
+	if ipfs := helper.GetIpfs(uri, nil); ipfs != nil {
+		return &entity.Metadata{Uri: *ipfs, IsIpfs: true, Status: entity.MetadataPending, CreatedAt: time.Now()}
 	}
 
 	if !helper.IsUrl(uri) {
-		zap.L().With(zap.String("uri", uri), zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Warn("invalid metadata uri")
-		return entity.Metadata{Error: "invalid metadata uri"}
+		zap.L().With(zap.String("uri", uri), zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Warn("invalid uri")
+		return &entity.Metadata{Uri: uri, Error: "invalid uri", Status: entity.MetadataFailure, CreatedAt: time.Now()}
 	}
 
-	return entity.Metadata{Uri: uri, Ipfs: false}
+	return &entity.Metadata{Uri: uri, IsIpfs: false, Status: entity.MetadataPending, CreatedAt: time.Now()}
 }
 
-func getMetadataUri(nft entity.Nft) string {
+func GetMetadataUri(nft entity.Nft) string {
 	var uri string
 	if nft.Zrc6 {
 		if nft.TokenUri != "" {

@@ -27,9 +27,12 @@ type NftRepository interface {
 	GetAllNfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc1Nfts(size, page int) ([]entity.Nft, int64, error)
 	GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, error)
+	GetMetadata(size, page int, status entity.MetadataStatus, error string) ([]entity.Nft, int64, error)
 	GetIpfsMetadata(size, page int) ([]entity.Nft, int64, error)
 	ResetMetadata(nft entity.Nft) error
 	GetBestBlockNum() (uint64, error)
+	PurgeActions(contractAddr string) error
+	PurgeContract(contractAddr string) error
 }
 
 type nftRepository struct {
@@ -41,8 +44,20 @@ func NewNftRepository(elastic elastic_search.Index) NftRepository {
 }
 
 func (r nftRepository) Exists(contract string, tokenId uint64) bool {
-	_, err := r.getNft(contract, tokenId, MaxRetries)
-	return err == nil
+	query := elastic.NewBoolQuery().Must(
+		elastic.NewTermQuery("contract.keyword", contract),
+		elastic.NewTermQuery("tokenId", tokenId),
+	)
+
+	result, err := count(r.elastic.GetClient().
+		Count(elastic_search.NftIndex.Get()).
+		Query(query))
+
+	if err != nil {
+		return false
+	}
+
+	return result != 0
 }
 
 func (r nftRepository) GetNft(contract string, tokenId uint64) (*entity.Nft, error) {
@@ -68,11 +83,11 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 
 	nft, err := r.findOne(result, err)
 	if err != nil {
-		if attempt == MaxRetries {
-			return nft, err
+		if attempt == -1 || attempt == MaxRetries {
+			return nil, err
 		}
-		zap.S().Warnf("Failed to find NFT in repo. retry(%d)", attempt)
-		time.Sleep(1 * time.Second)
+		zap.S().With(zap.String("contract", contract), zap.Uint64("tokenId", tokenId)).Errorf("Failed to find NFT in repo. retry(%d)", attempt)
+		time.Sleep(time.Second * 1)
 		return r.getNft(contract, tokenId, attempt+1)
 	}
 
@@ -121,7 +136,7 @@ func (r nftRepository) GetAllNfts(size, page int) ([]entity.Nft, int64, error) {
 	result, err := search(r.elastic.GetClient().
 		Search(elastic_search.NftIndex.Get()).
 		Size(size).
-		Sort("tokenId", true).
+		Sort("blockNum", false).
 		From(from).
 		TrackTotalHits(true))
 
@@ -163,6 +178,27 @@ func (r nftRepository) GetAllZrc6Nfts(size, page int) ([]entity.Nft, int64, erro
 
 	return r.findMany(result, err)
 }
+func (r nftRepository) GetMetadata(size, page int, status entity.MetadataStatus, error string) ([]entity.Nft, int64, error) {
+	queries := []elastic.Query{
+		elastic.NewTermQuery("metadata.status.keyword", status),
+	}
+	if error != "" {
+		queries = append(queries, elastic.NewTermQuery("metadata.error.keyword", error))
+	}
+	query := elastic.NewBoolQuery().Must(queries...)
+
+	from := size*page - size
+
+	result, err := search(r.elastic.GetClient().
+		Search(elastic_search.NftIndex.Get()).
+		Query(elastic.NewNestedQuery("metadata", query)).
+		Size(size).
+		Sort("metadata.attempts", true).
+		From(from).
+		TrackTotalHits(true))
+
+	return r.findMany(result, err)
+}
 
 func (r nftRepository) GetBestTokenId(contractAddr string, blockNum uint64) (uint64, error) {
 	query := elastic.NewBoolQuery().Must(
@@ -196,7 +232,7 @@ func (r nftRepository) ResetMetadata(nft entity.Nft) error {
 	_, err := r.elastic.GetClient().
 		UpdateByQuery(elastic_search.NftIndex.Get()).
 		Query(query).
-		Script(elastic.NewScript("ctx._source.metadata.remove(\"data\")")).
+		Script(elastic.NewScript("ctx._source.metadata.remove(\"properties\")")).
 		Do(context.Background())
 
 	return err
@@ -214,6 +250,50 @@ func (r nftRepository) GetBestBlockNum() (uint64, error) {
 	}
 
 	return nft.BlockNum, nil
+}
+
+func (r nftRepository) PurgeActions(contractAddr string) error {
+	zap.L().With(zap.String("contract", contractAddr)).Info("Purge actions for contract")
+
+	_, err := r.elastic.GetClient().
+		DeleteByQuery(elastic_search.NftActionIndex.Get()).
+		Query(elastic.NewTermsQuery("contract.keyword", contractAddr)).
+		Do(context.Background())
+
+	if err != nil {
+		zap.L().With(zap.Error(err), zap.String("contract", contractAddr)).Error("Failed to purge nft actions")
+	}
+
+	return err
+}
+
+func (r nftRepository) PurgeContract(contractAddr string) error {
+	zap.L().With(zap.String("contract", contractAddr)).Info("Purge contract")
+
+	_, err := r.elastic.GetClient().
+		DeleteByQuery(elastic_search.NftIndex.Get()).
+		WaitForCompletion(true).
+		Query(elastic.NewTermsQuery("contract.keyword", contractAddr)).
+		Do(context.Background())
+	if err != nil {
+		zap.L().With(zap.Error(err), zap.String("contract", contractAddr)).Error("Failed to purge contract")
+		return err
+	}
+
+	return r.validatePurgeContractComplete(contractAddr)
+}
+
+func (r nftRepository) validatePurgeContractComplete(contractAddr string) error {
+	zap.L().With(zap.String("contract", contractAddr)).Debug("validatePurgeContractComplete")
+	_, total, err := r.GetNfts(contractAddr, 1, 1)
+	if err != nil {
+		return err
+	}
+	if total != 0 {
+		time.Sleep(1 * time.Second)
+		return r.validatePurgeContractComplete(contractAddr)
+	}
+	return nil
 }
 
 func (r nftRepository) findOne(results *elastic.SearchResult, err error) (*entity.Nft, error) {

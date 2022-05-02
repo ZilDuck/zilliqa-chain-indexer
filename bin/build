@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -e
+
+./bin/auth
+
+go run ./cmd/internal/injectDependencies/main.go ./generated
+
+if [ $# -eq 0 ]
+  then
+    tag="latest"
+  else
+    tag=$1
+fi
+
+echo "Using tag $tag"
+
+docker build . -t 465700395685.dkr.ecr.eu-west-1.amazonaws.com/indexer/indexer:$tag
+docker push 465700395685.dkr.ecr.eu-west-1.amazonaws.com/indexer/indexer:$tag

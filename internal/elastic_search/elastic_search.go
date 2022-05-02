@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/event"
 	"github.com/olivere/elastic/v7"
 	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
@@ -31,9 +32,6 @@ type Index interface {
 	Save(index string, entity entity.Entity)
 	BatchPersist() bool
 	Persist() int
-
-	DeleteByID(id string, index string)
-	DeleteBlockNumGT(height uint64, indices ...string) error
 }
 
 type index struct {
@@ -70,13 +68,14 @@ const (
 	Zrc1Transfer         RequestAction = "Zrc1Transfer"
 	Zrc1Burn             RequestAction = "Zrc1Burn"
 
-	Zrc6Mint       RequestAction = "Zrc6Mint"
-	Zrc6SetBaseUri RequestAction = "Zrc6SetBaseUri"
-	Zrc6Transfer   RequestAction = "Zrc6Transfer"
-	Zrc6Burn       RequestAction = "Zrc6Burn"
+	Zrc6Mint        RequestAction = "Zrc6Mint"
+	Zrc6SetBaseUri  RequestAction = "Zrc6SetBaseUri"
+	Zrc6SetTokenUri RequestAction = "Zrc6SetTokenUri"
+	Zrc6Transfer    RequestAction = "Zrc6Transfer"
+	Zrc6Burn        RequestAction = "Zrc6Burn"
 
-	NftMetadata   RequestAction = "NftMetadata"
-	NftAsset      RequestAction = "NftAsset"
+	NftMetadata RequestAction = "NftMetadata"
+	NftAction   RequestAction = "NftAction"
 )
 
 const saveAttempts int = 3
@@ -330,40 +329,37 @@ func (i index) persist(bulk *elastic.BulkService) {
 		}
 	}
 
-	if response.Errors == true {
+	if len(response.Failed()) != 0 {
 		for _, failed := range response.Failed() {
 			zap.L().With(
 				zap.Any("error", failed.Error),
 				zap.String("index", failed.Index),
 				zap.String("id", failed.Id),
-			).Fatal("ElasticCache: Failed to persist requests")
+			).Error("ElasticCache: Failed to persist request. Retying...")
+
+			i.Save(failed.Index, i.GetRequest(failed.Id).Entity)
+		}
+	}
+
+	i.flush()
+}
+
+func (i index) flush() {
+	for _, req := range i.GetRequests() {
+		if req.Action == Zrc1Mint || req.Action == Zrc1DuckRegeneration || req.Action == Zrc6Mint {
+			event.EmitEvent(event.NftMintedEvent, req.Entity)
+		}
+		if req.Action == Zrc6SetBaseUri {
+			event.EmitEvent(event.ContractBaseUriUpdatedEvent, req.Entity)
+		}
+		if req.Action == Zrc6SetTokenUri {
+			event.EmitEvent(event.TokenUriUpdatedEvent, req.Entity)
+		}
+		if req.Action == NftMetadata {
+			event.EmitEvent(event.MetadataRefreshedEvent, req.Entity)
 		}
 	}
 
 	zap.L().Debug("ElasticCache: Flushing ES cache")
 	i.cache.Flush()
-}
-
-func (i index) DeleteByID(id string, index string) {
-	i.client.Delete().Index(index).Id(id).Do(context.Background())
-	i.client.Flush(index)
-
-	zap.S().Infof("Deleted %s from index %s", id, index)
-}
-
-func (i index) DeleteBlockNumGT(height uint64, indices ...string) error {
-	_, err := i.client.DeleteByQuery(indices...).
-		Query(elastic.NewRangeQuery("BlockNum").Gt(height)).
-		Do(context.Background())
-
-	if err != nil {
-		zap.S().With(zap.Error(err)).Fatalf("Could not rewind to %d", height)
-		return err
-	}
-
-	i.client.Flush(indices...)
-
-	zap.S().Infof("Deleted height greater than %d", height)
-
-	return nil
 }
