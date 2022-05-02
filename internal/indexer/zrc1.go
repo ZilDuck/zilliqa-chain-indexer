@@ -1,12 +1,15 @@
 package indexer
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/helper"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type Zrc1Indexer interface {
@@ -16,21 +19,23 @@ type Zrc1Indexer interface {
 }
 
 type zrc1Indexer struct {
-	elastic         elastic_search.Index
-	contractRepo    repository.ContractRepository
-	nftRepo         repository.NftRepository
-	txRepo          repository.TransactionRepository
-	factory         factory.Zrc1Factory
+	elastic           elastic_search.Index
+	contractRepo      repository.ContractRepository
+	contractStateRepo repository.ContractStateRepository
+	nftRepo           repository.NftRepository
+	txRepo            repository.TransactionRepository
+	factory           factory.Zrc1Factory
 }
 
 func NewZrc1Indexer(
 	elastic elastic_search.Index,
 	contractRepo repository.ContractRepository,
+	contractStateRepo repository.ContractStateRepository,
 	nftRepo repository.NftRepository,
 	txRepo repository.TransactionRepository,
 	factory factory.Zrc1Factory,
 ) Zrc1Indexer {
-	return zrc1Indexer{elastic, contractRepo, nftRepo, txRepo, factory}
+	return zrc1Indexer{elastic, contractRepo, contractStateRepo, nftRepo, txRepo, factory}
 }
 
 func (i zrc1Indexer) IndexTxs(txs []entity.Transaction) error {
@@ -74,6 +79,9 @@ func (i zrc1Indexer) IndexTx(tx entity.Transaction, c entity.Contract) error {
 		return err
 	}
 	if err := i.duckRegeneration(tx, c); err != nil {
+		return err
+	}
+	if err := i.updateTokenUris(tx, c); err != nil {
 		return err
 	}
 	if err := i.transferFrom(tx, c); err != nil {
@@ -172,6 +180,55 @@ func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) 
 
 		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Regenerate NFD")
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1DuckRegeneration)
+	}
+
+	return nil
+}
+
+func (i zrc1Indexer) updateTokenUris(tx entity.Transaction, c entity.Contract) error {
+
+	for _, event := range tx.GetEventLogs(entity.ZRC1MorphTokenURIsUpdated) {
+		tokenIdsParam, err := event.Params.GetParam("token_ids")
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to get token_ids from ZRC1MorphTokenURIsUpdated")
+			continue
+		}
+		var tokenIds []string
+
+		err = json.Unmarshal([]byte(tokenIdsParam.Value.String()), &tokenIds)
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to unmarshal token_ids from ZRC1MorphTokenURIsUpdated")
+			continue
+		}
+
+		state, err := i.contractStateRepo.GetStateByAddress(c.Address)
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Failed to get contract state from ZRC1MorphTokenURIsUpdated")
+			continue
+		}
+		baseUri, exists := state.GetElement("base_uri")
+		if !exists {
+			zap.L().With(zap.Error(err)).Error("Failed to get baseUri from ZRC1MorphTokenURIsUpdated")
+			continue
+		}
+
+		for _, tokenIdString := range tokenIds {
+			tokenId, err := strconv.ParseUint(tokenIdString, 10, 64)
+			if err != nil {
+				zap.L().With(zap.Error(err), zap.String("tokenId", tokenIdString)).Error("Failed to parse token_id from ZRC1MorphTokenURIsUpdated")
+				continue
+			}
+			nft, err := i.nftRepo.GetNft(c.Address, tokenId)
+			if err != nil {
+				zap.L().With(zap.Error(err), zap.Uint64("tokenId", tokenId)).Error("Failed to find nft from ZRC1MorphTokenURIsUpdated")
+				continue
+			}
+
+			nft.TokenUri = fmt.Sprintf("%s%d", baseUri, tokenId)
+
+			zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Update Token Uri")
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1UpdateTokenUri)
+		}
 	}
 
 	return nil

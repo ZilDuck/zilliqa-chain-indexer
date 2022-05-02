@@ -52,11 +52,12 @@ type ContractTransitionArgument struct {
 type Event string
 
 const (
-	ZRC1MintEvent         Event = "MintSuccess"
-	ZRC1UnicutesMintEvent Event = "UnicuteInsertDrandValues"
-	ZRC1TransferEvent     Event = "TransferSuccess"
-	ZRC1TransferFromEvent Event = "TransferFromSuccess"
-	ZRC1BurnEvent         Event = "BurnSuccess"
+	ZRC1MintEvent             Event = "MintSuccess"
+	ZRC1UnicutesMintEvent     Event = "UnicuteInsertDrandValues"
+	ZRC1TransferEvent         Event = "TransferSuccess"
+	ZRC1TransferFromEvent     Event = "TransferFromSuccess"
+	ZRC1BurnEvent             Event = "BurnSuccess"
+	ZRC1MorphTokenURIsUpdated Event = "TokenURIsUpdated"
 
 	ZRC6MintEvent         Event = "Mint"
 	ZRC6BatchMintEvent    Event = "BatchMint"

@@ -136,11 +136,12 @@ var Definitions = []dingo.Def{
 		Build: func(
 			elastic elastic_search.Index,
 			contractRepo repository.ContractRepository,
+			contractStateRepo repository.ContractStateRepository,
 			nftRepo repository.NftRepository,
 			txRepo repository.TransactionRepository,
 			factory factory.Zrc1Factory,
 		) (indexer.Zrc1Indexer, error) {
-			return indexer.NewZrc1Indexer(elastic, contractRepo, nftRepo, txRepo, factory), nil
+			return indexer.NewZrc1Indexer(elastic, contractRepo, contractStateRepo, nftRepo, txRepo, factory), nil
 		},
 	},
 	{
