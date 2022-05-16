@@ -75,8 +75,26 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 		return nil, err
 	}
 
-	properties, _, err := i.metadataService.FetchMetadata(*nft)
+	properties, mimeType, err := i.metadataService.FetchMetadata(*nft)
 	if err != nil {
+		if err == metadata.ErrInvalidContent {
+			if len(mimeType) > 5 && mimeType[:5] == "image" {
+				nft.HasMetadata = false
+				nft.Metadata = nil
+				if helper.IsIpfs(nft.TokenUri) {
+					nft.AssetUri = *helper.GetIpfs(nft.TokenUri, nil)
+				} else {
+					nft.AssetUri = nft.TokenUri
+				}
+
+				nft.Metadata.UpdatedAt = time.Now()
+				i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
+				i.elastic.BatchPersist()
+
+				return nft, nil
+			}
+		}
+
 		if err == metadata.ErrNoSuchHost ||
 			err == metadata.ErrNotFound ||
 			err == metadata.ErrBadRequest ||
