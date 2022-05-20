@@ -30,6 +30,7 @@ jobs:
       - name: Setup Helm Chart
         run: |
           mv /home/runner/work/zilliqa-chain-indexer/automation/deployments/zildexr .
+          ls .
           bash ./bin/symlink
 
       - name: Deploy the Indexer
