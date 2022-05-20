@@ -87,7 +87,6 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 					nft.AssetUri = nft.TokenUri
 				}
 
-				nft.Metadata.UpdatedAt = time.Now()
 				i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftMetadata)
 				i.elastic.BatchPersist()
 
