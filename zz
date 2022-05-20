@@ -1,6 +1,0 @@
-#!/usr/bin/env bash
-set -e
-
-go run cmd/internal/importContracts/main.go $1
-go run cmd/internal/importNfts/main.go $1
-go run cmd/cli/main.go marketplace
