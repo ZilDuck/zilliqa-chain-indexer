@@ -23,13 +23,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
         with:
-          repository: ZilDuck/indexer-automation
+          repository: ZilDuck/automation
           ref:        master
           token:      ${{ secrets.ACCESS_TOKEN }}
 
       - name: Setup Helm Chart
         run: |
-          mv /home/runner/work/indexer-api/indexer-automation/deployments/zildexr .
+          mv /home/runner/work/zilliqa-chain-indexer/automation/deployments/zildexr .
           bash ./bin/symlink
 
       - name: Deploy the Indexer
