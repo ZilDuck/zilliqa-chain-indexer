@@ -9,6 +9,7 @@ COPY . .
 RUN go env CGO_ENABLED
 RUN go mod download -x
 RUN go mod verify
+RUN go run ./cmd/internal/injectDependencies/main.go ./generated
 
 RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/cli         ./cmd/cli
 RUN GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o /go/bin/indexerd    ./cmd/indexerd

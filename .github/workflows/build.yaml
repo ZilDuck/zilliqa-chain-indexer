@@ -1,0 +1,67 @@
+name: Build
+
+on:
+  pull_request:
+    branches: [master]
+  push:
+    branches: [master]
+
+env:
+  IMAGE_TAG: ${{ github.sha }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@aaf69d68aa3fb14c1d5a6be9ac61fe15b48453a2
+
+      - name: Get previous tag
+        id: previousTag
+        uses: WyriHaximus/github-action-get-previous-tag@v1
+        with:
+          fallback: 0.0.0
+
+      - name: Get next semantic version
+        id: semVars
+        uses: WyriHaximus/github-action-next-semvers@v1
+        with:
+          version: ${{ steps.previousTag.outputs.tag }}
+
+      - name: Set commit tag
+        id: commitTag
+        run: |
+          [[ "${{ github.event_name }}" = "pull_request" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}-$(git rev-parse --short HEAD)" || true
+          [[ "${{ github.event_name }}" = "push" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}" || true
+
+      - name: Build Docker image
+        run: ./bin/build ${{ steps.commitTag.outputs.tag }}
+
+      - name: Create a GitHub release
+        if: github.event_name == 'push'
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.semVars.outputs.patch }}
+          name: Release ${{ steps.semVars.outputs.v_patch }}
+          token: ${{ secrets.ACCESS_TOKEN }}
+
+      - name: Deploy testnet
+        run: |
+          curl \
+            -X POST \
+            -H "Accept: application/vnd.github.v3+json" \
+            -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}" \
+            https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yaml/dispatches \
+            -d '{"ref":"master", "inputs":{"environment":"testnet", "tag":"${{ steps.commitTag.outputs.tag }}"}}'
