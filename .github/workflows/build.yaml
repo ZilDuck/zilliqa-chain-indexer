@@ -46,7 +46,7 @@ jobs:
           [[ "${{ github.event_name }}" = "pull_request" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}-$(git rev-parse --short HEAD)" || true
           [[ "${{ github.event_name }}" = "push" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}" || true
 
-      - name: Build API Docker image
+      - name: Build Docker image
         run: ./bin/build ${{ steps.commitTag.outputs.tag }}
 
       - name: Create a GitHub release
