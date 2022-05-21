@@ -46,5 +46,5 @@ jobs:
       - name: Deploy Metadata
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install assets ./indexer/metadata -f ./indexer/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install metadata ./indexer/metadata -f ./indexer/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
