@@ -34,17 +34,17 @@ jobs:
       - name: Deploy Indexer
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install indexer ./indexer/indexer -f ./indexer/indexer/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install indexer ./indexer -f ./config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
 
       - name: Deploy Asset Server
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install assets ./indexer/assets -f ./indexer/assets/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install assets ./assets -f ./config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
 
       - name: Deploy Metadata
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install assets ./indexer/metadata -f ./indexer/metadata/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install assets ./metadata -f ./config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
