@@ -20,7 +20,7 @@ import (
 type MetadataIndexer interface {
 	TriggerMetadataRefresh(el interface{})
 	RefreshMetadata(contractAddr string, tokenId uint64) (*entity.Nft, error)
-	RefreshByStatus(status entity.MetadataStatus, metadataError string) error
+	RefreshByStatus(status entity.MetadataStatus) error
 }
 
 type metadataIndexer struct {
@@ -156,12 +156,12 @@ func (i metadataIndexer) RefreshMetadata(contractAddr string, tokenId uint64) (*
 	return nft, nil
 }
 
-func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus, metadataError string) error {
+func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus) error {
 	size := 100
 	page := 1
 
 	for {
-		nfts, total, err := i.nftRepo.GetMetadata(size, page, status, metadataError)
+		nfts, total, err := i.nftRepo.GetMetadata(size, page, status)
 		if err != nil || len(nfts) == 0 {
 			break
 		}
@@ -170,11 +170,7 @@ func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus, metadataE
 		}
 
 		for _, nft := range nfts {
-			if metadataError != "" && metadataError != nft.Metadata.Error {
-				continue
-			}
-
-			if nft.Metadata.Attempts == 0 || rand.Intn(nft.Metadata.Attempts) == 0 {
+			if nft.Metadata.Attempts == 0 || rand.Intn(nft.Metadata.Attempts+1) == 0 {
 				i.TriggerMetadataRefresh(nft)
 			}
 		}
