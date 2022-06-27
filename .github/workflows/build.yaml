@@ -5,6 +5,7 @@ on:
     branches: [master]
   push:
     branches: [master]
+  workflow_dispatch:
 
 env:
   IMAGE_TAG: ${{ github.sha }}
@@ -45,6 +46,7 @@ jobs:
         run: |
           [[ "${{ github.event_name }}" = "pull_request" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}-$(git rev-parse --short HEAD)" || true
           [[ "${{ github.event_name }}" = "push" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}" || true
+          [[ "${{ github.event_name }}" = "workflow_dispatch" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}" || true
 
       - name: Build Docker image
         run: ./bin/build ${{ steps.commitTag.outputs.tag }}

@@ -100,12 +100,12 @@ func processMetadata(c *cli.Context) error {
 		return nil
 	}
 
-	if err := metadataIndexer.RefreshByStatus(entity.MetadataPending, ""); err != nil {
+	if err := metadataIndexer.RefreshByStatus(entity.MetadataPending); err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Failed to process pending metadata")
 		return err
 	}
 
-	if err := metadataIndexer.RefreshByStatus(entity.MetadataFailure, "timeout"); err != nil {
+	if err := metadataIndexer.RefreshByStatus(entity.MetadataFailure); err != nil {
 		zap.L().With(zap.Error(err)).Fatal("Failed to process pending metadata")
 		return err
 	}
