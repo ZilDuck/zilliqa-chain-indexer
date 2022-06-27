@@ -158,16 +158,16 @@ func (f MintableMarketplaceFactory) CreateSale(tx entity.Transaction) (*entity.M
 	}
 
 	return &entity.MarketplaceSale{
-		Marketplace:  entity.MintableMarketplace,
-		Tx:           tx,
-		Nft:          *nft,
-		Buyer:        buyer.Value.String(),
-		Seller:       seller,
-		Cost:         tx.Amount,
-		Fee:          fmt.Sprintf("%d", fee),
-		Royalty:      "0",
-		RoyaltyBps:   "0",
-		Fungible:     "ZIL",
+		Marketplace: entity.MintableMarketplace,
+		Tx:          tx,
+		Nft:         *nft,
+		Buyer:       buyer.Value.String(),
+		Seller:      seller,
+		Cost:        tx.Amount,
+		Fee:         fee,
+		Royalty:     "0",
+		RoyaltyBps:  "0",
+		Fungible:    "ZIL",
 	}, nil
 }
 
