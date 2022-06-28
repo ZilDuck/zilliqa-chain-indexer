@@ -8,6 +8,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"io/ioutil"
 	"net/http"
 	"strconv"
 )
@@ -41,7 +42,16 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 	nft, err := s.nftRepo.GetNft(contractAddr, tokenId)
 	if err != nil {
 		zap.L().With(zap.Error(err)).Warn("NFT not available")
-		http.Error(w, "NFT not available", http.StatusNotFound)
+
+		data, err := ioutil.ReadFile("static/missing-asset.png")
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Preview image not available")
+			http.Error(w, "NFT not available", http.StatusNotFound)
+		}
+		w.WriteHeader(404)
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = fmt.Fprint(w, string(data[:]))
+		//http.Error(w, "NFT not available", http.StatusNotFound)
 		return
 	}
 
