@@ -170,6 +170,11 @@ func (i metadataIndexer) RefreshByStatus(status entity.MetadataStatus) error {
 		}
 
 		for _, nft := range nfts {
+			if nft.Contract == "0x3fe64e8b3e9e110db331b32ea26e191c07f14f80" ||
+				nft.Contract == "0x32e4df3cd46c30862b0a30cdb187045b11ee8753" ||
+				nft.Contract == "0x821aea19180b0868f22301147f0c28204283d167" {
+				continue
+			}
 			if nft.Metadata.Attempts == 0 || rand.Intn(nft.Metadata.Attempts+1) == 0 {
 				i.TriggerMetadataRefresh(nft)
 			}
