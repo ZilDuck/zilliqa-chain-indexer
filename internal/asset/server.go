@@ -46,12 +46,10 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 		data, err := ioutil.ReadFile("static/missing-asset.png")
 		if err != nil {
 			zap.L().With(zap.Error(err)).Error("Preview image not available")
-			http.Error(w, "NFT not available", http.StatusNotFound)
 		}
 		w.WriteHeader(404)
 		w.Header().Set("Content-Type", "image/png")
 		_, _ = fmt.Fprint(w, string(data[:]))
-		//http.Error(w, "NFT not available", http.StatusNotFound)
 		return
 	}
 
