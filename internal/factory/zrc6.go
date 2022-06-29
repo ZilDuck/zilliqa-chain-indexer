@@ -28,11 +28,14 @@ type toTokenUri struct {
 	Constructor string      `json:"constructor,omitempty"`
 }
 
-
 func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) ([]entity.Nft, error) {
 	nfts := make([]entity.Nft, 0)
 
 	for _, event := range tx.GetEventLogs(entity.ZRC6MintEvent) {
+		if event.Address != c.Address {
+			continue
+		}
+
 		name, _ := c.Data.Params.GetParam("name")
 		symbol, _ := c.Data.Params.GetParam("symbol")
 
@@ -49,16 +52,16 @@ func (f zrc6Factory) CreateFromMintTx(tx entity.Transaction, c entity.Contract) 
 		tokenUri, _ := getNftTokenUri(event.Params, tx)
 
 		nft := entity.Nft{
-			Contract:  c.Address,
-			TxID:      tx.ID,
-			BlockNum:  tx.BlockNum,
-			Name:      name.Value.Primitive.(string),
-			Symbol:    symbol.Value.Primitive.(string),
-			TokenId:   tokenId,
-			BaseUri:   c.BaseUri,
-			TokenUri:  tokenUri,
-			Owner:     strings.ToLower(to),
-			Zrc6:      true,
+			Contract: c.Address,
+			TxID:     tx.ID,
+			BlockNum: tx.BlockNum,
+			Name:     name.Value.Primitive.(string),
+			Symbol:   symbol.Value.Primitive.(string),
+			TokenId:  tokenId,
+			BaseUri:  c.BaseUri,
+			TokenUri: tokenUri,
+			Owner:    strings.ToLower(to),
+			Zrc6:     true,
 		}
 
 		if f.contractHasMetadata(c) {
