@@ -116,8 +116,8 @@ func (i zrc1Indexer) IndexContract(c entity.Contract) error {
 
 		for _, tx := range txs {
 			if err := i.IndexTx(tx, c); err != nil {
-					return err
-				}
+				return err
+			}
 		}
 		i.elastic.BatchPersist()
 		page++
@@ -177,7 +177,6 @@ func (i zrc1Indexer) duckRegeneration(tx entity.Transaction, c entity.Contract) 
 		nft.TokenUri = newDuckMetaData.Value.String()
 		nft.Metadata = factory.GetMetadata(*nft)
 
-
 		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Regenerate NFD")
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1DuckRegeneration)
 	}
@@ -224,9 +223,16 @@ func (i zrc1Indexer) updateTokenUris(tx entity.Transaction, c entity.Contract) e
 				continue
 			}
 
+			oldTokenUri := nft.TokenUri
 			nft.TokenUri = fmt.Sprintf("%s%d", baseUri, tokenId)
+			nft.Metadata.Uri = factory.GetMetadataUri(*nft)
 
-			zap.L().With(zap.String("txID", tx.ID), zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Update Token Uri")
+			zap.L().With(
+				zap.String("contract", c.Address),
+				zap.Uint64("tokenId", nft.TokenId),
+				zap.String("from", oldTokenUri),
+				zap.String("to", nft.TokenUri),
+			).Info("Update token URI")
 			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1UpdateTokenUri)
 		}
 	}

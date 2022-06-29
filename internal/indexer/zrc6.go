@@ -18,11 +18,11 @@ type Zrc6Indexer interface {
 }
 
 type zrc6Indexer struct {
-	elastic         elastic_search.Index
-	contractRepo    repository.ContractRepository
-	nftRepo         repository.NftRepository
-	txRepo          repository.TransactionRepository
-	factory         factory.Zrc6Factory
+	elastic      elastic_search.Index
+	contractRepo repository.ContractRepository
+	nftRepo      repository.NftRepository
+	txRepo       repository.TransactionRepository
+	factory      factory.Zrc6Factory
 }
 
 func NewZrc6Indexer(
@@ -235,9 +235,16 @@ func (i zrc6Indexer) setTokenUri(tx entity.Transaction, c entity.Contract) error
 	if err != nil {
 		return nil
 	}
+	oldTokenUri := nft.TokenUri
 	nft.TokenUri = tokenUri.Value.Primitive.(string)
+	nft.Metadata.Uri = factory.GetMetadataUri(*nft)
 
-	zap.L().With(zap.String("contract", c.Address), zap.Uint64("tokenId", nft.TokenId)).Info("Update token URI")
+	zap.L().With(
+		zap.String("contract", c.Address),
+		zap.Uint64("tokenId", nft.TokenId),
+		zap.String("from", oldTokenUri),
+		zap.String("to", nft.TokenUri),
+	).Info("Update token URI")
 	i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc6SetTokenUri)
 
 	return nil
@@ -252,9 +259,9 @@ func (i zrc6Indexer) batchSetTokenUri(tx entity.Transaction, c entity.Contract) 
 	}
 
 	type TokenIdTokenUriPairList struct {
-		ArgTypes  []string `json:"argtypes"`
-		Arguments []string `json:"arguments"`
-		Constructor string `json:"constructor"`
+		ArgTypes    []string `json:"argtypes"`
+		Arguments   []string `json:"arguments"`
+		Constructor string   `json:"constructor"`
 	}
 
 	data, err := tx.Data.Params.GetParam("token_id_token_uri_pair_list")

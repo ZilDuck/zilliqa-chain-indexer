@@ -27,6 +27,13 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 			result.Owner = e.(entity.Nft).Owner
 		}
 
+		if action == Zrc1UpdateTokenUri {
+			result.TokenUri = e.(entity.Nft).TokenUri
+			result.Metadata.Uri = e.(entity.Nft).Metadata.Uri
+			result.Metadata.IsIpfs = e.(entity.Nft).Metadata.IsIpfs
+			result.Metadata.Status = e.(entity.Nft).Metadata.Status
+		}
+
 		if action == Zrc1DuckRegeneration {
 			result.AssetUri = e.(entity.Nft).AssetUri
 			result.TokenUri = e.(entity.Nft).TokenUri
@@ -41,7 +48,7 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 			result.TokenUri = e.(entity.Nft).TokenUri
 		}
 
-		if action == Zrc6SetTokenUri{
+		if action == Zrc6SetTokenUri {
 			result.TokenUri = e.(entity.Nft).TokenUri
 			result.Metadata.Uri = e.(entity.Nft).Metadata.Uri
 			result.Metadata.IsIpfs = e.(entity.Nft).Metadata.IsIpfs
