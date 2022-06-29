@@ -29,5 +29,6 @@ COPY --from=builder /go/bin/cli         /app/cli
 COPY --from=builder /go/bin/indexerd    /app/indexerd
 COPY --from=builder /go/bin/metadata    /app/metadata
 COPY --from=builder /go/bin/assetServer /app/assetServer
+COPY  ./static      /app/static
 
 COPY ./config/mappings               /app/config/mappings
