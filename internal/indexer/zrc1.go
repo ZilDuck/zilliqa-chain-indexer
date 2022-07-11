@@ -285,9 +285,16 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			return err
 		}
 
+		oldOwner := nft.Owner
 		nft.Owner = newOwner.Value.Primitive.(string)
 
-		zap.L().With(zap.String("txID", tx.ID), zap.String("contract", nft.Contract), zap.Uint64("tokenId", nft.TokenId)).Info("Transfer ZRC1")
+		zap.L().With(
+			zap.String("txID", tx.ID),
+			zap.String("contract", nft.Contract),
+			zap.Uint64("tokenId", nft.TokenId),
+			zap.String("from", oldOwner),
+			zap.String("to", nft.Owner),
+		).Info("Transfer ZRC1")
 
 		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
 		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, nft.Owner, prevOwner.Value.String()), elastic_search.Zrc1Transfer)
