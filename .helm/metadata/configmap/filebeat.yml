@@ -1,0 +1,25 @@
+filebeat.inputs:
+  - type: log
+    paths:
+      - '{{ .Values.logPath }}/*.log'
+    fields:
+      app: {{ .Chart.Name }}
+      env: {{ .Release.Name }}
+      tag: {{ .Values.image.tag }}
+    fields_under_root: true
+    json.keys_under_root: true
+
+processors:
+  - drop_fields:
+      fields: ["agent.ephemeral_id", "agent.hostname", "agent.name", "agent.id", "agent.type", "agent.version", "ecs.version", "input.type", "log.file.path", "input.type", "version"]
+  - rename:
+      fields:
+        - from: "error"
+          to: "err"
+      ignore_missing: true
+      fail_on_error: true
+
+output.elasticsearch:
+  hosts: [{{ .Values.elasticSearch.hosts }}]
+  username: {{ .Values.elasticSearch.username }}
+  password: {{ .Values.elasticSearch.password }}

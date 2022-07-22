@@ -14,6 +14,8 @@ on:
         required:    true
         description: ECR tag
         default:     latest
+env:
+  APP: zildexr
 
 jobs:
   deploy:
@@ -23,28 +25,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
         with:
-          repository: ZilDuck/automation
-          ref:        master
-          token:      ${{ secrets.ACCESS_TOKEN }}
+          ref: ${{ github.event.inputs.tag }}
 
-      - name: Setup Helm Chart
-        run: |
-          mv /home/runner/work/zilliqa-chain-indexer/automation/deployments/zildexr/indexer .
-
-      - name: Deploy Indexer
+      - name: Deploy Assets to Kubernetes
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install indexer ./indexer/indexer -f ./indexer/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install assets .helm/assets -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.app.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
 
-      - name: Deploy Asset Server
+      - name: Deploy indexer to Kubernetes
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install assets ./indexer/assets -f ./indexer/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install indexer .helm/indexer -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.app.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
 
-      - name: Deploy Metadata
+      - name: Deploy metadata to Kubernetes
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install metadata ./indexer/metadata -f ./indexer/config/${{ github.event.inputs.environment }}.yaml --namespace zildexr-${{ github.event.inputs.environment }}  --atomic --set=image.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install metadata .helm/metadata -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.app.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'

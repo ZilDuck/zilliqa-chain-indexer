@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -e
+
+if [ -n "$3" ]; then
+    helm upgrade --install $3 -n zildexr-$1 -f ./zildexr/indexer/config/$1.yaml ./zildexr/indexer/$3 --atomic --set=image.tag=$2
+else
+    helm upgrade --install assets -n zildexr-$1 -f ./zildexr/indexer/config/$1.yaml ./zildexr/indexer/assets --atomic --set=image.tag=$2
+    helm upgrade --install indexer -n zildexr-$1 -f ./zildexr/indexer/config/$1.yaml ./zildexr/indexer/indexer --atomic --set=image.tag=$2
+    helm upgrade --install metadata -n zildexr-$1 -f ./zildexr/indexer/config/$1.yaml ./zildexr/indexer/metadata --atomic --set=image.tag=$2
+fi

@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ .Release.Name }}
+  labels:
+    app.kubernetes.io/name: {{ .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  schedule: "*/30 * * * *"
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 1
+  concurrencyPolicy: Forbid
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        spec:
+          terminationGracePeriodSeconds: 0
+          restartPolicy: Never
+          imagePullSecrets:
+            - name: aws-registry
+          containers:
+            - name: metadata
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ["/app/cli", "metadata"]
+              volumeMounts:
+                - name: configmap
+                  mountPath: /app/env.yaml
+                  subPath: env.yaml
+                - name: logs
+                  mountPath: {{ .Values.logPath }}
+          volumes:
+            - name: configmap
+              configMap:
+                name: {{ .Release.Name }}
+            - name:  logs
+              emptyDir: {}

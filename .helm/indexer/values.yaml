@@ -1,0 +1,11 @@
+image:
+  repository: 465700395685.dkr.ecr.eu-west-1.amazonaws.com/indexer/indexer
+  tag: latest
+  pullPolicy: Always
+
+service:
+  type: ClusterIP
+  port: 8080
+
+nameOverride: ""
+fullnameOverride: ""

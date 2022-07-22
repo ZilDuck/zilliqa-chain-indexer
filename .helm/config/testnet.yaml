@@ -1,0 +1,57 @@
+env:     testnet
+debug:   false
+logPath: /app/logs
+
+network:   zilliqa
+indexName: testnet
+
+reindex:
+  size:  500
+
+bulkIndex:
+  active:             true
+  size:               50
+  indexContractsFrom: ~
+  indexNftsFrom:      ~
+
+firstBlockNum: 0
+
+zilliqa:
+  url:     https://dev-api.zilliqa.com
+  timeout: 60
+  debug:   false
+
+elasticSearch:
+  hosts:       https://search.zildexr.com:443
+  username:    elastic
+  password:    gyXGCRTvHuNjLKEXQUH98kggRLEfH6rP
+  sniff:       false
+  healthCheck: false
+  debug:       false
+  mappingDir:  ./config/mappings
+  bulkPersist: 100
+  refreshMode: wait_for
+
+aws:
+  access_key: AKIAWY3PIDKSWL5ICD7E
+  secrey_key: 0rY5xn+CG9Rj8pBltvUPNIR/52DfkezacAFFyjVm
+  region:     eu-west-1
+
+subscribe: true
+
+ipfsTimeout:     30
+metadataRetries: 1
+
+asset:
+  port: 8080
+
+replicaCount:
+  indexerd: 1
+  asset: 2
+  metadata: 2
+
+bunny:
+  cdnUrl: https://cdn.zildexr.com
+  accessKey: 63477a7b-990f-4e26-90af-9cc25da0db4e28470f19-e964-4557-b55a-d4448c1afae1
+
+additionalZrc1: 0xc948942f55ef05a95a46bb58ee9b0a67b0f871fa,0x6e9f362640a27405934e0c404684622cfcfbc85b
