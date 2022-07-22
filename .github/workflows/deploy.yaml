@@ -30,17 +30,17 @@ jobs:
       - name: Deploy Assets to Kubernetes
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install assets .helm/assets -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.app.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install assets .helm/assets -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
 
-      - name: Deploy indexer to Kubernetes
+      - name: Deploy Indexer to Kubernetes
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install indexer .helm/indexer -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.app.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install indexer .helm/indexer -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
 
-      - name: Deploy metadata to Kubernetes
+      - name: Deploy Metadata to Kubernetes
         uses: WyriHaximus/github-action-helm3@v2
         with:
-          exec: helm upgrade --install metadata .helm/metadata -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.app.tag=${{ github.event.inputs.tag }}
+          exec: helm upgrade --install metadata .helm/metadata -f .helm/config/${{ github.event.inputs.environment }}.yaml --namespace ${{ env.APP }}-${{ github.event.inputs.environment }} --atomic --set=image.tag=${{ github.event.inputs.tag }}
           kubeconfig: '${{ secrets.KUBECONFIG }}'
