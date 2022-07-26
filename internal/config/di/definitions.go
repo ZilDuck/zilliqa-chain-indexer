@@ -197,6 +197,12 @@ var Definitions = []dingo.Def{
 		},
 	},
 	{
+		Name: "contractMetadata.repo",
+		Build: func(elastic elastic_search.Index) (repository.ContractMetadataRepository, error) {
+			return repository.NewContractMetadataRepository(elastic), nil
+		},
+	},
+	{
 		Name: "contractState.repo",
 		Build: func(elastic elastic_search.Index) (repository.ContractStateRepository, error) {
 			return repository.NewContractStateRepository(elastic), nil

@@ -19,6 +19,8 @@ import (
 type Service interface {
 	FetchMetadata(nft entity.Nft) (map[string]interface{}, string, error)
 	FetchImage(nft entity.Nft) (io.ReadCloser, error)
+
+	FetchImageForContractMetadata(md entity.ContractMetadata) (io.ReadCloser, error)
 	FetchContractMetadata(contract entity.Contract) (entity.ContractMetadata, error)
 }
 
@@ -107,6 +109,34 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 		resp, respErr = s.fetchHttp(assetUri)
 		if respErr != nil {
 			zap.L().With(zap.Error(respErr), zap.String("assetUri", assetUri)).Error("Failed to fetch image from http")
+			return nil, respErr
+		}
+	}
+
+	return resp.Body, nil
+}
+
+func (s service) FetchImageForContractMetadata(md entity.ContractMetadata) (io.ReadCloser, error) {
+	assetUri, ok := md["collection_image_url"]
+	if !ok {
+		zap.L().With(zap.String("contract", md["contract"].(string))).Warn("Contract metadata not found")
+		return nil, errors.New("metadata uri not valid")
+	}
+
+	var resp *http.Response
+	var respErr error
+
+	if helper.IsIpfs(assetUri.(string)) {
+		ipfsUri := helper.GetIpfs(assetUri.(string), nil)
+		resp, respErr = s.fetchIpfs(*ipfsUri)
+		if respErr != nil {
+			zap.L().With(zap.Error(respErr), zap.String("assetUri", assetUri.(string))).Error("Failed to fetch image from ipfs")
+			return nil, respErr
+		}
+	} else {
+		resp, respErr = s.fetchHttp(assetUri.(string))
+		if respErr != nil {
+			zap.L().With(zap.Error(respErr), zap.String("assetUri", assetUri.(string))).Error("Failed to fetch image from http")
 			return nil, respErr
 		}
 	}
