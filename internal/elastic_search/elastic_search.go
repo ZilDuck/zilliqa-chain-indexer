@@ -360,9 +360,6 @@ func (i index) flush() {
 		if req.Action == NftMetadata {
 			event.EmitEvent(event.MetadataRefreshedEvent, req.Entity)
 		}
-		if req.Action == ContractCreate {
-			event.EmitEvent(event.ContractIndexedEvent, req.Entity)
-		}
 	}
 
 	zap.L().Debug("ElasticCache: Flushing ES cache")
