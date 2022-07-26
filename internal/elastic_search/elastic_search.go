@@ -62,6 +62,7 @@ const (
 	ContractCreate     RequestAction = "ContractCreate"
 	ContractState      RequestAction = "ContractState"
 	ContractSetBaseUri RequestAction = "ContractSetBaseUri"
+	ContractMetadata   RequestAction = "ContractMetadata"
 
 	Zrc1Mint             RequestAction = "Zrc1Mint"
 	Zrc1DuckRegeneration RequestAction = "Zrc1DuckRegeneration"
@@ -347,7 +348,7 @@ func (i index) persist(bulk *elastic.BulkService) {
 
 func (i index) flush() {
 	for _, req := range i.GetRequests() {
-		if req.Action == Zrc1Mint || req.Action == Zrc1DuckRegeneration  || req.Action == Zrc1UpdateTokenUri || req.Action == Zrc6Mint {
+		if req.Action == Zrc1Mint || req.Action == Zrc1DuckRegeneration || req.Action == Zrc1UpdateTokenUri || req.Action == Zrc6Mint {
 			event.EmitEvent(event.NftMintedEvent, req.Entity)
 		}
 		if req.Action == Zrc6SetBaseUri {
@@ -358,6 +359,9 @@ func (i index) flush() {
 		}
 		if req.Action == NftMetadata {
 			event.EmitEvent(event.MetadataRefreshedEvent, req.Entity)
+		}
+		if req.Action == ContractCreate {
+			event.EmitEvent(event.ContractIndexedEvent, req.Entity)
 		}
 	}
 
