@@ -62,7 +62,7 @@ var Definitions = []dingo.Def{
 		Build: func() (*sqs.SQS, error) {
 			sess := session.Must(session.NewSession(&aws.Config{
 				Credentials: credentials.NewStaticCredentials(config.Get().Aws.AccessKey, config.Get().Aws.SecretKey, ""),
-				Region: aws.String(config.Get().Aws.Region),
+				Region:      aws.String(config.Get().Aws.Region),
 			}))
 
 			return sqs.New(sess), nil
@@ -127,8 +127,9 @@ var Definitions = []dingo.Def{
 			txRepo repository.TransactionRepository,
 			contractRepo repository.ContractRepository,
 			nftRepo repository.NftRepository,
+			metadataService metadata.Service,
 		) (indexer.ContractIndexer, error) {
-			return indexer.NewContractIndexer(elastic, zilliqa, factory, txRepo, contractRepo, nftRepo), nil
+			return indexer.NewContractIndexer(elastic, zilliqa, factory, txRepo, contractRepo, nftRepo, metadataService), nil
 		},
 	},
 	{

@@ -5,6 +5,7 @@ import (
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/metadata"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/repository"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/zilliqa"
 	"github.com/Zilliqa/gozilliqa-sdk/bech32"
@@ -15,15 +16,17 @@ import (
 type ContractIndexer interface {
 	Index(txs []entity.Transaction) error
 	BulkIndex(fromBlockNum uint64) error
+	IndexContractMetadata(contract *entity.Contract)
 }
 
 type contractIndexer struct {
-	elastic        elastic_search.Index
-	zilliqa        zilliqa.Service
-	factory        factory.ContractFactory
-	txRepo         repository.TransactionRepository
-	contractRepo   repository.ContractRepository
-	nftRepo        repository.NftRepository
+	elastic         elastic_search.Index
+	zilliqa         zilliqa.Service
+	factory         factory.ContractFactory
+	txRepo          repository.TransactionRepository
+	contractRepo    repository.ContractRepository
+	nftRepo         repository.NftRepository
+	metadataService metadata.Service
 }
 
 func NewContractIndexer(
@@ -33,8 +36,9 @@ func NewContractIndexer(
 	txRepo repository.TransactionRepository,
 	contractRepo repository.ContractRepository,
 	nftRepo repository.NftRepository,
+	metadataService metadata.Service,
 ) ContractIndexer {
-	return contractIndexer{elastic, zilliqa, factory, txRepo, contractRepo, nftRepo}
+	return contractIndexer{elastic, zilliqa, factory, txRepo, contractRepo, nftRepo, metadataService}
 }
 
 func (i contractIndexer) Index(txs []entity.Transaction) error {
@@ -52,6 +56,7 @@ func (i contractIndexer) Index(txs []entity.Transaction) error {
 					zap.String("address", c.Address),
 				).Info("Index contract")
 				_ = i.indexContractState(c)
+				i.IndexContractMetadata(c)
 
 				i.elastic.AddIndexRequest(elastic_search.ContractIndex.Get(), *c, elastic_search.ContractCreate)
 			}
@@ -123,6 +128,23 @@ func (i contractIndexer) BulkIndex(fromBlockNum uint64) error {
 	i.elastic.Persist()
 
 	return nil
+}
+
+func (i contractIndexer) IndexContractMetadata(contract *entity.Contract) {
+	zap.L().Info("IndexContractMetadata")
+	if contract.MatchesStandard(entity.ZRC1) || contract.MatchesStandard(entity.ZRC6) {
+		md, err := i.metadataService.FetchContractMetadata(*contract)
+		if err != nil {
+			zap.L().With(
+				zap.Error(err),
+				zap.String("address", contract.Address),
+			).Error("Failed to index contract metadata")
+			return
+		}
+
+		zap.L().With(zap.String("address", contract.Address)).Info("Index contract metadata")
+		i.elastic.AddIndexRequest(elastic_search.ContractMetadataIndex.Get(), md, elastic_search.ContractMetadata)
+	}
 }
 
 func (i contractIndexer) indexContractState(c *entity.Contract) error {
