@@ -14,17 +14,23 @@ import (
 )
 
 type Server struct {
-	nftRepo         repository.NftRepository
-	metadataService metadata.Service
+	nftRepo              repository.NftRepository
+	contractMetadataRepo repository.ContractMetadataRepository
+	metadataService      metadata.Service
 }
 
-func NewServer(nftRepo repository.NftRepository, metadataService metadata.Service) Server {
-	return Server{nftRepo, metadataService}
+func NewServer(
+	nftRepo repository.NftRepository,
+	contractMetadataRepo repository.ContractMetadataRepository,
+	metadataService metadata.Service,
+) Server {
+	return Server{nftRepo, contractMetadataRepo, metadataService}
 }
 
 func (s Server) Router() *mux.Router {
 	r := mux.NewRouter()
 	r.HandleFunc("/", s.handleHomepage).Methods("GET")
+	r.HandleFunc("/{contractAddr}", s.handleGetContract).Methods("GET")
 	r.HandleFunc("/{contractAddr}/{tokenId}", s.handleGetAsset).Methods("GET")
 	r.NotFoundHandler = notFoundHandler()
 
@@ -84,6 +90,56 @@ func (s Server) handleGetAsset(w http.ResponseWriter, r *http.Request) {
 	w.Header().Add("Cache-Control", "max-age: 31536000, immutable")
 	_, _ = fmt.Fprint(w, string(data[:]))
 	zap.L().With(zap.String("contract", contractAddr), zap.Uint64("tokenId", tokenId), zap.String("uri", nft.AssetUri)).Info("Serving nft")
+}
+
+func (s Server) handleGetContract(w http.ResponseWriter, r *http.Request) {
+	contractAddr, _ := mux.Vars(r)["contractAddr"]
+
+	md, err := s.contractMetadataRepo.GetMetadataByAddress(contractAddr)
+	if err != nil {
+		zap.L().With(zap.Error(err)).Warn("Metadata not available")
+
+		data, err := ioutil.ReadFile("static/missing-asset.png")
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Preview image not available")
+		}
+		w.WriteHeader(404)
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = fmt.Fprint(w, string(data[:]))
+		return
+	}
+
+	body, err := s.metadataService.FetchImageForContractMetadata(*md)
+	if err != nil {
+		zap.L().With(zap.Error(err), zap.String("contract", contractAddr)).Warn("Contract asset not available")
+		data, err := ioutil.ReadFile("static/missing-asset.png")
+		if err != nil {
+			zap.L().With(zap.Error(err)).Error("Preview image not available")
+		}
+		w.WriteHeader(404)
+		w.Header().Set("Content-Type", "image/png")
+		_, _ = fmt.Fprint(w, string(data[:]))
+		return
+	}
+	defer body.Close()
+
+	buf := new(bytes.Buffer)
+	_, errBuf := buf.ReadFrom(body)
+	if errBuf != nil {
+		zap.L().With(zap.Error(errBuf)).Warn("Failed to process asset")
+		http.Error(w, "Failed to process asset", http.StatusInternalServerError)
+		return
+	}
+
+	data := buf.Bytes()
+
+	contentType, err := getFileContentType(data[:512])
+
+	w.WriteHeader(200)
+	w.Header().Add("Content-Type", contentType)
+	w.Header().Add("Cache-Control", "max-age: 31536000, immutable")
+	_, _ = fmt.Fprint(w, string(data[:]))
+	zap.L().With(zap.String("contract", contractAddr)).Info("Serving contract asset")
 }
 
 func getTokenId(r *http.Request) (uint64, error) {
