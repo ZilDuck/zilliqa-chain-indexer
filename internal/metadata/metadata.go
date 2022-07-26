@@ -19,6 +19,7 @@ import (
 type Service interface {
 	FetchMetadata(nft entity.Nft) (map[string]interface{}, string, error)
 	FetchImage(nft entity.Nft) (io.ReadCloser, error)
+	FetchContractMetadata(contract entity.Contract) (entity.ContractMetadata, error)
 }
 
 type service struct {
@@ -32,20 +33,20 @@ type Metadata map[string]interface{}
 const userAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10.15; rv:97.0) Gecko/20100101 Firefox/97.0"
 
 var (
-	ErrNoSuchHost = errors.New("no such host")
-	ErrNotFound = errors.New("404 not found")
-	ErrBadRequest = errors.New("bad request")
-	ErrInvalidContent = errors.New("invalid content")
+	ErrNoSuchHost                = errors.New("no such host")
+	ErrNotFound                  = errors.New("404 not found")
+	ErrBadRequest                = errors.New("bad request")
+	ErrInvalidContent            = errors.New("invalid content")
 	ErrUnsupportedProtocolScheme = errors.New("unsupported protocol scheme")
-	ErrMetadataNotFound = errors.New("metadata not found")
-	ErrTimeout = errors.New("timeout")
+	ErrMetadataNotFound          = errors.New("metadata not found")
+	ErrTimeout                   = errors.New("timeout")
 )
 
 func NewMetadataService(client *retryablehttp.Client, ipfsHosts []string, ipfsTimeout int) Service {
 	return service{client, ipfsHosts, ipfsTimeout}
 }
 
-func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, string,  error) {
+func (s service) FetchMetadata(nft entity.Nft) (map[string]interface{}, string, error) {
 	zap.L().With(zap.Uint64("tokenId", nft.TokenId), zap.String("contract", nft.Contract)).Info("Fetch metadata")
 	if nft.Metadata.UriEmpty() {
 		return nil, "", errors.New("metadata uri not valid")
@@ -113,17 +114,51 @@ func (s service) FetchImage(nft entity.Nft) (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
+func (s service) FetchContractMetadata(contract entity.Contract) (entity.ContractMetadata, error) {
+	var resp *http.Response
+	var err error
+
+	uri := fmt.Sprintf("%smetadata.json", contract.BaseUri)
+	zap.L().Info(uri)
+	if helper.IsIpfs(contract.BaseUri) {
+		ipfsUri := helper.GetIpfs(uri, nil)
+		zap.L().Info(*ipfsUri)
+		resp, err = s.fetchIpfs(*ipfsUri)
+	} else {
+		resp, err = s.fetchHttp(uri)
+	}
+
+	if err != nil {
+		if errors.Is(err, ErrTimeout) || errors.Is(err, ErrMetadataNotFound) || errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		if strings.Contains(err.Error(), "unsupported protocol scheme") {
+			return nil, ErrUnsupportedProtocolScheme
+		}
+		if len(err.Error()) > 12 && err.Error()[len(err.Error())-12:] == "no such host" {
+			return nil, ErrNoSuchHost
+		}
+
+		return nil, err
+	}
+
+	metadata, _, err := s.hydrateMetadata(resp)
+	metadata["contract"] = contract.Address
+
+	return metadata, err
+
+}
+
 type IpfsResp struct {
-	uri        string
-	resp       *http.Response
-	err        error
+	uri  string
+	resp *http.Response
+	err  error
 }
 
 type IpfsCanceller struct {
 	uri        string
 	cancelFunc context.CancelFunc
 }
-
 
 func (s service) fetchIpfs(uri string) (*http.Response, error) {
 	ch := make(chan IpfsResp, len(s.ipfsHosts))
@@ -170,7 +205,7 @@ func (s service) fetchIpfs(uri string) (*http.Response, error) {
 				}
 			}
 
-			if cancelled == len(s.ipfsHosts) * s.client.RetryMax {
+			if cancelled == len(s.ipfsHosts)*s.client.RetryMax {
 				break
 			}
 		}
@@ -193,7 +228,7 @@ func (s service) fetchIpfs(uri string) (*http.Response, error) {
 			return nil, ErrMetadataNotFound
 		}
 
-		if complete == len(s.ipfsHosts) * s.client.RetryMax {
+		if complete == len(s.ipfsHosts)*s.client.RetryMax {
 			break
 		}
 	}
@@ -219,21 +254,21 @@ func (s service) fetchHttp(uri string) (*http.Response, error) {
 	go func() {
 		resp, err := s.client.Do(req)
 		if err != nil {
-			ch <-fetchResponse{err: err}
+			ch <- fetchResponse{err: err}
 			return
 		}
 
 		if resp.StatusCode != 200 {
 			if resp.StatusCode == http.StatusNotFound {
-				ch <-fetchResponse{err: ErrNotFound}
+				ch <- fetchResponse{err: ErrNotFound}
 				return
 			}
 			if resp.StatusCode == http.StatusBadRequest {
-				ch <-fetchResponse{err: ErrBadRequest}
+				ch <- fetchResponse{err: ErrBadRequest}
 				return
 			}
 			zap.S().With(zap.String("uri", uri)).Errorf("HTTP status code: %d", resp.StatusCode)
-			ch <-fetchResponse{err: errors.New(resp.Status)}
+			ch <- fetchResponse{err: errors.New(resp.Status)}
 		}
 
 		ch <- fetchResponse{resp: resp}
@@ -242,7 +277,7 @@ func (s service) fetchHttp(uri string) (*http.Response, error) {
 	case resp := <-ch:
 		return resp.resp, resp.err
 	case <-time.After(1 * time.Second):
-		zap.L().Debug("Timed out waiting for "+uri)
+		zap.L().Debug("Timed out waiting for " + uri)
 		return nil, ErrTimeout
 	}
 }

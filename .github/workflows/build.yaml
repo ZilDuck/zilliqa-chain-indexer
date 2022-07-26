@@ -8,7 +8,9 @@ on:
   workflow_dispatch:
 
 env:
-  IMAGE_TAG: ${{ github.sha }}
+  AWS_REGION: eu-west-1
+  ECR_REPOSITORY: indexer
+  CONTAINER_NAME: indexer
 
 jobs:
   build:
@@ -20,14 +22,15 @@ jobs:
           fetch-depth: 0
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@13d241b293754004c80624b5567555c4a39ffbe3
+        uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: eu-west-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@aaf69d68aa3fb14c1d5a6be9ac61fe15b48453a2
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v1
 
       - name: Get previous tag
         id: previousTag
@@ -46,18 +49,26 @@ jobs:
         run: |
           [[ "${{ github.event_name }}" = "pull_request" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}-$(git rev-parse --short HEAD)" || true
           [[ "${{ github.event_name }}" = "push" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}" || true
-          [[ "${{ github.event_name }}" = "workflow_dispatch" ]] && echo "::set-output name=tag::${{ steps.semVars.outputs.patch }}" || true
 
-      - name: Build Docker image
-        run: ./bin/build ${{ steps.commitTag.outputs.tag }}
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        run: |
+          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY/$CONTAINER_NAME:${{ steps.commitTag.outputs.tag }} .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY/$CONTAINER_NAME:${{ steps.commitTag.outputs.tag }}
+          echo "::set-output name=image::$ECR_REGISTRY/$ECR_REPOSITORY/$CONTAINER_NAME:${{ steps.commitTag.outputs.tag }}"
 
-      - name: Create a GitHub release
-        if: github.event_name == 'push'
-        uses: ncipollo/release-action@v1
+      - name: Create tag
+        uses: actions/github-script@v5
         with:
-          tag: ${{ steps.semVars.outputs.patch }}
-          name: Release ${{ steps.semVars.outputs.v_patch }}
-          token: ${{ secrets.ACCESS_TOKEN }}
+          script: |
+            github.rest.git.createRef({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              ref: 'refs/tags/${{ steps.commitTag.outputs.tag }}',
+              sha: context.sha
+            })
 
       - name: Deploy testnet
         run: |
@@ -66,4 +77,5 @@ jobs:
             -H "Accept: application/vnd.github.v3+json" \
             -H "Authorization: Bearer ${{ secrets.ACCESS_TOKEN }}" \
             https://api.github.com/repos/${{ github.repository }}/actions/workflows/deploy.yaml/dispatches \
-            -d '{"ref":"master", "inputs":{"environment":"testnet", "tag":"${{ steps.commitTag.outputs.tag }}"}}'
+            -d '{"ref":"refs/tags/${{ steps.commitTag.outputs.tag }}", "inputs":{"environment":"testnet", "tag":"${{ steps.commitTag.outputs.tag }}"}}'
+
