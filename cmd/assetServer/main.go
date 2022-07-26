@@ -12,8 +12,13 @@ func main() {
 	config.Init("asset")
 	container, _ := dic.NewContainer()
 
-	router := asset.NewServer(container.GetNftRepo(), container.GetMetadataService()).Router()
-	zap.L().Info("Serving assets on :"+config.Get().AssetPort)
+	router := asset.NewServer(
+		container.GetNftRepo(),
+		container.GetContractMetadataRepo(),
+		container.GetMetadataService(),
+	).Router()
+
+	zap.L().Info("Serving assets on :" + config.Get().AssetPort)
 
 	if err := http.ListenAndServe(":"+config.Get().AssetPort, router); err != nil {
 		zap.L().With(zap.Error(err)).Error("Failed to start asset server")
