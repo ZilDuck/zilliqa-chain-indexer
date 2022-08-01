@@ -27,7 +27,7 @@ func NewContractMetadataRepository(elastic elastic_search.Index) ContractMetadat
 func (r contractMetadataRepository) GetMetadataByAddress(contractAddr string) (*entity.ContractMetadata, error) {
 	results, err := search(r.elastic.GetClient().
 		Search(elastic_search.ContractMetadataIndex.Get()).
-		Query(elastic.NewTermQuery("contract.keyword", contractAddr)))
+		Query(elastic.NewTermQuery("contract.keyword", contractAddr).CaseInsensitive(true)))
 
 	state, err := r.findOne(results, err)
 

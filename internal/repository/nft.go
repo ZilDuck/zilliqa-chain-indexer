@@ -72,7 +72,7 @@ func (r nftRepository) getNft(contract string, tokenId uint64, attempt int) (*en
 	}
 
 	query := elastic.NewBoolQuery().Must(
-		elastic.NewTermQuery("contract.keyword", contract),
+		elastic.NewTermQuery("contract.keyword", contract).CaseInsensitive(true),
 		elastic.NewTermQuery("tokenId", tokenId),
 	)
 
