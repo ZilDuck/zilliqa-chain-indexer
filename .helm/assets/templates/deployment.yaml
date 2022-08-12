@@ -28,6 +28,13 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: ["/app/assetServer"]
+          resources:
+            limits:
+              cpu: { { .Values.resources.limits.cpu | quote } }
+              memory: { { .Values.resources.limits.memory | quote } }
+            requests:
+              cpu: { { .Values.resources.requests.cpu | quote } }
+              memory: { { .Values.resources.requests.memory | quote } }
           volumeMounts:
             - name: configmap
               mountPath: /app/env.yaml
@@ -37,6 +44,13 @@ spec:
         - name: filebeat
           image: elastic/filebeat:7.17.0
           imagePullPolicy: IfNotPresent
+          resources:
+            limits:
+              cpu: { { .Values.resources.limits.cpu | quote } }
+              memory: { { .Values.resources.limits.memory | quote } }
+            requests:
+              cpu: { { .Values.resources.requests.cpu | quote } }
+              memory: { { .Values.resources.requests.memory | quote } }
           volumeMounts:
             - name: logs
               mountPath: {{ .Values.logPath }}
