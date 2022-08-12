@@ -26,6 +26,13 @@ spec:
               image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
               imagePullPolicy: {{ .Values.image.pullPolicy }}
               command: ["/app/cli", "metadata"]
+              resources:
+                limits:
+                  cpu: { { .Values.resources.limits.cpu | quote } }
+                  memory: { { .Values.resources.limits.memory | quote } }
+                requests:
+                  cpu: { { .Values.resources.requests.cpu | quote } }
+                  memory: { { .Values.resources.requests.memory | quote } }
               volumeMounts:
                 - name: configmap
                   mountPath: /app/env.yaml
