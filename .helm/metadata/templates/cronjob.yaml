@@ -28,11 +28,11 @@ spec:
               command: ["/app/cli", "metadata"]
               resources:
                 limits:
-                  cpu: { { .Values.resources.limits.cpu | quote } }
-                  memory: { { .Values.resources.limits.memory | quote } }
+                  cpu: {{ .Values.resources.limits.cpu | quote }}
+                  memory: {{ .Values.resources.limits.memory | quote }}
                 requests:
-                  cpu: { { .Values.resources.requests.cpu | quote } }
-                  memory: { { .Values.resources.requests.memory | quote } }
+                  cpu: {{ .Values.resources.requests.cpu | quote }}
+                  memory: {{ .Values.resources.requests.memory | quote }}
               volumeMounts:
                 - name: configmap
                   mountPath: /app/env.yaml
