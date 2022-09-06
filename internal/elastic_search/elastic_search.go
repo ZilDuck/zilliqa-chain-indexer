@@ -351,8 +351,11 @@ func (i index) flush() {
 		if req.Action == Zrc1Mint || req.Action == Zrc1DuckRegeneration || req.Action == Zrc1UpdateTokenUri || req.Action == Zrc6Mint {
 			event.EmitEvent(event.NftMintedEvent, req.Entity)
 		}
-		if req.Action == Zrc6SetBaseUri {
+		if req.Action == ContractSetBaseUri {
 			event.EmitEvent(event.ContractBaseUriUpdatedEvent, req.Entity)
+		}
+		if req.Action == Zrc6SetBaseUri {
+			event.EmitEvent(event.NftBaseUriUpdatedEvent, req.Entity)
 		}
 		if req.Action == Zrc6SetTokenUri {
 			event.EmitEvent(event.TokenUriUpdatedEvent, req.Entity)
