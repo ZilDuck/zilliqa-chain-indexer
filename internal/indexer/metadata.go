@@ -18,6 +18,7 @@ import (
 )
 
 type MetadataIndexer interface {
+	TriggerContractMetadataRefresh(el interface{})
 	TriggerMetadataRefresh(el interface{})
 	RefreshMetadata(contractAddr string, tokenId uint64) (*entity.Nft, error)
 	RefreshByStatus(status entity.MetadataStatus) error
@@ -41,10 +42,26 @@ func NewMetadataIndexer(
 	i := metadataIndexer{elastic, nftRepo, contractRepo, messageService, metadataService}
 
 	event.AddEventListener(event.NftMintedEvent, i.TriggerMetadataRefresh)
-	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
+	event.AddEventListener(event.ContractBaseUriUpdatedEvent, i.TriggerContractMetadataRefresh)
+	event.AddEventListener(event.NftBaseUriUpdatedEvent, i.TriggerMetadataRefresh)
 	event.AddEventListener(event.TokenUriUpdatedEvent, i.TriggerMetadataRefresh)
 
 	return i
+}
+
+func (i metadataIndexer) TriggerContractMetadataRefresh(el interface{}) {
+	if !config.Get().EventsSupported {
+		return
+	}
+
+	contract := el.(entity.Contract)
+
+	msgJson, _ := json.Marshal(messenger.Nft{Contract: contract.Address, TokenId: 0})
+	if err := i.messageService.SendMessage(messenger.MetadataRefresh, msgJson); err != nil {
+		zap.L().With(zap.Error(err)).Error("Failed to queue metadata refresh")
+	} else {
+		zap.L().With(zap.String("contract", contract.Address)).Info("Trigger Contract Refresh")
+	}
 }
 
 func (i metadataIndexer) TriggerMetadataRefresh(el interface{}) {

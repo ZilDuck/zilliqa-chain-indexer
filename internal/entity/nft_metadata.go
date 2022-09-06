@@ -20,6 +20,7 @@ type Metadata struct {
 }
 
 type MetadataStatus string
+
 var (
 	MetadataPending MetadataStatus = "pending"
 	MetadataSuccess MetadataStatus = "success"
@@ -45,6 +46,7 @@ func (m Metadata) UriEmpty() bool {
 func (m Metadata) GetAssetUri() (string, error) {
 	if resources := m.GetProperty("resources"); resources != nil {
 		resourcesJson, err := json.Marshal(resources)
+
 		if err != nil {
 			return "", err
 		}
