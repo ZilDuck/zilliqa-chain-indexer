@@ -20,7 +20,7 @@ var (
 	contractRepo       repository.ContractRepository
 	txRepo             repository.TransactionRepository
 	nftRepo            repository.NftRepository
-	contractIndexer indexer.ContractIndexer
+	contractIndexer    indexer.ContractIndexer
 	marketplaceIndexer indexer.MarketplaceIndexer
 	metadataIndexer    indexer.MetadataIndexer
 	zrc1Indexer        indexer.Zrc1Indexer
@@ -46,35 +46,35 @@ func main() {
 	app := &cli.App{
 		Commands: []*cli.Command{
 			{
-				Name:    "metadata",
-				Usage:   "queue NFTs for metadata refresh by their status (pending, failed, or success)",
-				Action:  processMetadata,
+				Name:   "metadata",
+				Usage:  "queue NFTs for metadata refresh by their status (pending, failed, or success)",
+				Action: processMetadata,
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "err", Value: "", Usage: "filter NFTs by metadata error"},
 				},
 			},
 			{
-				Name:    "nft:import",
-				Usage:   "Import NFTs",
-				Action:  importNfts,
+				Name:   "nft:import",
+				Usage:  "Import NFTs",
+				Action: importNfts,
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "contract", Value: "", Usage: "Import for a single contract"},
 					&cli.StringFlag{Name: "purge", Value: "false", Usage: "Purge the contract"},
 				},
 			},
 			{
-				Name:    "contract:import",
-				Usage:   "Import Contracts",
-				Action:  importContracts,
+				Name:   "contract:import",
+				Usage:  "Import Contracts",
+				Action: importContracts,
 				Flags: []cli.Flag{
 					&cli.StringFlag{Name: "contract", Value: "", Usage: "Import for a single contract"},
 					&cli.Int64Flag{Name: "from", Value: 0, Usage: "Import contracts from blockNum"},
 				},
 			},
 			{
-				Name:    "marketplace",
-				Usage:   "Reindex all marketplace actions",
-				Action:  processMarketplaceActions,
+				Name:   "marketplace",
+				Usage:  "Reindex all marketplace actions",
+				Action: processMarketplaceActions,
 			},
 		},
 	}
@@ -84,9 +84,6 @@ func main() {
 		zap.L().With(zap.Error(err)).Fatal("Failed to start CLI")
 	}
 }
-
-
-
 
 // METADATA
 func processMetadata(c *cli.Context) error {
@@ -112,9 +109,6 @@ func processMetadata(c *cli.Context) error {
 
 	return nil
 }
-
-
-
 
 // NFTS
 func importNfts(c *cli.Context) error {
@@ -173,7 +167,7 @@ func importAllNfts() {
 }
 
 func importNftsForContract(contract entity.Contract) {
-	zap.L().Info("*** Import Nfts For Contract: "+contract.Address)
+	zap.L().Info("*** Import Nfts For Contract: " + contract.Address)
 	_ = nftRepo.PurgeActions(contract.Address)
 
 	if contract.MatchesStandard(entity.ZRC6) {
@@ -254,10 +248,6 @@ func importMarketplaceSalesForContract(c entity.Contract) {
 	}
 	elastic.Persist()
 }
-
-
-
-
 
 // MARKETPLACE
 func processMarketplaceActions(c *cli.Context) error {
