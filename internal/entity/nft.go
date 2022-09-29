@@ -21,6 +21,9 @@ type Nft struct {
 	HasMetadata bool      `json:"hasMetadata"`
 	Metadata    *Metadata `json:"metadata"`
 	AssetUri    string    `json:"assetUri"`
+
+	IsDelegated    bool   `json:"isDelegated"`
+	DelegatedOwner string `json:"delegatedOwner"`
 }
 
 func (n Nft) Slug() string {
