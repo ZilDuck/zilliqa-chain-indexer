@@ -75,6 +75,7 @@ const (
 	Zrc6SetTokenUri RequestAction = "Zrc6SetTokenUri"
 	Zrc6Transfer    RequestAction = "Zrc6Transfer"
 	Zrc6Burn        RequestAction = "Zrc6Burn"
+	NftDelegate     RequestAction = "NftDelegate"
 
 	NftMetadata RequestAction = "NftMetadata"
 	NftAction   RequestAction = "NftAction"

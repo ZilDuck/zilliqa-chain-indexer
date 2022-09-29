@@ -103,7 +103,7 @@ func processMetadata(c *cli.Context) error {
 	}
 
 	if err := metadataIndexer.RefreshByStatus(entity.MetadataFailure); err != nil {
-		zap.L().With(zap.Error(err)).Fatal("Failed to process pending metadata")
+		zap.L().With(zap.Error(err)).Fatal("Failed to process failure metadata")
 		return err
 	}
 
