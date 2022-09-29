@@ -158,18 +158,22 @@ func (tx Transaction) GetEngagedContracts() (addrs []string) {
 	return
 }
 
-func (tx Transaction) IsMarketplaceTx() bool {
+func (tx Transaction) GetMarketplaceTxType() *string {
+	var txType string
 	if tx.IsMarketplaceListing(MintableMarketplace) || tx.IsMarketplaceListing(ZilkroadMarketplace) || tx.IsMarketplaceListing(ArkyMarketplace) || tx.IsMarketplaceListing(OkimotoMarketplace) {
-		return true
+		txType = "listing"
+		return &txType
 	}
 	if tx.IsMarketplaceDelisting(MintableMarketplace) || tx.IsMarketplaceDelisting(ZilkroadMarketplace) || tx.IsMarketplaceDelisting(ArkyMarketplace) || tx.IsMarketplaceDelisting(OkimotoMarketplace) {
-		return true
+		txType = "delisting"
+		return &txType
 	}
 	if tx.IsMarketplaceSale(MintableMarketplace) || tx.IsMarketplaceSale(ZilkroadMarketplace) || tx.IsMarketplaceSale(ArkyMarketplace) || tx.IsMarketplaceSale(OkimotoMarketplace) {
-		return true
+		txType = "sale"
+		return &txType
 	}
 
-	return false
+	return nil
 }
 
 func (tx Transaction) IsMarketplaceListing(marketplace Marketplace) bool {
