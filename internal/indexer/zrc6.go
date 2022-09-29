@@ -324,15 +324,15 @@ func (i zrc6Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 		}
 
 		txType := tx.GetMarketplaceTxType()
-		if txType != nil {
-			if *txType == "listing" {
+		if txType != "" {
+			if txType == "listing" {
 				nft.IsDelegated = true
 				nft.DelegatedOwner = to.Value.String()
 			} else {
 				nft.IsDelegated = false
 				nft.DelegatedOwner = ""
 			}
-			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftAction)
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftDelegate)
 		} else {
 			prevOwner, err := event.Params.GetParam("from")
 			if err != nil {
