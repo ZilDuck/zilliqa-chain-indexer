@@ -36,7 +36,7 @@ func (s service) PurgeCacheFromEvent(el interface{}) {
 
 	nft := el.(entity.Nft)
 
-	s.PurgeCache(nft.Contract, nft.TokenId)
+	_ = s.PurgeCache(nft.Contract, nft.TokenId)
 }
 
 func (s service) PurgeCache(contractAddr string, tokenId uint64) error {
@@ -48,38 +48,38 @@ func (s service) PurgeCache(contractAddr string, tokenId uint64) error {
 	assetPath := url.QueryEscape(fmt.Sprintf("%s/%s/%d", s.cdnUrl, contractAddr, tokenId))
 	uri := fmt.Sprintf("https://api.bunny.net/purge?url=%s", assetPath)
 
-	req, err := retryablehttp.NewRequest("GET", uri, nil)
-	if err != nil {
-		zap.L().With(
-			zap.Error(err),
-			zap.String("uri", uri),
-			zap.String("contract", contractAddr),
-			zap.Uint64("tokenId", tokenId),
-		).Error("Failed to create purge request")
-		return err
+	args := []string{
+		"",
+		"?optimizer=image&width=800",
+		"?optimizer=image&height=400&width=400&aspect_ratio=1:1",
+		"?optimizer=image&width=650",
 	}
-	req.Header.Set("AccessKey", s.accessKey)
 
-	resp, err := s.client.Do(req)
-	if err != nil {
-		zap.L().With(
-			zap.Error(err),
-			zap.String("uri", uri),
-			zap.String("contract", contractAddr),
-			zap.Uint64("tokenId", tokenId),
-		).Error("Failed to handle purge request")
-		return err
-	}
-	defer resp.Body.Close()
+	for _, arg := range args {
+		req, _ := retryablehttp.NewRequest("GET", uri+arg, nil)
+		req.Header.Set("AccessKey", s.accessKey)
 
-	if resp.StatusCode != 200 {
-		zap.L().With(
-			zap.Int("status", resp.StatusCode),
-			zap.String("uri", uri),
-			zap.String("contract", contractAddr),
-			zap.Uint64("tokenId", tokenId),
-		).Error("Failed to handle purge request")
-		return errors.New("bad status code")
+		resp, err := s.client.Do(req)
+		if err != nil {
+			zap.L().With(
+				zap.Error(err),
+				zap.String("uri", uri+arg),
+				zap.String("contract", contractAddr),
+				zap.Uint64("tokenId", tokenId),
+			).Error("Failed to handle purge request")
+			return err
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode != 200 {
+			zap.L().With(
+				zap.Int("status", resp.StatusCode),
+				zap.String("uri", uri+arg),
+				zap.String("contract", contractAddr),
+				zap.Uint64("tokenId", tokenId),
+			).Error("Failed to handle purge request")
+			return errors.New("bad status code")
+		}
 	}
 
 	zap.L().With(
