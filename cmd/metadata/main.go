@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/ZilDuck/zilliqa-chain-indexer/generated/dic"
+	"github.com/ZilDuck/zilliqa-chain-indexer/internal/bunny"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/config"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/indexer"
@@ -18,6 +19,7 @@ var (
 	contractIndexer indexer.ContractIndexer
 	contractRepo    repository.ContractRepository
 	elastic         elastic_search.Index
+	bunnyService    bunny.Service
 )
 
 func main() {
@@ -29,6 +31,7 @@ func main() {
 	contractIndexer = container.GetContractIndexer()
 	contractRepo = container.GetContractRepo()
 	elastic = container.GetElastic()
+	bunnyService = container.GetBunnyService()
 
 	messages := make(chan *sqs.Message, 10)
 
@@ -60,6 +63,7 @@ func refreshMetadata(msg *sqs.Message) {
 			contractIndexer.IndexContractMetadata(contract)
 			zap.L().With(zap.String("contract", data.Contract), zap.Uint64("tokenId", data.TokenId), zap.Error(err)).Info("Contract Metadata refresh success")
 			elastic.Persist()
+			_ = bunnyService.PurgeCache(data.Contract, 0)
 		}
 		return
 	}

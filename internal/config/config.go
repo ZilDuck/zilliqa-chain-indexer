@@ -65,8 +65,9 @@ type Config struct {
 		Region    string
 	}
 	Bunny struct {
-		CdnUrl string
-		AccessKey string
+		CdnUrl        string
+		CdnTestnetUrl string
+		AccessKey     string
 	}
 }
 
@@ -75,7 +76,7 @@ func Init(command string) {
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")
 	err := viper.ReadInConfig() // Find and read the config file
-	if err != nil { // Handle errors reading the config file
+	if err != nil {             // Handle errors reading the config file
 		panic(fmt.Errorf("Fatal error config file: %w \n", err))
 	}
 
@@ -87,7 +88,7 @@ func Init(command string) {
 	_ = os.Setenv("AWS_SECRET_KEY_ID", config.Aws.SecretKey)
 	_ = os.Setenv("AWS_REGION", config.Aws.Region)
 
-	log.NewLogger(config.Debug, fmt.Sprintf("%s/%s.log",config.LogPath, command))
+	log.NewLogger(config.Debug, fmt.Sprintf("%s/%s.log", config.LogPath, command))
 }
 
 func Get() Config {

@@ -290,7 +290,7 @@ var Definitions = []dingo.Def{
 				TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 			}
 
-			return bunny.NewService(config.Get().Bunny.CdnUrl, config.Get().Bunny.AccessKey, retryClient), nil
+			return bunny.NewService(config.Get().Bunny.CdnUrl, config.Get().Bunny.CdnTestnetUrl, config.Get().Bunny.AccessKey, retryClient), nil
 		},
 	},
 }
