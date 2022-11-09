@@ -194,6 +194,9 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 
 			for _, nft := range nfts {
 				nft.BaseUri = c.BaseUri
+				if nft.Metadata == nil {
+					nft.Metadata = &entity.Metadata{}
+				}
 				nft.Metadata.Uri = factory.GetMetadataUri(nft)
 				i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6SetBaseUri)
 			}

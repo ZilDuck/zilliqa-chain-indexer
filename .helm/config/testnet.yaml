@@ -1,5 +1,5 @@
 env:     testnet
-debug:   false
+debug:   true
 logPath: /app/logs
 
 network:   zilliqa
@@ -51,7 +51,7 @@ replicaCount:
   metadata: 2
 
 bunny:
-  cdnUrl: https://cdn.zildexr.com
+  cdnUrl: https://zildexr-testnet.b-cdn.net
   accessKey: 63477a7b-990f-4e26-90af-9cc25da0db4e28470f19-e964-4557-b55a-d4448c1afae1
 
 additionalZrc1: 0xc948942f55ef05a95a46bb58ee9b0a67b0f871fa,0x6e9f362640a27405934e0c404684622cfcfbc85b
