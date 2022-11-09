@@ -17,13 +17,14 @@ type Service interface {
 }
 
 type service struct {
-	cdnUrl    string
-	accessKey string
-	client    *retryablehttp.Client
+	cdnUrl     string
+	cdnTestUrl string
+	accessKey  string
+	client     *retryablehttp.Client
 }
 
-func NewService(cdnUrl, accessKey string, client *retryablehttp.Client) Service {
-	s := service{cdnUrl, accessKey, client}
+func NewService(cdnUrl, cdnTestUrl, accessKey string, client *retryablehttp.Client) Service {
+	s := service{cdnUrl, cdnTestUrl, accessKey, client}
 	event.AddEventListener(event.MetadataRefreshedEvent, s.PurgeCacheFromEvent)
 
 	return s
@@ -31,12 +32,14 @@ func NewService(cdnUrl, accessKey string, client *retryablehttp.Client) Service 
 
 func (s service) PurgeCacheFromEvent(el interface{}) {
 	if !config.Get().EventsSupported {
+		zap.L().Warn("PurgeCacheFromEvent: Events disabled")
 		return
 	}
+	zap.L().Info("PurgeCacheFromEvent")
 
 	nft := el.(entity.Nft)
 
-	s.PurgeCache(nft.Contract, nft.TokenId)
+	_ = s.PurgeCache(nft.Contract, nft.TokenId)
 }
 
 func (s service) PurgeCache(contractAddr string, tokenId uint64) error {
@@ -45,41 +48,46 @@ func (s service) PurgeCache(contractAddr string, tokenId uint64) error {
 		zap.Uint64("tokenId", tokenId),
 	).Info("Bunny cache purge request")
 
-	assetPath := url.QueryEscape(fmt.Sprintf("%s/%s/%d", s.cdnUrl, contractAddr, tokenId))
-	uri := fmt.Sprintf("https://api.bunny.net/purge?url=%s", assetPath)
-
-	req, err := retryablehttp.NewRequest("GET", uri, nil)
-	if err != nil {
-		zap.L().With(
-			zap.Error(err),
-			zap.String("uri", uri),
-			zap.String("contract", contractAddr),
-			zap.Uint64("tokenId", tokenId),
-		).Error("Failed to create purge request")
-		return err
+	args := []string{
+		"",
+		"?optimizer=image&width=800",
+		"?&optimizer=image&height=400&width=400&aspect_ratio=1:1",
+		"?optimizer=image&width=650",
+		"?&optimizer=image&width=650",
 	}
-	req.Header.Set("AccessKey", s.accessKey)
 
-	resp, err := s.client.Do(req)
-	if err != nil {
-		zap.L().With(
-			zap.Error(err),
-			zap.String("uri", uri),
-			zap.String("contract", contractAddr),
-			zap.Uint64("tokenId", tokenId),
-		).Error("Failed to handle purge request")
-		return err
-	}
-	defer resp.Body.Close()
+	urls := []string{s.cdnUrl, s.cdnTestUrl}
+	for _, host := range urls {
+		for _, arg := range args {
+			assetPath := fmt.Sprintf("%s/%s/%d%s", host, contractAddr, tokenId, arg)
+			zap.S().Debugf("Bunny purge: %s", assetPath)
 
-	if resp.StatusCode != 200 {
-		zap.L().With(
-			zap.Int("status", resp.StatusCode),
-			zap.String("uri", uri),
-			zap.String("contract", contractAddr),
-			zap.Uint64("tokenId", tokenId),
-		).Error("Failed to handle purge request")
-		return errors.New("bad status code")
+			uri := fmt.Sprintf("https://api.bunny.net/purge?url=%s", url.QueryEscape(assetPath))
+			req, _ := retryablehttp.NewRequest("GET", uri+arg, nil)
+			req.Header.Set("AccessKey", s.accessKey)
+
+			resp, err := s.client.Do(req)
+			if err != nil {
+				zap.L().With(
+					zap.Error(err),
+					zap.String("uri", uri+arg),
+					zap.String("contract", contractAddr),
+					zap.Uint64("tokenId", tokenId),
+				).Error("Failed to handle purge request")
+				return err
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode != 200 {
+				zap.L().With(
+					zap.Int("status", resp.StatusCode),
+					zap.String("uri", uri+arg),
+					zap.String("contract", contractAddr),
+					zap.Uint64("tokenId", tokenId),
+				).Error("Failed to handle purge request")
+				return errors.New("bad status code")
+			}
+		}
 	}
 
 	zap.L().With(
