@@ -59,7 +59,13 @@ func (s service) PurgeCache(contractAddr string, tokenId uint64) error {
 	urls := []string{s.cdnUrl, s.cdnTestUrl}
 	for _, host := range urls {
 		for _, arg := range args {
-			assetPath := fmt.Sprintf("%s/%s/%d%s", host, contractAddr, tokenId, arg)
+			var assetPath string
+			if tokenId == 0 {
+				assetPath = fmt.Sprintf("%s/%s%s", host, contractAddr, arg)
+			} else {
+				assetPath = fmt.Sprintf("%s/%s/%d%s", host, contractAddr, tokenId, arg)
+			}
+
 			zap.S().Debugf("Bunny purge: %s", assetPath)
 
 			uri := fmt.Sprintf("https://api.bunny.net/purge?url=%s", url.QueryEscape(assetPath))
