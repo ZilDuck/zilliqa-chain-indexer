@@ -2,7 +2,6 @@ package indexer
 
 import (
 	"encoding/json"
-	"github.com/ZilDuck/zilliqa-chain-indexer/internal/dev"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/elastic_search"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/entity"
 	"github.com/ZilDuck/zilliqa-chain-indexer/internal/factory"
@@ -195,7 +194,9 @@ func (i zrc6Indexer) setBaseUri(tx entity.Transaction, c entity.Contract) error 
 
 			for _, nft := range nfts {
 				nft.BaseUri = c.BaseUri
-				dev.Dump(nft)
+				if nft.Metadata == nil {
+					nft.Metadata = &entity.Metadata{}
+				}
 				nft.Metadata.Uri = factory.GetMetadataUri(nft)
 				i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), nft, elastic_search.Zrc6SetBaseUri)
 			}
