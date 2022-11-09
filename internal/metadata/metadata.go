@@ -306,7 +306,7 @@ func (s service) fetchHttp(uri string) (*http.Response, error) {
 	select {
 	case resp := <-ch:
 		return resp.resp, resp.err
-	case <-time.After(1 * time.Second):
+	case <-time.After(10 * time.Second):
 		zap.L().Debug("Timed out waiting for " + uri)
 		return nil, ErrTimeout
 	}
