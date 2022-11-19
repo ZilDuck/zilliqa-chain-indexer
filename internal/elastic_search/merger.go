@@ -69,6 +69,11 @@ func mergeRequests(index string, cached Request, action RequestAction, e entity.
 			result.Metadata.Properties = e.(entity.Nft).Metadata.Properties
 		}
 
+		if action == NftDelegate {
+			result.IsDelegated = e.(entity.Nft).IsDelegated
+			result.DelegatedOwner = e.(entity.Nft).DelegatedOwner
+		}
+
 		return result
 	}
 

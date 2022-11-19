@@ -241,10 +241,6 @@ func (i zrc1Indexer) updateTokenUris(tx entity.Transaction, c entity.Contract) e
 }
 
 func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) error {
-	if tx.IsMarketplaceTx() {
-		return nil
-	}
-
 	var eventName entity.Event
 	if tx.HasEventLog(entity.ZRC1TransferEvent) {
 		eventName = entity.ZRC1TransferEvent
@@ -285,19 +281,32 @@ func (i zrc1Indexer) transferFrom(tx entity.Transaction, c entity.Contract) erro
 			return err
 		}
 
-		oldOwner := nft.Owner
-		nft.Owner = newOwner.Value.Primitive.(string)
+		txType := tx.GetMarketplaceTxType()
+		if txType != "" {
+			if txType == "listing" {
+				nft.IsDelegated = true
+				nft.DelegatedOwner = newOwner.Value.String()
+			} else {
+				nft.IsDelegated = false
+				nft.DelegatedOwner = ""
+			}
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.NftDelegate)
+		} else {
 
-		zap.L().With(
-			zap.String("txID", tx.ID),
-			zap.String("contract", nft.Contract),
-			zap.Uint64("tokenId", nft.TokenId),
-			zap.String("from", oldOwner),
-			zap.String("to", nft.Owner),
-		).Info("Transfer ZRC1")
+			oldOwner := nft.Owner
+			nft.Owner = newOwner.Value.String()
 
-		i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
-		i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, nft.Owner, prevOwner.Value.String()), elastic_search.Zrc1Transfer)
+			zap.L().With(
+				zap.String("txID", tx.ID),
+				zap.String("contract", nft.Contract),
+				zap.Uint64("tokenId", nft.TokenId),
+				zap.String("from", oldOwner),
+				zap.String("to", nft.Owner),
+			).Info("Transfer ZRC1")
+
+			i.elastic.AddUpdateRequest(elastic_search.NftIndex.Get(), *nft, elastic_search.Zrc1Transfer)
+			i.elastic.AddIndexRequest(elastic_search.NftActionIndex.Get(), factory.CreateTransferAction(*nft, tx.BlockNum, tx.ID, nft.Owner, prevOwner.Value.String()), elastic_search.Zrc1Transfer)
+		}
 	}
 
 	return nil
