@@ -173,7 +173,11 @@ func (s service) FetchContractMetadata(contract entity.Contract) (entity.Contrac
 	}
 
 	metadata, _, err := s.hydrateMetadata(resp)
-	metadata["contract"] = contract.Address
+	if err == nil {
+		metadata["contract"] = contract.Address
+	} else {
+		zap.L().With(zap.Error(err), zap.String("contract", contract.Address)).Error("Failed to hydrate")
+	}
 
 	return metadata, err
 
@@ -317,11 +321,13 @@ func (s service) hydrateMetadata(resp *http.Response) (map[string]interface{}, s
 
 	buf := new(bytes.Buffer)
 	if _, err := buf.ReadFrom(resp.Body); err != nil {
+		zap.L().With(zap.Error(err)).Error("Failed to read buffer in hydrateMetadata")
 		return nil, "", err
 	}
 
 	var md map[string]interface{}
 	if err := json.Unmarshal(buf.Bytes(), &md); err != nil {
+		zap.L().With(zap.Error(err)).Error("Invalid content type")
 		return nil, http.DetectContentType(buf.Bytes()), ErrInvalidContent
 	}
 
