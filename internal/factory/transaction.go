@@ -172,7 +172,7 @@ func (f transactionFactory) createParamsFromString(paramString interface{}) (dat
 		var coreParamsObj map[string]interface{}
 		err := json.Unmarshal([]byte(paramString.(string)), &coreParamsObj)
 		if err != nil {
-			zap.L().With(zap.Error(err)).Fatal("Failed to unmarshal data")
+			zap.L().With(zap.Error(err), zap.String("params", paramString.(string))).Fatal("Failed to unmarshal data")
 		}
 		if val, ok := coreParamsObj["_tag"]; ok {
 			data.Tag = val.(string)
