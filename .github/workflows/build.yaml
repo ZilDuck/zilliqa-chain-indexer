@@ -9,8 +9,8 @@ on:
 
 env:
   AWS_REGION: us-east-1
-  ECR_REPOSITORY: indexer
-  CONTAINER_NAME: indexer
+  ECR_REPOSITORY: zildexr
+  CONTAINER_NAME: zilliqa-chain
 
 jobs:
   build:
