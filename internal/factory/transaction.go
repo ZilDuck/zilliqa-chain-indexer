@@ -29,15 +29,16 @@ func NewTransactionFactory(zilliqaService zilliqa.Service) TransactionFactory {
 func (f transactionFactory) CreateTransaction(coreTx zilliqa.Transaction, blockNum string) entity.Transaction {
 	zap.L().With(zap.String("id", coreTx.ID)).Debug("Create Transaction")
 
+	data := f.createParamsFromString(coreTx.Data)
 	tx := entity.Transaction{
 		Transaction:         coreTx,
 		Code:                coreTx.Code,
-		Data:                f.createParamsFromString(coreTx.Data),
+		Data:                *data,
 		ContractAddress:     coreTx.ContractAddress,
 		Receipt:             f.createReceipt(coreTx.Receipt),
 		BlockNum:            f.stringToUint64(blockNum),
 		IsContractCreation:  coreTx.Code != "",
-		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0 || coreTx.Data != nil,
+		IsContractExecution: len(coreTx.Receipt.Transitions) > 0 || len(coreTx.Receipt.EventLogs) > 0 || data != nil,
 	}
 
 	if tx.IsContractExecution && coreTx.ToAddr != "" {
@@ -161,7 +162,7 @@ func (f transactionFactory) createParamsFromInterface(coreParams interface{}) en
 	return params
 }
 
-func (f transactionFactory) createParamsFromString(paramString interface{}) (data entity.Data) {
+func (f transactionFactory) createParamsFromString(paramString interface{}) (data *entity.Data) {
 	if paramString == nil {
 		return
 	}
@@ -172,7 +173,8 @@ func (f transactionFactory) createParamsFromString(paramString interface{}) (dat
 		var coreParamsObj map[string]interface{}
 		err := json.Unmarshal([]byte(paramString.(string)), &coreParamsObj)
 		if err != nil {
-			zap.L().With(zap.Error(err), zap.String("params", paramString.(string))).Fatal("Failed to unmarshal data")
+			zap.L().With(zap.Error(err), zap.String("params", paramString.(string))).Error("Failed to unmarshal data")
+			return nil
 		}
 		if val, ok := coreParamsObj["_tag"]; ok {
 			data.Tag = val.(string)
