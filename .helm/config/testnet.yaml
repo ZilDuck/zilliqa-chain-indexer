@@ -1,5 +1,5 @@
 env:     testnet
-debug:   false
+debug:   true
 logPath: /app/logs
 
 network:   zilliqa
