@@ -35,7 +35,7 @@ elasticSearch:
 aws:
   access_key: AKIAWY3PIDKSWL5ICD7E
   secrey_key: 0rY5xn+CG9Rj8pBltvUPNIR/52DfkezacAFFyjVm
-  region:     eu-west-1
+  region:     us-east-1
 
 subscribe: true
 

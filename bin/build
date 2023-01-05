@@ -10,5 +10,5 @@ fi
 
 echo "Using tag $tag"
 
-docker build . -t 465700395685.dkr.ecr.eu-west-1.amazonaws.com/indexer/indexer:$tag
-docker push 465700395685.dkr.ecr.eu-west-1.amazonaws.com/indexer/indexer:$tag
+docker build . -t 981130112916.dkr.ecr.us-east-1.amazonaws.com/zildexr/zilliqa-chain:$tag
+docker push 981130112916.dkr.ecr.us-east-1.amazonaws.com/zildexr/zilliqa-chain:$tag
